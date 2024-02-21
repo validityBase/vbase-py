@@ -1,0 +1,10 @@
+beeprint
+javascript
+hexbytes
+numpy
+pandas
+pymongo
+python-dotenv
+requests
+setuptools
+web3>=6.0.0

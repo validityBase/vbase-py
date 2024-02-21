@@ -1,0 +1,47 @@
+# Build folder
+*.egg-info/
+
+# Package build
+build/
+dist/
+
+# Unit test, coverage reports
+.coverage
+.tox
+nosetests.xml
+
+# pytest cache
+.pytest_cache
+__pycache__
+
+# IntelliJ, IDEA, PyCharm
+/out/
+.idea/
+.idea_modules/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# DS Store files
+*.DS_Store
+
+# Config
+.env*
+
+# Zokrates
+*/zok/abi.json
+*/zok/out
+*/zok/out.r1cs
+*/zok/out.wtns
+*/zok/proof.json
+*/zok/proving.key
+*/zok/verification.key
+*/zok/witness
+*/zok/output/
+
+# Sphinx
+docs/_*
+docs/generated/
