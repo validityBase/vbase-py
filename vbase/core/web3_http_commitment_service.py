@@ -131,8 +131,10 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 os.getenv("INJECT_GETH_POA_MIDDLEWARE", default="False")
             ),
         }
-        _LOG.info("Web3HTTPCommitmentService.get_init_args_from_env(): init_args =")
-        _LOG.info(pprint.pformat(init_args))
+        _LOG.debug(
+            "Web3HTTPCommitmentService.get_init_args_from_env(): init_args =\n%s",
+            pprint.pformat(init_args),
+        )
         return init_args
 
     @staticmethod

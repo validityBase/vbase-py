@@ -106,7 +106,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             "api_key": os.getenv("FORWARDER_API_KEY"),
             "private_key": os.getenv("PRIVATE_KEY"),
         }
-        _LOG.info(
+        _LOG.debug(
             "ForwarderCommitmentService.get_init_args_from_env(): init_args =\n%s",
             pprint.pformat(init_args),
         )
