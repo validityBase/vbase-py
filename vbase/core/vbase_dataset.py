@@ -239,7 +239,7 @@ class VBaseDataset(ABC):
         # Add uint256s with overflow and wrap-around.
         # This replicates the following sol code:
         # unchecked {
-        #    userSetObjectHashSums[userSetHash] += uint256(objectCid);
+        #    userSetObjectCidSums[userSetCid] += uint256(objectCid);
         # }
         self.object_cid_sum = add_int_uint256(self.object_cid_sum, object_cid)
         self.records.append(record)

@@ -58,7 +58,8 @@ class TestVBaseDatasetAsync(unittest.TestCase):
         task = asyncio.create_task(dsw.add_record_async(record_data))
         elapsed_time = time.time() - start_time
         _LOG.info(
-            "dsw.add_record_async(record_data) create_task took %s seconds.", elapsed_time
+            "dsw.add_record_async(record_data) create_task took %s seconds.",
+            elapsed_time,
         )
         self.assertTrue(elapsed_time < _NON_BLOCKING_INTERVAL)
 
@@ -91,7 +92,9 @@ class TestVBaseDatasetAsync(unittest.TestCase):
             )
         )
         elapsed_time = time.time() - start_time
-        _LOG.info("VBaseDatasetAsync.create() create_task took %s seconds.", elapsed_time)
+        _LOG.info(
+            "VBaseDatasetAsync.create() create_task took %s seconds.", elapsed_time
+        )
         self.assertTrue(elapsed_time < _NON_BLOCKING_INTERVAL)
 
         # Test the await for dataset creation.

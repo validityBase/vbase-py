@@ -348,7 +348,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     def verify_user_sets(self, user: str, user_set_cid_sum: str) -> bool:
         user = self.w3.to_checksum_address(user)
-        # verifyUserSets setHashSum argument is uint256.
+        # verifyUserSets setCidSum argument is uint256.
         user_set_cid_sum = int(user_set_cid_sum, base=16)
         function_data = self.csc.encodeABI(
             fn_name="verifyUserSets", args=[user, user_set_cid_sum]

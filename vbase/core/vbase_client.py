@@ -187,7 +187,7 @@ class VBaseClient:
             # Add uint256s with overflow and wrap-around.
             # This replicates the following sol code:
             # unchecked {
-            #    userSetHashSums[user] += uint256(setCid);
+            #    userSetCidSums[user] += uint256(setCid);
             # }
             user_sets_cid_sum = add_uint256_uint256(user_sets_cid_sum, set_cid)
         if not self.verify_user_sets(user, user_sets_cid_sum):

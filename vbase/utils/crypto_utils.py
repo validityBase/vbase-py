@@ -88,7 +88,7 @@ def add_int_uint256(n1: int, n2_hex_str: str) -> int:
     Add int and uint256 with overflow and wrap-around.
     This replicates the following sol code:
     unchecked {
-        userSetObjectHashSums[userSetHash] += uint256(objectCid);
+        userSetObjectCidSums[userSetCid] += uint256(objectCid);
     }
 
     :param n1: The first integer.
@@ -103,7 +103,7 @@ def add_uint256_uint256(n1_hex_str: str, n2_hex_str: str) -> str:
     Add int and uint256 with overflow and wrap-around.
     This replicates the following sol code:
     unchecked {
-        userSetObjectHashSums[userSetHash] += uint256(objectCid);
+        userSetObjectCidSums[userSetCid] += uint256(objectCid);
     }
 
     :param n1_hex_str: The first integer, passed as a hex string.
