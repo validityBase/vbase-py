@@ -59,13 +59,18 @@ class VBaseClient:
         self._sim_t: Union[pd.Timestamp, None] = None
 
     @staticmethod
-    def create_instance_from_env(dotenv_path: Union[str, None] = None) -> "VBaseClient":
+    def create_instance_from_env(dotenv_path: Union[str, None] = ".env") -> "VBaseClient":
         """
         Creates an instance initialized from environment variables.
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
         :param dotenv_path: Path to the .env file.
+            Below is the default treatment that should be appropriate in most scenarios:
+            - If dotenv_path is specified, attempt to load environment variable from the file.
+            Ignore failures and default to the environment variables.
+            - If called with no arguments, use default ".env" path.
+            - If None dotenv_path is specified, default to the environment variables.
         :return: The constructed vBase client object.
         """
 

@@ -33,7 +33,7 @@ class CommitmentService(ABC):
     @staticmethod
     @abstractmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = ".env"
     ) -> "CommitmentService":
         """
         Creates an instance initialized from environment variables.
@@ -41,7 +41,11 @@ class CommitmentService(ABC):
         stored in a .env file or in environment variables.
 
         :param dotenv_path: Path to the .env file.
-            If path is not specified, does not load the .env file.
+            Below is the default treatment that should be appropriate in most scenarios:
+            - If dotenv_path is specified, attempt to load environment variable from the file.
+            Ignore failures and default to the environment variables.
+            - If called with no arguments, use default ".env" path.
+            - If None dotenv_path is specified, default to the environment variables.
         :return: The dictionary of arguments.
         """
 

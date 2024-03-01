@@ -114,7 +114,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = ".env"
     ) -> "ForwarderCommitmentService":
         return ForwarderCommitmentService(
             **ForwarderCommitmentService.get_init_args_from_env(dotenv_path)
