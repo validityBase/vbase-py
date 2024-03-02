@@ -18,10 +18,10 @@ from web3.middleware import (
     geth_poa_middleware,
 )
 
-from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.log import get_default_logger
+from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
-
+from vbase.utils.error_utils import check_for_missing_env_vars
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -131,6 +131,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 os.getenv("INJECT_GETH_POA_MIDDLEWARE", default="False")
             ),
         }
+        # Check for missing environment variables since these are unrecoverable.
+        check_for_missing_env_vars(init_args)
         _LOG.debug(
             "Web3HTTPCommitmentService.get_init_args_from_env(): init_args =\n%s",
             pprint.pformat(init_args),

@@ -34,7 +34,9 @@ class VBaseClientTest(VBaseClient):
         self.commitment_service = commitment_service
 
     @staticmethod
-    def create_instance_from_env(dotenv_path: Union[str, None] = ".env") -> "VBaseClient":
+    def create_instance_from_env(
+        dotenv_path: Union[str, None] = ".env"
+    ) -> "VBaseClient":
         if dotenv_path is not None:
             load_dotenv(dotenv_path, verbose=True, override=True)
 

@@ -59,7 +59,9 @@ class VBaseClient:
         self._sim_t: Union[pd.Timestamp, None] = None
 
     @staticmethod
-    def create_instance_from_env(dotenv_path: Union[str, None] = ".env") -> "VBaseClient":
+    def create_instance_from_env(
+        dotenv_path: Union[str, None] = ".env"
+    ) -> "VBaseClient":
         """
         Creates an instance initialized from environment variables.
         Syntactic sugar for initializing new commitment objects using settings
