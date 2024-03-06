@@ -28,10 +28,14 @@ class TestIndexingService(unittest.TestCase):
         """
         Set up the tests.
         """
-        self.vbc = init_vbase_client_test_from_mongo()
-        self.indexing_service = Web3HTTPIndexingService(
-            [cast(Web3HTTPCommitmentService, self.vbc.commitment_service)]
-        )
+        # Subclasses may initialize vbase client objects themselves,
+        # for instance when testing on a public testnet.
+        if not hasattr(self, "vbc"):
+            self.vbc = init_vbase_client_test_from_mongo()
+            self.indexing_service = Web3HTTPIndexingService(
+                [cast(Web3HTTPCommitmentService, self.vbc.commitment_service)]
+            )
+        self.assertTrue(self.indexing_service is not None)
         self.vbc.clear_sets()
         self.vbc.clear_set_objects(TEST_HASH1)
         cl = self.vbc.add_set(TEST_HASH1)

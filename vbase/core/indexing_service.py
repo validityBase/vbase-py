@@ -18,8 +18,11 @@ from vbase.utils.crypto_utils import (
     hex_str_to_bytes,
 )
 from vbase.utils.log import get_default_logger
+from vbase.core.commitment_service import CommitmentService
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
+from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 
 
 _LOG = get_default_logger(__name__)
@@ -36,6 +39,18 @@ class IndexingService(ABC):
     """
 
     @staticmethod
+    def create_instance_from_json_descriptor(is_json: str) -> "IndexingService":
+        """
+        Creates an instance initialized from a JSON descriptor.
+        This method is especially useful for constructing complex
+        indexers using multiple commitment service defined using complex JSON.
+
+        :param is_json: The JSON string with the initialization data.
+        :return: The IndexingService created.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
     def create_instance_from_env_json_descriptor(
         dotenv_path: Union[str, None] = None
     ) -> "IndexingService":
@@ -48,9 +63,48 @@ class IndexingService(ABC):
 
         :param dotenv_path: Path to the .env file.
             If path is not specified, does not load the .env file.
-        :return: The dictionary of arguments.
+        :return: The IndexingService created.
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def create_instance_from_commitment_service(
+        commitment_service: CommitmentService,
+    ) -> "IndexingService":
+        """
+        Creates an instance initialized from a commitment service.
+        Handles the complexities of initializing an IndexingService
+        using a forwarded commitment service.
+        We need to query this service for the information needed to connect to a commitment
+        service directly, and this method abstracts this initialization.
+
+        :param commitment_service: The commitment service used.
+        :return: The IndexingService created.
+        """
+        if isinstance(
+            commitment_service,
+            (Web3HTTPCommitmentService, Web3HTTPCommitmentServiceTest),
+        ):
+            # This is the trivial case where we pass through the commitment_service.
+            return Web3HTTPIndexingService([commitment_service])
+
+        assert isinstance(
+            commitment_service,
+            (ForwarderCommitmentService, ForwarderCommitmentServiceTest),
+        )
+        # Query the forwarder commitment service for the JSON descriptor
+        # required to init the Web3HTTPCommitmentService.
+        # This allows us to create a local web3 commitment and indexing services
+        # using data provided by the forwarder, eliminating additional settings
+        # and ensuring consistency with the forwarder.
+        commitment_service_data = commitment_service.get_commitment_service_data()
+        if "endpoint_url" not in commitment_service_data:
+            raise ValueError("Forwarder did not return endpoint_url.")
+        if "commitment_service_address" not in commitment_service_data:
+            raise ValueError("Forwarder did not return commitment_service_address.")
+        return Web3HTTPIndexingService(
+            [Web3HTTPCommitmentService(**commitment_service_data)]
+        )
 
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         """
@@ -85,24 +139,9 @@ class Web3HTTPIndexingService(IndexingService):
         self.commitment_services = commitment_services
 
     @staticmethod
-    def create_instance_from_env_json_descriptor(
-        dotenv_path: Union[str, None] = None
-    ) -> "Web3HTTPIndexingService":
-        # Load .env file if it exists.
-        if dotenv_path:
-            load_dotenv(dotenv_path, verbose=True, override=True)
-
-        # We expect to find the environment variable defining the indexing service.
-        is_env_var = os.getenv("INDEXING_SERVICE_JSON_DESCRIPTOR")
-        assert is_env_var is not None
-        _LOG.info(
-            "IndexingService.create_instance_from_env_json_descriptor(): "
-            "INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
-            pprint.pformat(is_env_var),
-        )
-
+    def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
         # Process the environment variable and create the defined commitment services.
-        is_dict = json.loads(is_env_var)
+        is_dict = json.loads(is_json)
         cs_list = []
         for cs_dict in is_dict["commitment_services"]:
             _LOG.info(
@@ -121,6 +160,28 @@ class Web3HTTPIndexingService(IndexingService):
         # Initialize and return an indexing service with the above commitment services.
         indexing_service = Web3HTTPIndexingService(cs_list)
         return indexing_service
+
+    @staticmethod
+    def create_instance_from_env_json_descriptor(
+        dotenv_path: Union[str, None] = None
+    ) -> "Web3HTTPIndexingService":
+        # Load .env file if it exists.
+        if dotenv_path:
+            load_dotenv(dotenv_path, verbose=True, override=True)
+
+        # We expect to find the environment variable defining the indexing service.
+        is_json = os.getenv("INDEXING_SERVICE_JSON_DESCRIPTOR")
+        if is_json is None:
+            raise EnvironmentError(
+                "Missing required environment variable INDEXING_SERVICE_JSON_DESCRIPTOR"
+            )
+        _LOG.info(
+            "IndexingService.create_instance_from_env_json_descriptor(): "
+            "INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
+            pprint.pformat(is_json),
+        )
+
+        return Web3HTTPIndexingService.create_instance_from_json_descriptor(is_json)
 
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         # Find events across all commitment services.

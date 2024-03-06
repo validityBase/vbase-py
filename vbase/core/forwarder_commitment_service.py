@@ -317,6 +317,17 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
         return receipt
 
+    def get_commitment_service_data(self) -> dict:
+        """
+        Get commitment service data from the API server.
+        This returns the endpoint_url and the commitment_service_address
+        for the web3 commitment service abstracted by the forwarder.
+
+        :return: The commitment service data for the API server.
+        """
+        ret = self._call_forwarder_api("commitment-service-data")
+        return ret
+
     def add_set(self, set_cid: str) -> dict:
         # Execute the call via the forwarder.
         _LOG.debug("Sending transaction to addSet")
