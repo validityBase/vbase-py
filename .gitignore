@@ -1,3 +1,10 @@
+# Py ignored files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
 # Build folder
 *.egg-info/
 
@@ -12,7 +19,6 @@ nosetests.xml
 
 # pytest cache
 .pytest_cache
-__pycache__
 
 # IntelliJ, IDEA, PyCharm
 /out/
