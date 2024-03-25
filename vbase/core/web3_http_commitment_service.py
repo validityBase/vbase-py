@@ -7,7 +7,6 @@ This implementation uses Web3.HTTPProvider.
 import json
 import logging
 import os
-import pathlib
 import pprint
 from typing import List, Optional, Union
 from dotenv import load_dotenv
@@ -50,7 +49,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,
-        endpoint_url: str,
+        node_rpc_url: str,
         commitment_service_address: str,
         private_key: Optional[str] = None,
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
@@ -59,7 +58,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         """
         Initialize the service object.
 
-        :param endpoint_url: Node RPC endpoint URL.
+        :param node_rpc_url: Node RPC URL.
         :param commitment_service_address: The commitment smart contract address.
         :param private_key: User's private key.
             Can be omitted when using a test node that supports eth_sendTransaction.
@@ -72,11 +71,11 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             This option is required for Polygon PoS, BNB, and other chains:
             https://web3py.readthedocs.io/en/stable/middleware.html#proof-of-authority
         """
-        self.endpoint_url = endpoint_url
+        self.node_rpc_url = node_rpc_url
         self.commitment_service_address = commitment_service_address
 
         # Connect to the node.
-        w3 = Web3(Web3.HTTPProvider(self.endpoint_url))
+        w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
         assert w3.is_connected()
 
         if inject_geth_poa_middleware:
@@ -103,13 +102,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.
         # noinspection PyTypeChecker
-        with open(
-            os.path.join(
-                pathlib.Path(__file__).parent.resolve(),
-                "abi",
-                commitment_service_json_file_name,
-            ),
-            encoding="utf-8",
+        with self.get_commitment_service_json_file(
+            commitment_service_json_file_name
         ) as f:
             commitment_service_contract = w3.eth.contract(
                 address=w3.to_checksum_address(self.commitment_service_address),
@@ -124,11 +118,14 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         if dotenv_path:
             load_dotenv(dotenv_path, verbose=True, override=True)
         init_args = {
-            "endpoint_url": os.getenv("ENDPOINT_URL"),
-            "commitment_service_address": os.getenv("COMMITMENT_SERVICE_ADDRESS"),
-            "private_key": os.getenv("PRIVATE_KEY"),
+            "node_rpc_url": os.getenv("VBASE_COMMITMENT_SERVICE_NODE_RPC_URL"),
+            "commitment_service_address": os.getenv("VBASE_COMMITMENT_SERVICE_ADDRESS"),
+            "private_key": os.getenv("VBASE_COMMITMENT_SERVICE_PRIVATE_KEY"),
             "inject_geth_poa_middleware": Web3HTTPCommitmentService._get_bool_env_var(
-                os.getenv("INJECT_GETH_POA_MIDDLEWARE", default="False")
+                os.getenv(
+                    "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE",
+                    default="False",
+                )
             ),
         }
         # Check for missing environment variables since these are unrecoverable.

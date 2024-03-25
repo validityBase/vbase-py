@@ -24,14 +24,14 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,
-        endpoint_url: str = None,
+        node_rpc_url: str = None,
         commitment_service_address: str = None,
         private_key: Optional[str] = None,
         commitment_service_json_file_name: Optional[str] = "CommitmentServiceTest.json",
         inject_geth_poa_middleware: bool = False,
     ):
         super().__init__(
-            endpoint_url,
+            node_rpc_url,
             commitment_service_address,
             private_key,
             commitment_service_json_file_name,

@@ -25,13 +25,13 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,
-        endpoint_url: str,
+        forwarder_url: str,
         api_key: str,
         private_key: Optional[str] = None,
         commitment_service_json_file_name: Optional[str] = "CommitmentServiceTest.json",
     ):
         super().__init__(
-            endpoint_url,
+            forwarder_url,
             api_key,
             private_key,
             commitment_service_json_file_name,

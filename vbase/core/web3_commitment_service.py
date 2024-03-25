@@ -8,7 +8,10 @@ or via a forwarder service.
 
 import logging
 from abc import ABC
-from typing import List, Type, Union
+from io import TextIOWrapper
+import os
+import pathlib
+from typing import List, Optional, Type, Union
 from beeprint import pp
 import pandas as pd
 from web3 import Web3
@@ -35,6 +38,26 @@ class Web3CommitmentService(CommitmentService, ABC):
     ):
         self.w3 = w3
         self.csc = commitment_service_contract
+
+    @staticmethod
+    def get_commitment_service_json_file(
+        commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
+    ) -> TextIOWrapper:
+        """
+        Return the file object for the JSON commitment service ABI.
+
+        :param commitment_service_json_file_name: File name for the JSON file
+            containing the CommitmentService smart contract's ABI.
+        :return: File object for the JSON file.
+        """
+        return open(
+            os.path.join(
+                pathlib.Path(__file__).parent.resolve(),
+                "abi",
+                commitment_service_json_file_name,
+            ),
+            encoding="utf-8",
+        )
 
     def get_default_user(self) -> str:
         if self.w3.eth.default_account:

@@ -12,9 +12,10 @@ class TestVBaseDatasetForwarder(TestVBaseDataset):
     Test base vBase dataset functionality using a forwarder and a private key.
     All test cases are inherited from TestVBaseDataset.
     Tests require .env to define the environment variables for connecting to the forwarder:
-        ENDPOINT_URL,
-        API_KEY
-        PRIVATE_KEY
+        VBASE_COMMITMENT_SERVICE_CLASS
+        VBASE_FORWARDER_URL
+        VBASE_API_KEY
+        VBASE_COMMITMENT_SERVICE_PRIVATE_KEY
     """
 
     def setUp(self):

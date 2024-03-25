@@ -98,8 +98,8 @@ class IndexingService(ABC):
         # using data provided by the forwarder, eliminating additional settings
         # and ensuring consistency with the forwarder.
         commitment_service_data = commitment_service.get_commitment_service_data()
-        if "endpoint_url" not in commitment_service_data:
-            raise ValueError("Forwarder did not return endpoint_url.")
+        if "node_rpc_url" not in commitment_service_data:
+            raise ValueError("Forwarder did not return node_rpc_url.")
         if "commitment_service_address" not in commitment_service_data:
             raise ValueError("Forwarder did not return commitment_service_address.")
         return Web3HTTPIndexingService(

@@ -84,7 +84,7 @@ class VBaseClient:
         # We parameterize the class to construct using commitment_service_class.
         # The class should be imported above, and then we can call methods on this
         # class using string variable as the class name.
-        commitment_service_class_name = os.environ.get("COMMITMENT_SERVICE_CLASS")
+        commitment_service_class_name = os.environ.get("VBASE_COMMITMENT_SERVICE_CLASS")
         if commitment_service_class_name is None:
             # Use forwarder by default.
             # This minimizes friction in the default use case for end-users.

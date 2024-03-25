@@ -7,7 +7,6 @@ This implementation uses a forwarder to execute meta-transactions on a user's be
 import json
 import logging
 import os
-import pathlib
 from enum import Enum
 from typing import List, Optional, Union
 import pprint
@@ -51,7 +50,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,
-        endpoint_url: str,
+        forwarder_url: str,
         api_key: str,
         private_key: Optional[str] = None,
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
@@ -59,13 +58,13 @@ class ForwarderCommitmentService(Web3CommitmentService):
         """
         Initialize the service object.
 
-        :param endpoint_url: The forwarder endpoint URL.
-        :param api_key: The API_KEY used to authenticate to the forwarder.
+        :param forwarder_url: The forwarder URL.
+        :param api_key: The API key used to authenticate to the forwarder.
         :param private_key: User's private key.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
         """
-        self.endpoint_url = endpoint_url
+        self.forwarder_url = forwarder_url
         self.api_key = api_key
         self.private_key = private_key
 
@@ -85,13 +84,8 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.
         # noinspection PyTypeChecker
-        with open(
-            os.path.join(
-                pathlib.Path(__file__).parent.resolve(),
-                "abi",
-                commitment_service_json_file_name,
-            ),
-            encoding="utf-8",
+        with self.get_commitment_service_json_file(
+            commitment_service_json_file_name
         ) as f:
             commitment_service_contract = w3.eth.contract(abi=json.load(f)["abi"])
 
@@ -103,9 +97,9 @@ class ForwarderCommitmentService(Web3CommitmentService):
         if dotenv_path:
             load_dotenv(dotenv_path, verbose=True, override=True)
         init_args = {
-            "endpoint_url": os.getenv("FORWARDER_ENDPOINT_URL"),
-            "api_key": os.getenv("FORWARDER_API_KEY"),
-            "private_key": os.getenv("PRIVATE_KEY"),
+            "forwarder_url": os.getenv("VBASE_FORWARDER_URL"),
+            "api_key": os.getenv("VBASE_API_KEY"),
+            "private_key": os.getenv("VBASE_COMMITMENT_SERVICE_PRIVATE_KEY"),
         }
         # Check for missing environment variables since these are unrecoverable.
         check_for_missing_env_vars(init_args)
@@ -149,7 +143,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 assert request_type == RequestType.POST
                 request_function = requests.post
             response = request_function(
-                url=self.endpoint_url + api,
+                url=self.forwarder_url + api,
                 params={**{"from": self.get_default_user()}, **params},
                 headers={"X-API-KEY": self.api_key},
                 json=data,
@@ -320,7 +314,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
     def get_commitment_service_data(self) -> dict:
         """
         Get commitment service data from the API server.
-        This returns the endpoint_url and the commitment_service_address
+        This returns the node_rpc_url and the commitment_service_address
         for the web3 commitment service abstracted by the forwarder.
 
         :return: The commitment service data for the API server.

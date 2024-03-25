@@ -50,14 +50,14 @@ class TestIndexingServiceDual(unittest.TestCase):
                     {
                         "class": "Web3HTTPCommitmentService",
                         "init_args": {
-                            "endpoint_url": _LOCALHOST_RPC_ENDPOINT,
+                            "node_rpc_url": _LOCALHOST_RPC_ENDPOINT,
                             "commitment_service_address": comm_addr1,
                         },
                     },
                     {
                         "class": "Web3HTTPCommitmentServiceTest",
                         "init_args": {
-                            "endpoint_url": _LOCALHOST_RPC_ENDPOINT,
+                            "node_rpc_url": _LOCALHOST_RPC_ENDPOINT,
                             "commitment_service_address": comm_addr2,
                         },
                     },
