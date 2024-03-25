@@ -170,14 +170,14 @@ class Web3HTTPIndexingService(IndexingService):
             load_dotenv(dotenv_path, verbose=True, override=True)
 
         # We expect to find the environment variable defining the indexing service.
-        is_json = os.getenv("INDEXING_SERVICE_JSON_DESCRIPTOR")
+        is_json = os.getenv("VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR")
         if is_json is None:
             raise EnvironmentError(
-                "Missing required environment variable INDEXING_SERVICE_JSON_DESCRIPTOR"
+                "Missing required environment variable VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR"
             )
         _LOG.info(
             "IndexingService.create_instance_from_env_json_descriptor(): "
-            "INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
+            "VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
             pprint.pformat(is_json),
         )
 

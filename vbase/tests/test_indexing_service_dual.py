@@ -64,7 +64,7 @@ class TestIndexingServiceDual(unittest.TestCase):
                 ]
             }
         )
-        os.environ["INDEXING_SERVICE_JSON_DESCRIPTOR"] = indexing_service_json_str
+        os.environ["VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR"] = indexing_service_json_str
         self.indexing_service = (
             Web3HTTPIndexingService.create_instance_from_env_json_descriptor()
         )
