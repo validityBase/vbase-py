@@ -1,16 +1,6 @@
-# vbase-py
+# Welcome to vBase
 
-vBase Python Software Development Kit (SDK)
-
-- Python 3.8+ support
-
----
-
-## License
-
-This project is licensed under the Apache 2.0 License - see the [LICENSE.txt](LICENSE.txt) file for details.
-
-## Introduction
+### Your data, made credible
 
 vBase creates a global auditable record of when data was created, by whom, and how it has changed (collectively, “data provenance”). Data producers can prove the provenance of their data to any external party, increasing its value and marketability. Data consumers can ensure the integrity of historical data and any derivative calculations. The result is trustworthy information that can be put into production quickly without expensive and time-consuming trials.
 
