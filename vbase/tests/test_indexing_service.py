@@ -66,7 +66,7 @@ class TestIndexingService(unittest.TestCase):
         """
         Test a series of simple set object commitments.
         """
-        # Use a random set hash to avoid collisions with other tests.
+        # Use a random set CID to avoid collisions with other tests.
         set_cid = "0x" + secrets.token_bytes(32).hex()
         for i in range(1, 6):
             cl = self.vbc.add_set_object_with_timestamp(

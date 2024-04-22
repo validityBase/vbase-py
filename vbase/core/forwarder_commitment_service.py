@@ -30,7 +30,13 @@ _LOG.setLevel(logging.INFO)
 # Default timeout for HTTP requests.
 # The timeout needs to be long enough to handle tx
 # submission and execution.
-_REQUEST_TIMEOUT = 30.0
+# The following timeout is long enough to handle a few resubmissions
+# of a transaction in case of contention and high hash price
+# on Eth with ~10-15 second block times.
+# Long-term we may want to make this configurable by the forwarder.
+# The forwarder knows what commitment service it is ultimately calling
+# and what the expected transaction submission and execution times are.
+_REQUEST_TIMEOUT = 60.0
 
 
 class RequestType(Enum):

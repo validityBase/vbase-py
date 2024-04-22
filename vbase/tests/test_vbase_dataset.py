@@ -3,6 +3,7 @@ Tests of the vbase_dataset module
 Tests rely on MongoDB for name resolution and data availability.
 """
 
+from datetime import datetime, timedelta
 import logging
 import time
 import unittest
@@ -261,3 +262,61 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw, False)
         total_time = time.perf_counter() - start_time
         _LOG.info("ds_from_json_checks() took %.6f seconds", total_time)
+
+    def test_try_restore_timestamps_from_index_success(self):
+        """
+        Test try_restore_timestamps_from_index success case.
+        """
+        dsw = create_dataset_worker(self.vbc, VBaseIntObject)
+        # Record 4 commitments over 4 blocks.
+        t_prev = 0
+        for i in range(1, 5):
+            cl, t_prev = self._add_record_worker(self.vbc, dsw, i, t_prev)
+            assert cl is not None
+        assert self.vbc.verify_user_set_objects(
+            dsw.owner, dsw.cid, str(hex(dsw.object_cid_sum))
+        )
+        dataset_from_json_checks(self.vbc, dsw)
+        # Mess up the timestamps.
+        dsw.timestamps = [
+            str(datetime.fromisoformat(t) + timedelta(seconds=1))
+            for t in dsw.timestamps
+        ]
+        success, l_log = dsw.verify_commitments()
+        assert not success
+        assert len(l_log) == 4
+        assert l_log[0].startswith("Invalid record: Failed object verification")
+        # Fix the timestamps.
+        success, l_log = dsw.try_restore_timestamps_from_index()
+        assert success
+        success, l_log = dsw.verify_commitments()
+        assert success
+
+    def test_try_restore_timestamps_from_index_bad_record(self):
+        """
+        Test try_restore_timestamps_from_index success case.
+        """
+        dsw = create_dataset_worker(self.vbc, VBaseIntObject)
+        # Record 4 commitments over 4 blocks.
+        t_prev = 0
+        for i in range(1, 5):
+            cl, t_prev = self._add_record_worker(self.vbc, dsw, i, t_prev)
+            assert cl is not None
+        assert self.vbc.verify_user_set_objects(
+            dsw.owner, dsw.cid, str(hex(dsw.object_cid_sum))
+        )
+        dataset_from_json_checks(self.vbc, dsw)
+        # Mess up the timestamps by adding a bogus record.
+        dsw.records.append(VBaseIntObject(42))
+        dsw.timestamps.append(datetime.now())
+        success, l_log = dsw.verify_commitments()
+        assert not success
+        assert len(l_log) == 2
+        assert l_log[0].startswith("Invalid record: Failed object verification")
+        assert l_log[1].startswith("Invalid records: Failed object set verification")
+        # Try to fix the timestamps.
+        success, l_log = dsw.try_restore_timestamps_from_index()
+        assert not success
+        assert l_log[0].startswith(
+            "Invalid record: Failed to find timestamp for object"
+        )

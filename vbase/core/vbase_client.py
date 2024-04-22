@@ -114,7 +114,7 @@ class VBaseClient:
     def add_set(self, set_cid: str) -> dict:
         """
         Records a set commitment.
-        This is a low-level function that operates on set hashes.
+        This is a low-level function that operates on set CIDs.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
 
@@ -173,7 +173,7 @@ class VBaseClient:
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
-        :param user_sets_cid_sum: The sum of all set hashes for the user.
+        :param user_sets_cid_sum: The sum of all set CIDs for the user.
         :return: True if the commitment has been verified successfully;
             False otherwise.
         """

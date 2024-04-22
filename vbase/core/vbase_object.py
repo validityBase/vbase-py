@@ -112,6 +112,14 @@ class VBaseIntObject(VBaseObject):
     An integer object
     """
 
+    def __init__(
+        self,
+        init_data: Optional[int] = None,
+        init_dict: Optional[Dict[str, int]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
+
     def _init_from_dict(self, init_dict: Dict[str, int]):
         self.data: int = int(init_dict["data"])
 
@@ -128,6 +136,14 @@ class VBasePrivateIntObject(VBaseObject):
     To verify the object, users must specify the preimage with salts.
     The source datasets to be validated will be commonly stored as a spreadsheet with two columns.
     """
+
+    def __init__(
+        self,
+        init_data: Optional[Union[int, str]] = None,
+        init_dict: Optional[Dict[str, Union[int, str]]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
 
     def _init_from_dict(self, init_dict: Dict[str, Union[int, str]]):
         # The data tuple is converted to a list when saved as dictionary or JSON.
@@ -150,6 +166,14 @@ class VBaseFloatObject(VBaseObject):
     Floats are committed as fixed-point integers to support ZKPs.
     """
 
+    def __init__(
+        self,
+        init_data: Optional[float] = None,
+        init_dict: Optional[Dict[str, float]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
+
     def _init_from_dict(self, init_dict: Dict[str, float]):
         self.data: float = float(init_dict["data"])
 
@@ -163,6 +187,14 @@ class VBasePrivateFloatObject(VBaseObject):
     A float object that preserves object privacy
     Each object comprises a float value and a string salt.
     """
+
+    def __init__(
+        self,
+        init_data: Optional[Union[float, str]] = None,
+        init_dict: Optional[Dict[str, Union[float, str]]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
 
     def _init_from_dict(self, init_dict: Dict[str, Union[float, str]]):
         # The data tuple is converted to a list when saved as dictionary or JSON.
@@ -185,6 +217,14 @@ class VBaseStringObject(VBaseObject):
     A string integer object
     """
 
+    def __init__(
+        self,
+        init_data: Optional[str] = None,
+        init_dict: Optional[Dict[str, str]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
+
     def _init_from_dict(self, init_dict: Dict[str, str]):
         self.data: str = str(init_dict["data"])
 
@@ -197,6 +237,14 @@ class VBaseJsonObject(VBaseObject):
     """
     A JSON string object
     """
+
+    def __init__(
+        self,
+        init_data: Optional[str] = None,
+        init_dict: Optional[Dict[str, str]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
 
     def _init_from_dict(self, init_dict: Dict[str, str]):
         # When the JSON object is saved as a dictionary or JSON, data remains a string.
@@ -214,6 +262,14 @@ class VBasePortfolioObject(VBaseObject):
     Each portfolio is a dictionary with
     symbol/id keys and weight values.
     """
+
+    def __init__(
+        self,
+        init_data: Optional[Dict[str, Union[int, float]]] = None,
+        init_dict: Optional[Dict[str, Dict[str, Union[int, float]]]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
 
     def _init_from_dict(self, init_dict: Dict[str, Dict[str, Union[int, float]]]):
         self.data: Dict[str, Union[int, float]] = init_dict["data"]

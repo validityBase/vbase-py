@@ -14,6 +14,7 @@ import pandas as pd
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseObject, VBASE_OBJECT_TYPES
+from vbase.core.indexing_service import IndexingService
 from vbase.utils.crypto_utils import (
     add_int_uint256,
     solidity_hash,
@@ -94,7 +95,7 @@ class VBaseDataset(ABC):
             self.record_type_name
         )
         self.owner = init_dict["owner"]
-        self.cid = init_dict["cid"]
+        self.cid = self.get_set_cid_for_dataset(self.name)
         # Initialize records using init_dicts since we saved them as dicts.
         self.records = [
             self.record_type(init_dict=record_init_dict)
@@ -217,7 +218,7 @@ class VBaseDataset(ABC):
     @staticmethod
     def get_set_cid_for_dataset(dataset_name: str) -> str:
         """
-        Generate set hash for a named dataset.
+        Generate set CID for a named dataset.
         May be called to post commitments without instantiating a dataset object.
 
         :param dataset_name: The dataset name.
@@ -384,8 +385,8 @@ class VBaseDataset(ABC):
         Verify commitments for all dataset records.
 
         :return: A tuple containing success and log:
-            - success: true if all record commitments have been verified; false otherwise
-            - l_log: a list log of verification explaining any failures
+            - success: True if all record commitments have been verified; False otherwise.
+            - l_log: A list log of verification explaining any failures.
         """
         success = True
         l_log = []
@@ -404,7 +405,7 @@ class VBaseDataset(ABC):
                     f"Failed object verification: "
                     f"owner = {self.owner}, "
                     f"timestamp = {timestamp}, "
-                    f"object hash = {object_cid}"
+                    f"object_cid = {object_cid}"
                 )
                 success = False
 
@@ -416,10 +417,62 @@ class VBaseDataset(ABC):
                 "Invalid records: "
                 "Failed object set verification: "
                 f"owner = {self.owner}, "
-                f"set hash = {self.cid}, "
-                f"set object hash = {str_object_cid_sum}"
+                f"set_cid = {self.cid}, "
+                f"str_object_cid_sum = {str_object_cid_sum}"
             )
             success = False
+
+        return success, l_log
+
+    def try_restore_timestamps_from_index(self) -> (bool, List[str]):
+        """
+        Try to restore timestamps for dataset records using the index service.
+
+        The function should always attempt to do the right thing by default,
+        but long-term options can get complex. The following work remains:
+        - How should records with identical CIDs be treated?
+        - When multiple commitments exist for a given CID, what is the order of pairing?
+
+        :return: A tuple containing success and log:
+            - success: True if all record have been found in the index
+                and timestamps restored; False otherwise.
+            - l_log: A list log of verification explaining any failures.
+        """
+        success = True
+        l_log = []
+
+        self.cid = self.get_set_cid_for_dataset(self.name)
+        assert len(self.records) == len(self.timestamps)
+
+        # Create the indexing service object using the commitment service.
+        indexing_service = IndexingService.create_instance_from_commitment_service(
+            self.vbc.commitment_service
+        )
+        # Find the commitment receipts for the set.
+        commitment_receipts = indexing_service.find_user_set_objects(
+            user=self.owner, set_cid=self.cid
+        )
+        # Fix the timestamps using the commitment receipts.
+        # Traverse all the records.
+        # The following algorithm is simplistic O(n^2).
+        # We can make this something more complex and performant it this becomes an issue.
+        for i, ds_record in enumerate(self.records):
+            # For each record, find the matching receipt
+            # and update the corresponding timestamp.
+            obj_cid = ds_record.get_cid()
+            matches = [r["objectCid"] == obj_cid for r in commitment_receipts]
+            i_match = next((i for i, v in enumerate(matches) if v), -1)
+            if i_match == -1:
+                l_log.append(
+                    "Invalid record: "
+                    "Failed to find timestamp for object: "
+                    f"owner = {self.owner}, "
+                    f"set_cid = {self.cid}, "
+                    f"object_cid = {obj_cid}"
+                )
+                success = False
+            else:
+                self.timestamps[i] = commitment_receipts[i_match]["timestamp"]
 
         return success, l_log
 

@@ -34,5 +34,4 @@ html_theme = "sphinx_rtd_theme"
 # These settings are used by some themes and may give warning with unsupported themes.
 html_show_sphinx = False
 html_show_sourcelink = False
-html_theme_options = {
-}
+html_theme_options = {}
