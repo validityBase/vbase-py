@@ -58,7 +58,8 @@ class VBaseClientTest(VBaseClient):
             commitment_service_class = ForwarderCommitmentServiceTest
         else:
             raise NotImplementedError()
-        return VBaseClientTest(commitment_service_class.create_instance_from_env())
+        # Set dotenv_path = None to use the env variables loaded with load_dotenv above.
+        return VBaseClientTest(commitment_service_class.create_instance_from_env(None))
 
     #####################################################
     # Test object commitments for bootstrapping timestamps

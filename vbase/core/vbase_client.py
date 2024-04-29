@@ -75,7 +75,6 @@ class VBaseClient:
             - If None dotenv_path is specified, default to the environment variables.
         :return: The constructed vBase client object.
         """
-
         if dotenv_path is not None:
             load_dotenv(dotenv_path, verbose=True, override=True)
 
@@ -97,7 +96,8 @@ class VBaseClient:
         commitment_service_class = VBASE_COMMITMENT_SERVICE_TYPES[
             commitment_service_class_name
         ]
-        return VBaseClient(commitment_service_class.create_instance_from_env())
+        # Set dotenv_path = None to use the env variables loaded with load_dotenv above.
+        return VBaseClient(commitment_service_class.create_instance_from_env(None))
 
     def get_default_user(self) -> str:
         """

@@ -1,5 +1,5 @@
 """
-Tests of the indexing service for the vbase package
+Tests of the indexing service for the vbase package using a public test forwarder
 Tests rely on MongoDB for name resolution and data availability.
 """
 
@@ -18,7 +18,7 @@ class TestIndexingServiceForwarderLocalhostTest(TestIndexingService):
     """
 
     def setUp(self):
-        dotenv_path = ".env.forwarder.localhost.test"
+        dotenv_path = ".env.forwarder.pub.test"
         self.vbc = VBaseClientTest.create_instance_from_env(dotenv_path)
         self.indexing_service = IndexingService.create_instance_from_commitment_service(
             self.vbc.commitment_service
