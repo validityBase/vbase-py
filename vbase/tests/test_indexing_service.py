@@ -135,6 +135,12 @@ class TestIndexingService(unittest.TestCase):
                 ),
             },
         )
+        # Check empty receipt.
+        set_cid = "0x" + secrets.token_bytes(32).hex()
+        commitment_receipt = self.indexing_service.find_last_user_set_object(
+            user=user, set_cid=set_cid
+        )
+        assert commitment_receipt is None
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
@@ -177,3 +183,7 @@ class TestIndexingService(unittest.TestCase):
                 "timestamp": cl["timestamp"],
             },
         )
+        # Check empty receipt.
+        object_cid = "0x" + secrets.token_bytes(32).hex()
+        commitment_receipt = self.indexing_service.find_last_object(object_cid)
+        assert commitment_receipt is None

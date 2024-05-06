@@ -248,7 +248,7 @@ class Web3HTTPIndexingService(IndexingService):
         # Long-term, we will have to search for events after a given timestamp.
         # Longer-term, this will be superseded by higher-performance indexing services.
         receipts = self.find_user_set_objects(user, set_cid)
-        return receipts[-1] if receipts is not None else None
+        return receipts[-1] if receipts is not None and len(receipts) > 0 else None
 
     def find_objects(self, object_cid: str) -> List[dict]:
         # Find events across all commitment services.
@@ -288,4 +288,4 @@ class Web3HTTPIndexingService(IndexingService):
         # Long-term, we will have to search for events after a given timestamp.
         # Longer-term, this will be superseded by higher-performance indexing services.
         receipts = self.find_objects(object_cid)
-        return receipts[-1] if receipts is not None else None
+        return receipts[-1] if receipts is not None and len(receipts) > 0 else None
