@@ -41,6 +41,8 @@ class TestIndexingService(unittest.TestCase):
         cl = self.vbc.add_set(TEST_HASH1)
         assert cl["setCid"] == TEST_HASH1
 
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
     def test_add_set_object_indexing(self):
         """
         Test a simple set object commitment.
@@ -62,6 +64,8 @@ class TestIndexingService(unittest.TestCase):
             },
         )
 
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
     def test_add_set_objects_indexing(self):
         """
         Test a series of simple set object commitments.
@@ -101,6 +105,39 @@ class TestIndexingService(unittest.TestCase):
             },
         )
 
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
+    def test_find_last_user_set_object(self):
+        """
+        Test a series of simple set object commitments
+        followed by find_last_user_set_object().
+        """
+        # Use a random set CID to avoid collisions with other tests.
+        set_cid = "0x" + secrets.token_bytes(32).hex()
+        for i in range(1, 6):
+            cl = self.vbc.add_set_object_with_timestamp(
+                set_cid=set_cid,
+                object_cid=int_to_hash(i),
+                timestamp=self.vbc.commitment_service.convert_timestamp_chain_to_str(i),
+            )
+        user = cl["user"]
+        commitment_receipt = self.indexing_service.find_last_user_set_object(
+            user=user, set_cid=set_cid
+        )
+        assert compare_dict_subset(
+            commitment_receipt,
+            {
+                "user": user,
+                "setCid": set_cid,
+                "objectCid": int_to_hash(5),
+                "timestamp": self.vbc.commitment_service.convert_timestamp_chain_to_str(
+                    5
+                ),
+            },
+        )
+
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
     def test_add_object_find_objects(self):
         """
         Test a simple object commitment following by find_objects().
@@ -112,6 +149,28 @@ class TestIndexingService(unittest.TestCase):
         # Validate the tail.
         assert compare_dict_subset(
             commitment_receipts[-1],
+            {
+                "user": user,
+                "objectCid": TEST_HASH2,
+                "timestamp": cl["timestamp"],
+            },
+        )
+
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
+    def test_find_last_object(self):
+        """
+        Test a simple object commitment following by find_last_object().
+        """
+        cl = self.vbc.add_object(object_cid=TEST_HASH2)
+        user = cl["user"]
+        commitment_receipt = self.indexing_service.find_last_object(
+            object_cid=TEST_HASH2
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        assert compare_dict_subset(
+            commitment_receipt,
             {
                 "user": user,
                 "objectCid": TEST_HASH2,

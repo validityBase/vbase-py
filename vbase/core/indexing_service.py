@@ -116,6 +116,16 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
+    def find_last_user_set_object(self, user: str, set_cid: str) -> Union[dict, None]:
+        """
+        Returns the last/latest receipt, if any, for user set commitments.
+
+        :param user: The address for the user who recorded the commitment.
+        :param set_cid: The CID for the set containing the object.
+        :return: The commitment receipt for the last/latest user set commitment.
+        """
+        raise NotImplementedError()
+
     def find_objects(self, object_cid: str) -> List[dict]:
         """
         Returns the list of receipts for object commitments.
@@ -124,6 +134,17 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the object.
         :return: The list of commitment receipts for all object commitments.
+        """
+        raise NotImplementedError()
+
+    def find_last_object(self, object_cid: str) -> Union[dict, None]:
+        """
+        Returns the last/latest receipt, if any, for object commitments.
+        Find and returns individual object commitment irrespective of the set
+        they may have been committed to.
+
+        :param object_cid: The CID for the object.
+        :return: The commitment receipt for the last/latest object commitment.
         """
         raise NotImplementedError()
 
@@ -220,6 +241,15 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
+    def find_last_user_set_object(self, user: str, set_cid: str) -> Union[dict, None]:
+        # TODO: This implementation is horribly inefficient.
+        # There does not appear to be a simple and clean way
+        # to get the latest event for a given filter on EVM blockchains.
+        # Long-term, we will have to search for events after a given timestamp.
+        # Longer-term, this will be superseded by higher-performance indexing services.
+        receipts = self.find_user_set_objects(user, set_cid)
+        return receipts[-1] if receipts is not None else None
+
     def find_objects(self, object_cid: str) -> List[dict]:
         # Find events across all commitment services.
         receipts = []
@@ -250,3 +280,12 @@ class Web3HTTPIndexingService(IndexingService):
             receipts += cs_receipts
         # end for cs in self.commitment_services
         return receipts
+
+    def find_last_object(self, object_cid: str) -> Union[dict, None]:
+        # TODO: This implementation is horribly inefficient.
+        # There does not appear to be a simple and clean way
+        # to get the latest event for a given filter on EVM blockchains.
+        # Long-term, we will have to search for events after a given timestamp.
+        # Longer-term, this will be superseded by higher-performance indexing services.
+        receipts = self.find_objects(object_cid)
+        return receipts[-1] if receipts is not None else None

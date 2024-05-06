@@ -12,7 +12,10 @@ from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServi
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 
-from vbase.core.indexing_service import Web3HTTPIndexingService
+from vbase.core.indexing_service import (
+    IndexingService,
+    Web3HTTPIndexingService,
+)
 
 from vbase.core.vbase_dataset import (
     VBaseDataset,
@@ -44,6 +47,7 @@ __all__ = [
     "Web3HTTPCommitmentServiceTest",
     "ForwarderCommitmentService",
     "ForwarderCommitmentServiceTest",
+    "IndexingService",
     "Web3HTTPIndexingService",
     "VBaseObject",
     "VBaseIntObject",
