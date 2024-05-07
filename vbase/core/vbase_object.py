@@ -106,6 +106,18 @@ class VBaseObject(ABC):
             self.cid = self.get_cid_for_data(self.data)
         return self.cid
 
+    def get_dict(self) -> dict:
+        """
+        Return the dictionary representation of the object's data.
+        This is a basic implementation that most objects should override
+        with more intelligent object-specific implementations.
+        Converting objects to dictionaries is useful as a step in converting
+        sets to DataFrames.
+
+        :return: The dictionary representation of the object.
+        """
+        return {"data": self.data}
+
 
 class VBaseIntObject(VBaseObject):
     """
@@ -254,6 +266,9 @@ class VBaseJsonObject(VBaseObject):
     @staticmethod
     def get_cid_for_data(record_data: str) -> str:
         return VBaseStringObject.get_cid_for_data(record_data)
+
+    def get_dict(self) -> dict:
+        return json.loads(self.data)
 
 
 class VBasePortfolioObject(VBaseObject):

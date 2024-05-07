@@ -148,9 +148,9 @@ def dataset_from_json_checks(vbc: VBaseClient, dsw: VBaseDataset, verbose: bool 
     assert dsr.verify_commitments()
     assert dsw.to_json() == dsr.to_json()
     if verbose:
-        _LOG.info("dsr.to_pd_object() =\n%s", dsr.to_pd_object())
+        _LOG.info("dsr.get_pd_data_frame() =\n%s", dsr.get_pd_data_frame())
     else:
-        _ = dsr.to_pd_object()
+        _ = dsr.get_pd_data_frame()
 
 
 def compare_dict_subset(superset_dict: dict, subset_dict: dict):

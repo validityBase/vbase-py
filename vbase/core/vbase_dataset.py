@@ -499,13 +499,13 @@ class VBaseDataset(ABC):
 
         return success, l_log
 
-    def to_pd_object(self) -> Union[pd.Series, None]:
+    def get_pd_data_frame(self) -> Union[pd.DataFrame, None]:
         """
-        Convert dataset to a Pandas object.
+        Get a Pandas DataFrame representation of the dataset's records.
         This default method works for most datasets.
         Datasets that need special handling will override this method.
 
-        :return: The pd.Series object representing the dataset.
+        :return: The pd.DataFrame object representing the dataset's records.
         """
         # TODO: Factor out the common code to get all simulation indices.
         if self.vbc.in_sim():
@@ -516,7 +516,7 @@ class VBaseDataset(ABC):
                 return None
         else:
             inds_match = np.arange(len(self.records))
-        return pd.Series(
-            [self.records[i].data for i in inds_match],
+        return pd.DataFrame(
+            [self.records[i].get_dict() for i in inds_match],
             index=[pd.Timestamp(self.timestamps[i], tz="UTC") for i in inds_match],
         )
