@@ -101,7 +101,11 @@ class VBaseDataset(ABC):
             self.record_type(init_dict=record_init_dict)
             for record_init_dict in init_dict["records"]
         ]
-        self.timestamps = init_dict["timestamps"]
+        # Timestamps are optional.
+        # These can be retrieved from commitment receipts and rebuilt
+        # if needed.
+        if "timestamps" in init_dict:
+            self.timestamps = init_dict["timestamps"]
 
     def _init_from_json(self, init_json: str):
         """
@@ -148,6 +152,7 @@ class VBaseDataset(ABC):
         self.record_type_name: Union[str, None] = None
         self.owner: Union[str, None] = None
         self.cid: Union[str, None] = None
+        self.indexing_service: Union[IndexingService, None] = None
 
         # Fields describing dataset (set) records (objects).
         self.records: List[any] = []
@@ -424,6 +429,28 @@ class VBaseDataset(ABC):
 
         return success, l_log
 
+    def get_commitment_receipts(self) -> List[dict]:
+        """
+        Get commitment receipts for dataset records.
+
+        :return: Commitment receipts for dataset records.
+        """
+        self.cid = self.get_set_cid_for_dataset(self.name)
+
+        # Create the indexing service object using the commitment service.
+        if self.indexing_service is None:
+            self.indexing_service = (
+                IndexingService.create_instance_from_commitment_service(
+                    self.vbc.commitment_service
+                )
+            )
+        # Find the commitment receipts for the set.
+        commitment_receipts = self.indexing_service.find_user_set_objects(
+            user=self.owner, set_cid=self.cid
+        )
+
+        return commitment_receipts
+
     def try_restore_timestamps_from_index(self) -> (bool, List[str]):
         """
         Try to restore timestamps for dataset records using the index service.
@@ -441,17 +468,13 @@ class VBaseDataset(ABC):
         success = True
         l_log = []
 
-        self.cid = self.get_set_cid_for_dataset(self.name)
-        assert len(self.records) == len(self.timestamps)
+        commitment_receipts = self.get_commitment_receipts()
 
-        # Create the indexing service object using the commitment service.
-        indexing_service = IndexingService.create_instance_from_commitment_service(
-            self.vbc.commitment_service
-        )
-        # Find the commitment receipts for the set.
-        commitment_receipts = indexing_service.find_user_set_objects(
-            user=self.owner, set_cid=self.cid
-        )
+        # We may be fixing existing timestamps or adding new ones.
+        assert len(self.timestamps) == len(self.records) or len(self.timestamps) == 0
+        if len(self.timestamps) == 0:
+            self.timestamps = [None] * len(self.records)
+
         # Fix the timestamps using the commitment receipts.
         # Traverse all the records.
         # The following algorithm is simplistic O(n^2).
