@@ -74,6 +74,15 @@ class ForwarderCommitmentService(Web3CommitmentService):
         self.api_key = api_key
         self.private_key = private_key
 
+        # The forwarder caches signature data and keeps track of the nonce.
+        # This eliminates the need for the signature-data request
+        # on each forwarded execute.
+        # This can create difficulties if a user makes requests from multiple machines,
+        # but it is a fundamental issue with nonce tracking in such cases.
+        # The best one can do is get an updated nonce and re-try.
+        self._signature_data: Union[dict, None] = None
+        self._nonce: Union[int, None] = None
+
         # Create the w3 object.
         # We will never interact with a node but will use the w3 object
         # to build and sign meta-transactions.
@@ -84,8 +93,11 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # Initialize the account.
         # We are sending meta-transactions using the forwarder
         # and will use the account to sign the payload.
-        acct = w3.eth.account.from_key(private_key)
-        w3.eth.default_account = acct.address
+        # In cases where no commitments are made,
+        # private_key may not be specified.
+        if not private_key is None:
+            acct = w3.eth.account.from_key(private_key)
+            w3.eth.default_account = acct.address
 
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.
@@ -242,19 +254,26 @@ class ForwarderCommitmentService(Web3CommitmentService):
         :param args: The arguments to the smart contract function.
         :return: The returned data.
         """
-        # Get signature data from the API endpoint.
-        signature_data: dict = self._call_forwarder_api("signature-data")
-        # Validate that signature_data is as expected for this call.
-        if signature_data is None or not isinstance(signature_data, dict):
-            raise ValueError("Unexpected signature_data")
-        if "domain" not in signature_data:
-            raise ValueError("Missing domain field of signature_data")
-        if "chainId" not in signature_data["domain"]:
-            raise ValueError('Missing chainId field of signature_data["domain"]')
+        # Get signature data from the API endpoint if necessary.
+        # If we have the wrong nonce, we will reset these fields and re-initialize them.
+        if self._signature_data is None or self._nonce is None:
+            self._signature_data = self._call_forwarder_api("signature-data")
+            # Validate that signature_data is as expected for this call.
+            if self._signature_data is None or not isinstance(
+                self._signature_data, dict
+            ):
+                raise ValueError("Unexpected signature_data")
+            if "domain" not in self._signature_data:
+                raise ValueError("Missing domain field of signature_data")
+            if "chainId" not in self._signature_data["domain"]:
+                raise ValueError('Missing chainId field of signature_data["domain"]')
+            self._nonce = self._signature_data["nonce"]
 
         # Convert chainId to integer to make it compatible with consumer APIs.
         # Technically it is an uint256 and is sent as a string.
-        signature_data["domain"]["chainId"] = int(signature_data["domain"]["chainId"])
+        self._signature_data["domain"]["chainId"] = int(
+            self._signature_data["domain"]["chainId"]
+        )
 
         # Encode the CommitmentService smart contract call.
         function_data = self.csc.encodeABI(fn_name=fn_name, args=args)
@@ -277,10 +296,10 @@ class ForwarderCommitmentService(Web3CommitmentService):
                     ],
                 },
                 "primaryType": "ForwardRequest",
-                "domain": signature_data["domain"],
+                "domain": self._signature_data["domain"],
                 "message": {
                     "from": self.get_default_user(),
-                    "nonce": signature_data["nonce"],
+                    "nonce": self._nonce,
                     "data": hex_str_to_bytes(function_data),
                 },
             }
@@ -294,26 +313,39 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # Format the ForwardRequest object.
         forward_request = {
             "from": self.get_default_user(),
-            "nonce": signature_data["nonce"],
+            "nonce": self._nonce,
             "data": function_data,
         }
 
-        # Post the forwarded message.
-        receipt = self._call_forwarder_api(
-            api="execute",
-            request_type=RequestType.POST,
-            data={
-                "forwardRequest": forward_request,
-                "signature": signature.signature.hex(),
-            },
-        )
-        if receipt is None:
-            _LOG.error("Forwarder execute failed.")
-            return None
+        try:
+            # Post the forwarded message.
+            receipt = self._call_forwarder_api(
+                api="execute",
+                request_type=RequestType.POST,
+                data={
+                    "forwardRequest": forward_request,
+                    "signature": signature.signature.hex(),
+                },
+            )
+            if receipt is None:
+                _LOG.error("Forwarder execute failed.")
+                return None
+            receipt = ForwarderCommitmentService._convert_string_numbers(receipt)
+            self._check_tx_success(receipt)
+        except Exception as e:
+            # If the transaction failed, nonce may be invalid.
+            # Force these to be realoded on the next call.
+            self._signature_data = None
+            self._nonce = None
+            raise e
 
-        receipt = ForwarderCommitmentService._convert_string_numbers(receipt)
-        self._check_tx_success(receipt)
         receipt = self._convert_receipt_logs(receipt)
+
+        # Increment nonce once the transaction succeeded.
+        # Note that it is possible that a transaction succeeds,
+        # but a transport error occurs, and this success is unknown.
+        # In these cases, the nonce will be wrong, and we should re-load it.
+        self._nonce += 1
 
         return receipt
 

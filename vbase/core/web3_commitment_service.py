@@ -7,12 +7,12 @@ or via a forwarder service.
 """
 
 import logging
+import pprint
 from abc import ABC
 from io import TextIOWrapper
 import os
 import pathlib
 from typing import List, Optional, Type, Union
-from beeprint import pp
 import pandas as pd
 from web3 import Web3
 from web3.contract import Contract
@@ -84,14 +84,17 @@ class Web3CommitmentService(CommitmentService, ABC):
     @staticmethod
     def _check_tx_success(receipt):
         if receipt is None:
-            _LOG.error("Transaction failed with receipt = None")
-        assert receipt is not None
-        _LOG.debug("Transaction receipt:")
-        _LOG.debug(pp(dict(receipt), output=False))
+            msg = "Transaction failed with receipt = None"
+            _LOG.error(msg)
+            # TODO: Eventually we should add vBase exception classes.
+            # These will allow us to handle specific exceptions
+            # and potentially retry.
+            raise RuntimeError(msg)
+        _LOG.debug(f"Transaction receipt:\n{pprint.pformat(dict(receipt))}")
         if not receipt["status"]:
-            _LOG.error("Transaction failed with receipt:")
-            _LOG.error(pp(dict(receipt), output=False))
-        assert receipt["status"]
+            msg = f"Transaction failed with receipt: {pprint.pformat(dict(receipt))}"
+            _LOG.error(msg)
+            raise RuntimeError(msg)
 
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
         """
@@ -124,8 +127,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # and cl["user"] is the user address for the commitment.
         assert self.user_set_exists(self.get_default_user(), set_cid)
 
-        _LOG.debug("Commitment log:")
-        _LOG.debug(pp(cl, output=False))
+        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
         return cl
 
     def _add_object_worker(self, receipt: TxReceipt) -> dict:
@@ -147,8 +149,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
 
-        _LOG.debug("Commitment log:")
-        _LOG.debug(pp(cl, output=False))
+        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
         return cl
 
     def _add_set_object_worker(self, receipt: TxReceipt) -> dict:
@@ -175,8 +176,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
 
-        _LOG.debug("Commitment log:")
-        _LOG.debug(pp(cl, output=False))
+        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
         return cl
 
     def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
@@ -206,6 +206,5 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
             l_cls.append(cl)
 
-        _LOG.debug("Commitment logs:")
-        _LOG.debug(pp(l_cls, output=False))
+        _LOG.debug(f"Commitment logs:\n{pprint.pformat(l_cls)}")
         return l_cls
