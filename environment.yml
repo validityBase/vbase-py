@@ -3,13 +3,15 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python>=3.6
+  - python>=3.8
   - pip
 
   # Required dependencies
+  - hexbytes
   - numpy
   - pandas
   - python-dotenv
+  - requests
 
   # Optional dependencies
   - setuptools
@@ -19,6 +21,5 @@ dependencies:
 
   - pip:
     # Required dependencies
-    - beeprint
-    - javascript
+    - pprint
     - web3>=6.0.0

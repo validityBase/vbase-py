@@ -138,7 +138,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = ".env"
+        dotenv_path: Union[str, None] = None
     ) -> "Web3HTTPCommitmentService":
         return Web3HTTPCommitmentService(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)

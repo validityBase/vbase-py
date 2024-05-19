@@ -13,12 +13,12 @@ with open("requirements.txt", encoding="utf-8") as f:
 setup(
     name="vbase",
     version="0.0.1",
-    author="PIT Labs Inc.",
+    author="PIT Labs, Inc.",
     author_email="tech@pitlabs.xyz",
-    description="A Python library for interacting with the validityBase (vBase) platform",
+    description="vBase Python Software Development Kit (SDK)",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pit-labs/vbase-py",
+    url="https://github.com/validityBase/vbase-py",
     packages=find_packages(),
     package_data={
         "": ["../requirements.txt", "abi/*.json"],
@@ -28,5 +28,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
 )

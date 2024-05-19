@@ -1,9 +1,7 @@
-beeprint
-javascript
 hexbytes
 numpy
 pandas
-pymongo
+pprint
 python-dotenv
 requests
 setuptools

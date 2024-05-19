@@ -6,11 +6,11 @@ Tests rely on MongoDB for name resolution and data availability.
 import time
 import unittest
 
+from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBasePortfolioObject
 from vbase.tests.utils import (
     create_dataset_worker,
     dataset_from_json_checks,
-    init_vbase_client_from_mongo,
 )
 
 
@@ -23,7 +23,7 @@ class TestVBaseDatasetBootstrap(unittest.TestCase):
         """
         Set up the tests.
         """
-        self.vbc = init_vbase_client_from_mongo()
+        self.vbc = VBaseClientTest.create_instance_from_env()
 
     def test_port_wr(self):
         """

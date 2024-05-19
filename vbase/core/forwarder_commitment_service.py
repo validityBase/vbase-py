@@ -129,7 +129,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = ".env"
+        dotenv_path: Union[str, None] = None
     ) -> "ForwarderCommitmentService":
         return ForwarderCommitmentService(
             **ForwarderCommitmentService.get_init_args_from_env(dotenv_path)
@@ -334,7 +334,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             self._check_tx_success(receipt)
         except Exception as e:
             # If the transaction failed, nonce may be invalid.
-            # Force these to be realoded on the next call.
+            # Force these to be reloaded on the next call.
             self._signature_data = None
             self._nonce = None
             raise e

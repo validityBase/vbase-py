@@ -6,9 +6,7 @@ import json
 import logging
 import pprint
 import time
-
 from typing import cast, Type
-from beeprint import pp
 
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
@@ -139,9 +137,7 @@ def dataset_from_json_checks(vbc: VBaseClient, dsw: VBaseDataset, verbose: bool 
     if verbose:
         _LOG.info(
             "str_dataset_json = %s",
-            pp(
-                json.loads(str_dataset_json), output=False, string_break_enable=False
-            ).rstrip(),
+            pprint.pformat(json.loads(str_dataset_json)).rstrip(),
         )
     # Create the new dataset from the JSON string to test the read, and verify it.
     dsr = VBaseDataset(vbc, init_json=str_dataset_json)

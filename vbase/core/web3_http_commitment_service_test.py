@@ -40,7 +40,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = ".env"
+        dotenv_path: Union[str, None] = None
     ) -> "Web3HTTPCommitmentServiceTest":
         return Web3HTTPCommitmentServiceTest(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)

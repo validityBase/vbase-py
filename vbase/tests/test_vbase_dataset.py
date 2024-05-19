@@ -20,13 +20,13 @@ from vbase.core.vbase_object import (
     VBaseJsonObject,
     VBasePortfolioObject,
 )
+from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_dataset import VBaseDataset
 from vbase.utils.log import get_default_logger
 from vbase.tests.utils import (
     create_dataset_worker,
     dataset_add_record_checks,
     dataset_from_json_checks,
-    init_vbase_client_from_mongo,
 )
 
 
@@ -43,9 +43,7 @@ class TestVBaseDataset(unittest.TestCase):
         """
         Set up the tests.
         """
-        # Subclasses may initialize vbase themselves, for instance when testing on a public testnet.
-        if not hasattr(self, "vbase"):
-            self.vbc = init_vbase_client_from_mongo()
+        self.vbc = VBaseClientTest.create_instance_from_env()
 
     @staticmethod
     def _add_record_worker(

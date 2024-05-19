@@ -7,8 +7,9 @@ from typing import List
 import unittest
 import pandas as pd
 
+from vbase.core.vbase_client_test import VBaseClientTest
+
 from vbase.tests.utils import (
-    init_vbase_client_from_mongo,
     int_to_hash,
     TEST_HASH1,
     TEST_HASH2,
@@ -24,10 +25,7 @@ class TestVBaseClient(unittest.TestCase):
         """
         Set up the tests.
         """
-        # Subclasses may initialize vbase client objects themselves,
-        # for instance when testing on a public testnet.
-        if not hasattr(self, "vbc"):
-            self.vbc = init_vbase_client_from_mongo()
+        self.vbc = VBaseClientTest.create_instance_from_env()
         self.vbc.clear_set_objects(TEST_HASH1)
         self.vbc.clear_sets()
         cl = self.vbc.add_set(TEST_HASH1)

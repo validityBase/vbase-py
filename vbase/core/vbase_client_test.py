@@ -34,9 +34,7 @@ class VBaseClientTest(VBaseClient):
         self.commitment_service = commitment_service
 
     @staticmethod
-    def create_instance_from_env(
-        dotenv_path: Union[str, None] = ".env"
-    ) -> "VBaseClient":
+    def create_instance_from_env(dotenv_path: Union[str, None] = None) -> "VBaseClient":
         if dotenv_path is not None:
             load_dotenv(dotenv_path, verbose=True, override=True)
 
@@ -58,8 +56,8 @@ class VBaseClientTest(VBaseClient):
             commitment_service_class = ForwarderCommitmentServiceTest
         else:
             raise NotImplementedError()
-        # Set dotenv_path = None to use the env variables loaded with load_dotenv above.
-        return VBaseClientTest(commitment_service_class.create_instance_from_env(None))
+        # Use the env variables loaded with load_dotenv above.
+        return VBaseClientTest(commitment_service_class.create_instance_from_env())
 
     #####################################################
     # Test object commitments for bootstrapping timestamps

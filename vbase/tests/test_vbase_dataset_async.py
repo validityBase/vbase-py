@@ -10,6 +10,7 @@ import unittest
 import pandas as pd
 
 from vbase.core.vbase_client import VBaseClient
+from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import (
     VBaseIntObject,
 )
@@ -18,7 +19,6 @@ from vbase.utils.log import get_default_logger
 from vbase.tests.utils import (
     dataset_add_record_checks,
     dataset_from_json_checks,
-    init_vbase_client_from_mongo,
 )
 
 
@@ -42,9 +42,7 @@ class TestVBaseDatasetAsync(unittest.TestCase):
         """
         Set up the tests.
         """
-        # Subclasses may initialize vbase themselves, for instance when testing on a public testnet.
-        if not hasattr(self, "vbase"):
-            self.vbc = init_vbase_client_from_mongo()
+        self.vbc = VBaseClientTest.create_instance_from_env()
 
     async def _add_record_worker_async(
         self,
