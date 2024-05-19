@@ -90,7 +90,7 @@ class Web3CommitmentService(CommitmentService, ABC):
             # These will allow us to handle specific exceptions
             # and potentially retry.
             raise RuntimeError(msg)
-        _LOG.debug(f"Transaction receipt:\n{pprint.pformat(dict(receipt))}")
+        _LOG.debug("Transaction receipt:\n%s", pprint.pformat(dict(receipt)))
         if not receipt["status"]:
             msg = f"Transaction failed with receipt: {pprint.pformat(dict(receipt))}"
             _LOG.error(msg)
@@ -127,7 +127,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # and cl["user"] is the user address for the commitment.
         assert self.user_set_exists(self.get_default_user(), set_cid)
 
-        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
+        _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
 
     def _add_object_worker(self, receipt: TxReceipt) -> dict:
@@ -149,7 +149,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
 
-        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
+        _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
 
     def _add_set_object_worker(self, receipt: TxReceipt) -> dict:
@@ -176,7 +176,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
 
-        _LOG.debug(f"Commitment log:\n{pprint.pformat(cl)}")
+        _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
 
     def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
@@ -206,5 +206,5 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
             l_cls.append(cl)
 
-        _LOG.debug(f"Commitment logs:\n{pprint.pformat(l_cls)}")
+        _LOG.debug("Commitment logs:\n%s", pprint.pformat(l_cls))
         return l_cls
