@@ -8,7 +8,6 @@ import json
 import os
 import unittest
 
-from vbase.utils.mongo_utils import MongoUtils
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
@@ -24,6 +23,10 @@ from vbase.tests.utils import (
 _NETWORK = "localhost"
 # Test RPC endpoint.
 _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
+# Commitment service addresses.
+# These are deterministic addresses from deployment on a localhost test node.
+_COMMITMENT_SERVICE_ADDR_1 = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+_COMMITMENT_SERVICE_ADDR_2 = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 
 
 class TestIndexingServiceDual(unittest.TestCase):
@@ -35,12 +38,6 @@ class TestIndexingServiceDual(unittest.TestCase):
         """
         Set up the tests.
         """
-        mu = MongoUtils()
-
-        # Create two commitment services.
-        comm_addr1 = mu.get_commitment_service_addr(_NETWORK, "CommitmentService")
-        comm_addr2 = mu.get_commitment_service_addr(_NETWORK, "CommitmentServiceTest")
-
         # Create an indexing service using the above commitment service info.
         # Define the indexing service using JSON environment variable
         # to test service start-up path.
@@ -51,14 +48,14 @@ class TestIndexingServiceDual(unittest.TestCase):
                         "class": "Web3HTTPCommitmentService",
                         "init_args": {
                             "node_rpc_url": _LOCALHOST_RPC_ENDPOINT,
-                            "commitment_service_address": comm_addr1,
+                            "commitment_service_address": _COMMITMENT_SERVICE_ADDR_1,
                         },
                     },
                     {
                         "class": "Web3HTTPCommitmentServiceTest",
                         "init_args": {
                             "node_rpc_url": _LOCALHOST_RPC_ENDPOINT,
-                            "commitment_service_address": comm_addr2,
+                            "commitment_service_address": _COMMITMENT_SERVICE_ADDR_2,
                         },
                     },
                 ]

@@ -1,17 +1,16 @@
 """
 Tests of the indexing service for the vbase package
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 from typing import cast
 import secrets
 import unittest
 
+from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
 
 from vbase.tests.utils import (
-    init_vbase_client_test_from_mongo,
     int_to_hash,
     TEST_HASH1,
     TEST_HASH2,
@@ -31,7 +30,7 @@ class TestIndexingService(unittest.TestCase):
         # Subclasses may initialize vbase client objects themselves,
         # for instance when testing on a public testnet.
         if not hasattr(self, "vbc"):
-            self.vbc = init_vbase_client_test_from_mongo()
+            self.vbc = VBaseClientTest.create_instance_from_env()
             self.indexing_service = Web3HTTPIndexingService(
                 [cast(Web3HTTPCommitmentService, self.vbc.commitment_service)]
             )

@@ -1,6 +1,5 @@
 """
 Tests of the vbase_dataset_async module
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 import asyncio

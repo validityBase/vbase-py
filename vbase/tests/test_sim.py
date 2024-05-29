@@ -2,7 +2,6 @@
 Test Point-in-time (PIT) simulations
 Such simulations allow calculations to run in a simulated PIT environment
 accessing committed data precisely as it existed historically.
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 import logging
@@ -13,12 +12,12 @@ import numpy as np
 import pandas as pd
 
 import vbase.core.vbase_client
+from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseIntObject
 from vbase.utils.log import get_default_logger
 from vbase.tests.utils import (
     create_dataset_worker,
     dataset_from_json_checks,
-    init_vbase_client_from_mongo,
 )
 
 
@@ -40,7 +39,7 @@ class TestSim(unittest.TestCase):
         """
         Set up the tests.
         """
-        self.vbc = init_vbase_client_from_mongo()
+        self.vbc = VBaseClientTest.create_instance_from_env()
 
     def test_5t_sim(self):
         """

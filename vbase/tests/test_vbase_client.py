@@ -1,6 +1,5 @@
 """
 Tests of the vbase_client module
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 from typing import List

@@ -1,6 +1,5 @@
 """
 Tests of the vbase_dataset module
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 from datetime import datetime, timedelta

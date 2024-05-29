@@ -1,6 +1,5 @@
 """
 Tests of the large dataset bootstrap for the vbase module
-Tests rely on MongoDB for name resolution and data availability.
 """
 
 import time

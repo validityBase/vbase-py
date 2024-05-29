@@ -36,8 +36,6 @@ from vbase.core.vbase_object import (
     VBasePortfolioObject,
 )
 
-from vbase.utils.mongo_utils import MongoUtils
-
 from vbase.utils.log import get_default_logger
 
 __all__ = [
@@ -60,5 +58,4 @@ __all__ = [
     "VBaseDataset",
     "VBaseDatasetAsync",
     "get_default_logger",
-    "MongoUtils",
 ]

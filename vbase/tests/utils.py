@@ -6,16 +6,13 @@ import json
 import logging
 import pprint
 import time
-from typing import cast, Type
+from typing import Type
 
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.core.vbase_object import VBaseObject
 from vbase.core.vbase_dataset import VBaseDataset
 from vbase.utils.log import get_default_logger
-from vbase.utils.mongo_utils import MongoUtils
 
 
 _LOG = get_default_logger(__name__)
@@ -23,42 +20,6 @@ _LOG.setLevel(logging.INFO)
 
 
 _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
-
-
-def init_vbase_client_from_mongo(
-    network: str = "localhost",
-    commitment_service_contract_name: str = "CommitmentServiceTest",
-) -> VBaseClient:
-    """
-    Initialize a test vBase handle using MongoDB for address resolution.
-    Relies on the MongoUtils helper class.
-    The MondoDB connection info is read from the local .env file using the dotenv package.
-
-    :param network: The commitment service contract's network name.
-    :param commitment_service_contract_name: The commitment service contract's class name.
-    :return: The initialized vBase client object.
-    """
-    mu = MongoUtils(".env")
-    comm_addr = mu.get_commitment_service_addr(
-        network, commitment_service_contract_name
-    )
-    if commitment_service_contract_name == "CommitmentServiceTest":
-        # Return a test client if using a test commitment service.
-        return VBaseClientTest(
-            Web3HTTPCommitmentServiceTest(_LOCALHOST_RPC_ENDPOINT, comm_addr)
-        )
-    return VBaseClient(Web3HTTPCommitmentService(_LOCALHOST_RPC_ENDPOINT, comm_addr))
-
-
-def init_vbase_client_test_from_mongo(network: str = "localhost") -> VBaseClientTest:
-    """
-    Initialize a test vBase handle using MongoDB for address resolution
-    and a test commitment service.
-
-    :param network: The commitment service contract's network name.
-    :return: The initialized vBase client object.
-    """
-    return cast(VBaseClientTest, init_vbase_client_from_mongo(network))
 
 
 def int_to_hash(n: int) -> str:
