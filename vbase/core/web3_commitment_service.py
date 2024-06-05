@@ -105,18 +105,24 @@ class Web3CommitmentService(CommitmentService, ABC):
         :return: The commitment log containing commitment receipt info.
         """
         self._check_tx_success(receipt)
-        event_data = self.csc.events.AddSet().process_receipt(receipt)
 
         # addSet() is idempotent.
         # If the user set has been added in the past,
         # subsequent calls will be ignored, and no event will be generated.
-        if len(event_data) > 0:
-            # Convert bytestrings to strings to allow serialization for the upper layers.
-            # Note that HexBytes is also not JSON serializable.
-            cl = dict(event_data[0]["args"])
-            cl["setCid"] = bytes_to_hex_str(cl["setCid"])
+        if len(receipt["logs"]) > 0:
+            # On some chains other events may be emitted, such as LogFeeTransfer.
+            # Return the AddSet event data from the 1st event.
+            event_data = self.csc.events.AddSet().process_log(receipt["logs"][0])
+            if event_data["event"] == "AddSet":
+                # Convert bytestrings to strings to allow serialization for the upper layers.
+                # Note that HexBytes is also not JSON serializable.
+                cl = dict(event_data["args"])
+                cl["setCid"] = bytes_to_hex_str(cl["setCid"])
+                cl["transactionHash"] = receipt["transactionHash"]
+            else:
+                # Return an empty commitment log.
+                cl = {}
         else:
-            # Return an empty commitment log.
             cl = {}
 
         # Confirm that the set exists following the completed commitment.
@@ -139,15 +145,20 @@ class Web3CommitmentService(CommitmentService, ABC):
         """
         self._check_tx_success(receipt)
 
-        event_data = self.csc.events.AddObject().process_receipt(receipt)
+        # AddObject event should always be emitted on success.
 
-        cl = dict(event_data[0]["args"])
+        # On some chains other events may be emitted, such as LogFeeTransfer.
+        # Return the AddSet event data from the 1st event.
+        event_data = self.csc.events.AddObject().process_log(receipt["logs"][0])
+
+        cl = dict(event_data["args"])
         # Convert bytestring to string
         # to allow serialization for the upper layers.
         cl["objectCid"] = bytes_to_hex_str(cl["objectCid"])
         # Convert timestamp to the string representation of the Pandas object
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
+        cl["transactionHash"] = receipt["transactionHash"]
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -161,9 +172,12 @@ class Web3CommitmentService(CommitmentService, ABC):
         """
         self._check_tx_success(receipt)
 
+        # Events should always be emitted on success.
+
         # The call emits the following events:
         # AddSetObject(user, setCid, objectCid, timestamp)
         # AddObject(user, objectCid, timestamp)
+        # On some chains other events may be emitted, such as LogFeeTransfer.
         # Return the object commitment log from the 2nd event.
         event_data = self.csc.events.AddObject().process_log(receipt["logs"][1])
 
@@ -175,6 +189,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # Convert timestamp to the string representation of the Pandas object
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
+        cl["transactionHash"] = receipt["transactionHash"]
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -188,8 +203,12 @@ class Web3CommitmentService(CommitmentService, ABC):
         """
         self._check_tx_success(receipt)
 
+        # Events should always be emitted on success.
+
         # The commitment calls emit AddUserSetObject and AddObject events.
         # Return the object commitment log from the 2nd event.
+        # On some chains other events may be emitted, such as LogFeeTransfer.
+        # These should have odd indexes and will be skipped.
         l_cls = []
         for i, log in enumerate(receipt["logs"]):
             if i % 2 == 0:
@@ -205,6 +224,8 @@ class Web3CommitmentService(CommitmentService, ABC):
             # to allow serialization for the upper layers.
             cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
             l_cls.append(cl)
+
+        cl["transactionHash"] = receipt["transactionHash"]
 
         _LOG.debug("Commitment logs:\n%s", pprint.pformat(l_cls))
         return l_cls

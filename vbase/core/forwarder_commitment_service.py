@@ -335,6 +335,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         except Exception as e:
             # If the transaction failed, nonce may be invalid.
             # Force these to be reloaded on the next call.
+            # TODO: Add a retry on exception "nonce has already been used" to get the new nonce.
             self._signature_data = None
             self._nonce = None
             raise e
