@@ -24,3 +24,9 @@ vBase resolves several expensive market failures common to financial data. Some 
 vBase services do not require access to the data itself, assuring privacy. They also do not rely on centralized intermediaries, eliminating the technical, operating, and business risks of a trusted party controlling your data and its validation. vBase ensures data security and interoperability that is unattainable with legacy centralized systems. It does so by storing digital fingerprints of data, metadata, and revisions on secure public blockchains.
 
 With vBase, creating and consuming provably correct data is as easy as pressing a button.
+
+![Demo](.github/vbase-py-onboarding-demo.gif)
+
+## Installation
+
+See the [local installation](https://docs.vbase.com/getting-started/python-quickstart/local-installation) and the [cloud notebooks](https://docs.vbase.com/getting-started/python-quickstart/cloud-notebooks) guides to get started using vBase from Python.
