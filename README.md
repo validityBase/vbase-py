@@ -25,7 +25,7 @@ vBase services do not require access to the data itself, assuring privacy. They 
 
 With vBase, creating and consuming provably correct data is as easy as pressing a button.
 
-![Demo](.github/vbase-py-onboarding-demo.gif)
+![Demo](https://github.com/validityBase/vbase-py/assets/153264511/4c658cdf-7287-4909-b2b2-94f2079d2d5a)
 
 ## Installation
 
