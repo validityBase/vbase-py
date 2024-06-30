@@ -226,7 +226,7 @@ class VBasePrivateFloatObject(VBaseObject):
 
 class VBaseStringObject(VBaseObject):
     """
-    A string integer object
+    A string object
     """
 
     def __init__(
