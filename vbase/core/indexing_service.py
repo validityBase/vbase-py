@@ -208,6 +208,11 @@ class Web3HTTPIndexingService(IndexingService):
         # Find events across all commitment services.
         receipts = []
         for cs in self.commitment_services:
+            # Return chain_id with each receipt.
+            # We may have multiple commitment services
+            # connected to different chains and clients may not be able to uniquely
+            # identify transactions without the chain_id.
+            chain_id = cs.w3.eth.chain_id
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
@@ -223,6 +228,7 @@ class Web3HTTPIndexingService(IndexingService):
             # A commitment receipt comprises setCid, objectCid, timestamp fields.
             cs_receipts = [
                 {
+                    "chainId": chain_id,
                     "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
                     "user": user,
                     "setCid": set_cid,
@@ -254,6 +260,11 @@ class Web3HTTPIndexingService(IndexingService):
         # Find events across all commitment services.
         receipts = []
         for cs in self.commitment_services:
+            # Return chain_id with each receipt.
+            # We may have multiple commitment services
+            # connected to different chains and clients may not be able to uniquely
+            # identify transactions without the chain_id.
+            chain_id = cs.w3.eth.chain_id
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
@@ -268,6 +279,7 @@ class Web3HTTPIndexingService(IndexingService):
             # A commitment receipt comprises setCid, objectCid, timestamp fields.
             cs_receipts = [
                 {
+                    "chainId": chain_id,
                     "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
                     "user": event["args"]["user"],
                     "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),

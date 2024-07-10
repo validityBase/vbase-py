@@ -34,7 +34,7 @@ _NON_BLOCKING_INTERVAL = 0.01
 
 class TestVBaseDatasetAsync(unittest.TestCase):
     """
-    Test base vBase dataset async functionality using a local test node.
+    Test base vBase dataset async functionality.
     """
 
     def setUp(self):

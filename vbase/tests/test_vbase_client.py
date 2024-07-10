@@ -17,7 +17,7 @@ from vbase.tests.utils import (
 
 class TestVBaseClient(unittest.TestCase):
     """
-    Test base vBase functionality using a local test node.
+    Test base vBase client functionality.
     """
 
     def setUp(self):
