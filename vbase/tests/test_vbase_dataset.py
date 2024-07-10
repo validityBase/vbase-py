@@ -35,7 +35,7 @@ _LOG.setLevel(logging.INFO)
 
 class TestVBaseDataset(unittest.TestCase):
     """
-    Test base vBase dataset functionality using a local test node.
+    Test base vBase dataset functionality.
     """
 
     def setUp(self):

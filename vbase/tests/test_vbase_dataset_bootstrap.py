@@ -15,7 +15,7 @@ from vbase.tests.utils import (
 
 class TestVBaseDatasetBootstrap(unittest.TestCase):
     """
-    Test base vBase dataset bootstrap using a local test node.
+    Test base vBase dataset bootstrap functionality.
     """
 
     def setUp(self):

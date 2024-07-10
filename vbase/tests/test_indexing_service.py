@@ -20,7 +20,7 @@ from vbase.tests.utils import (
 
 class TestIndexingService(unittest.TestCase):
     """
-    Test base vBase indexing functionality using a local test node.
+    Test base vBase indexing functionality.
     """
 
     def setUp(self):
@@ -35,6 +35,7 @@ class TestIndexingService(unittest.TestCase):
                 [cast(Web3HTTPCommitmentService, self.vbc.commitment_service)]
             )
         self.assertTrue(self.indexing_service is not None)
+        self.chain_id = self.vbc.commitment_service.w3.eth.chain_id
         self.vbc.clear_sets()
         self.vbc.clear_set_objects(TEST_HASH1)
         cl = self.vbc.add_set(TEST_HASH1)
@@ -56,6 +57,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-1],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": TEST_HASH1,
                 "objectCid": TEST_HASH2,
@@ -84,6 +86,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-5],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid,
                 "objectCid": int_to_hash(1),
@@ -95,6 +98,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-1],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid,
                 "objectCid": int_to_hash(5),
@@ -126,6 +130,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipt,
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid,
                 "objectCid": int_to_hash(5),
@@ -155,6 +160,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-1],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "objectCid": TEST_HASH2,
                 "timestamp": cl["timestamp"],
@@ -177,6 +183,7 @@ class TestIndexingService(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipt,
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "objectCid": TEST_HASH2,
                 "timestamp": cl["timestamp"],

@@ -19,8 +19,6 @@ from vbase.tests.utils import (
 )
 
 
-# Network for which to query CommitmentService addresses.
-_NETWORK = "localhost"
 # Test RPC endpoint.
 _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
 # Commitment service addresses.
@@ -31,7 +29,8 @@ _COMMITMENT_SERVICE_ADDR_2 = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 
 class TestIndexingServiceDual(unittest.TestCase):
     """
-    Test base vBase indexing functionality using a local test node.
+    Test base vBase indexing functionality with two commitment services
+    using a local test node.
     """
 
     def setUp(self):
@@ -73,6 +72,7 @@ class TestIndexingServiceDual(unittest.TestCase):
         self.cs2 = self.indexing_service.commitment_services[1]
         self.vbc1 = VBaseClient(self.cs1)
         self.vbc2 = VBaseClientTest(self.cs2)
+        self.chain_id = self.vbc1.commitment_service.w3.eth.chain_id
         self.vbc1.add_set(TEST_HASH1)
         self.vbc2.add_set(TEST_HASH1)
 
@@ -91,6 +91,7 @@ class TestIndexingServiceDual(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-2],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": TEST_HASH1,
                 "objectCid": TEST_HASH1,
@@ -100,6 +101,7 @@ class TestIndexingServiceDual(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-1],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "setCid": TEST_HASH1,
                 "objectCid": TEST_HASH2,
@@ -120,6 +122,7 @@ class TestIndexingServiceDual(unittest.TestCase):
         assert compare_dict_subset(
             commitment_receipts[-1],
             {
+                "chainId": self.chain_id,
                 "user": user,
                 "objectCid": TEST_HASH2,
                 "timestamp": cl2["timestamp"],
