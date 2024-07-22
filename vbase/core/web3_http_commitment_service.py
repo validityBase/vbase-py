@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import pprint
+import time
 from typing import List, Optional, Union
 from dotenv import load_dotenv
 from web3 import Web3
@@ -22,8 +23,16 @@ from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
 
+
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+
+
+# Settings for the connection retry for Web3.HTTPProvider.
+# Maximum number of retries.
+_W3_CONNECTION_MAX_RETRIES = 5
+# Linear backoff in seconds.
+_W3_CONNECTION_BACKOFF = 1
 
 
 class Web3HTTPCommitmentService(Web3CommitmentService):
@@ -74,9 +83,34 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         self.node_rpc_url = node_rpc_url
         self.commitment_service_address = commitment_service_address
 
-        # Connect to the node.
-        w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
-        assert w3.is_connected()
+        # Connect to the node with retries and backoff.
+        retry_count = 0
+        backoff = 0
+        while retry_count < _W3_CONNECTION_MAX_RETRIES:
+            try:
+                w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
+                if w3.is_connected():
+                    _LOG.debug(
+                        "Web3HTTPCommitmentService.__init__(): Connected to %s",
+                        self.node_rpc_url,
+                    )
+                    break
+                raise ConnectionError(f"Failed to connect to {self.node_rpc_url}")
+            except ConnectionError as e:
+                _LOG.error(
+                    "Web3HTTPCommitmentService.__init__(): "
+                    "Exception connecting to %s: %s",
+                    self.node_rpc_url,
+                    e,
+                )
+                retry_count += 1
+                backoff += _W3_CONNECTION_BACKOFF
+                time.sleep(backoff)
+
+        if not w3.is_connected():
+            raise ConnectionError(
+                f"Failed to connect to {self.node_rpc_url} after {retry_count} retries"
+            )
 
         if inject_geth_poa_middleware:
             w3.middleware_onion.inject(geth_poa_middleware, layer=0)
