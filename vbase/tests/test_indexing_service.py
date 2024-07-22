@@ -41,7 +41,7 @@ class TestIndexingService(unittest.TestCase):
         cl = self.vbc.add_set(TEST_HASH1)
         assert cl["setCid"] == TEST_HASH1
 
-    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_object_indexing(self):
         """

@@ -8,7 +8,6 @@ from typing import Callable, List, Union
 from dotenv import load_dotenv
 import pandas as pd
 
-
 from vbase.utils.log import get_default_logger
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
