@@ -13,7 +13,6 @@ from typing import List, Optional, Union
 from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import (
-    buffered_gas_estimate_middleware,
     construct_sign_and_send_raw_middleware,
     geth_poa_middleware,
 )
@@ -124,14 +123,6 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             acct = w3.eth.account.from_key(private_key)
             w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
             w3.eth.default_account = acct.address
-
-        # Add gas buffer middleware to ensure txs do not run out of gas
-        # due to a missed estimate.
-        # This seems to happen occasionally on Polygon PoS.
-        # Gas estimate middleware needs to run before signing.
-        # Currently, Web3 has a number of bugs in middleware paths.
-        # We work around them by adding middleware after signing.
-        w3.middleware_onion.add(buffered_gas_estimate_middleware)
 
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.
