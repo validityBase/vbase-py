@@ -1,7 +1,6 @@
-hexbytes
-numpy
-pandas
-python-dotenv
-requests
-setuptools
-web3>=6.0.0
+hexbytes==0.3.
+numpy==1.26.4
+pandas==2.2.2
+python-dotenv==1.0.1
+requests==2.32.3
+web3==6.19.0

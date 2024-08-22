@@ -1,2 +1,2 @@
 -r requirements.txt
-pymongo
+pymongo-4.8.0
