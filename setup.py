@@ -14,7 +14,7 @@ setup(
     name="vbase",
     version="0.0.1",
     author="PIT Labs, Inc.",
-    author_email="tech@pitlabs.xyz",
+    author_email="tech@vbase.com",
     description="vBase Python Software Development Kit (SDK)",
     long_description=long_description,
     long_description_content_type="text/markdown",
