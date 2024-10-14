@@ -86,3 +86,7 @@ class TestVBaseDatasetBootstrap(unittest.TestCase):
         )
 
         dataset_from_json_checks(self.vbc, dsw)
+
+
+if __name__ == "__main__":
+    unittest.main()

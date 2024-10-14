@@ -128,3 +128,7 @@ class TestIndexingServiceDual(unittest.TestCase):
                 "timestamp": cl2["timestamp"],
             },
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -20,7 +20,7 @@ from web3.types import TxReceipt
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.utils.log import get_default_logger
-from vbase.utils.crypto_utils import bytes_to_hex_str
+from vbase.utils.crypto_utils import bytes_to_hex_str, hash_typed_values
 
 
 _LOG = get_default_logger(__name__)
@@ -70,7 +70,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         return self.w3.eth.accounts[0]
 
     def get_named_set_cid(self, name: str) -> str:
-        return self.w3.solidity_keccak(abi_types=["string"], values=[name]).hex()
+        return hash_typed_values(abi_types=["string"], values=[name])
 
     @staticmethod
     def convert_timestamp_str_to_chain(ts: str) -> int:

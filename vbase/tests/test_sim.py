@@ -88,3 +88,7 @@ class TestSim(unittest.TestCase):
         s_sim = self.vbc.run_pit_sim(ts=pd.DatetimeIndex(ts), callback=callback)
         _LOG.info("self.vbase.run_pit_sim(): ret =\n%s", s_sim)
         assert s_sim.equals(pd.Series(np.array(range(1, 6)) ** 2, index=ts))
+
+
+if __name__ == "__main__":
+    unittest.main()
