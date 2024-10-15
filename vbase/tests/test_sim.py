@@ -67,7 +67,6 @@ class TestSim(unittest.TestCase):
             )
             assert cl["timestamp"] == self.vbc.normalize_pd_timestamp(t)
             time.sleep(1)
-        assert cl is not None
         assert self.vbc.verify_user_set_objects(
             dsw.owner, dsw.cid, str(hex(dsw.object_cid_sum))
         )
@@ -88,3 +87,7 @@ class TestSim(unittest.TestCase):
         s_sim = self.vbc.run_pit_sim(ts=pd.DatetimeIndex(ts), callback=callback)
         _LOG.info("self.vbase.run_pit_sim(): ret =\n%s", s_sim)
         assert s_sim.equals(pd.Series(np.array(range(1, 6)) ** 2, index=ts))
+
+
+if __name__ == "__main__":
+    unittest.main()

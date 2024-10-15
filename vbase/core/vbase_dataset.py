@@ -17,7 +17,7 @@ from vbase.core.vbase_object import VBaseObject, VBASE_OBJECT_TYPES
 from vbase.core.indexing_service import IndexingService
 from vbase.utils.crypto_utils import (
     add_int_uint256,
-    solidity_hash,
+    hash_typed_values,
 )
 from vbase.utils.log import get_default_logger
 
@@ -229,7 +229,7 @@ class VBaseDataset(ABC):
         :param dataset_name: The dataset name.
         :return: The CID for the dataset.
         """
-        return solidity_hash(["string"], [dataset_name]).hex()
+        return hash_typed_values(["string"], [dataset_name])
 
     def _add_record_worker(
         self, record: VBaseObject, object_cid: str, timestamp: pd.Timestamp

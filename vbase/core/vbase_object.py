@@ -12,7 +12,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from vbase.utils.crypto_utils import (
-    solidity_hash,
+    hash_typed_values,
     string_to_u64_id,
     float_to_field,
 )
@@ -137,7 +137,7 @@ class VBaseIntObject(VBaseObject):
 
     @staticmethod
     def get_cid_for_data(record_data: int) -> str:
-        return solidity_hash(["uint256"], [record_data]).hex()
+        return hash_typed_values(["uint256"], [record_data])
 
 
 class VBasePrivateIntObject(VBaseObject):
@@ -167,9 +167,9 @@ class VBasePrivateIntObject(VBaseObject):
 
     @staticmethod
     def get_cid_for_data(record_data: Tuple[int, str]) -> str:
-        return solidity_hash(
+        return hash_typed_values(
             ["uint256", "string"], [record_data[0], record_data[1]]
-        ).hex()
+        )
 
 
 class VBaseFloatObject(VBaseObject):
@@ -191,7 +191,7 @@ class VBaseFloatObject(VBaseObject):
 
     @staticmethod
     def get_cid_for_data(record_data: float) -> str:
-        return solidity_hash(["uint256"], [float_to_field(record_data)]).hex()
+        return hash_typed_values(["uint256"], [float_to_field(record_data)])
 
 
 class VBasePrivateFloatObject(VBaseObject):
@@ -218,10 +218,10 @@ class VBasePrivateFloatObject(VBaseObject):
 
     @staticmethod
     def get_cid_for_data(record_data: Tuple[int, str]) -> str:
-        return solidity_hash(
+        return hash_typed_values(
             ["uint256", "string"],
             [float_to_field(record_data[0]), record_data[1]],
-        ).hex()
+        )
 
 
 class VBaseStringObject(VBaseObject):
@@ -242,7 +242,7 @@ class VBaseStringObject(VBaseObject):
 
     @staticmethod
     def get_cid_for_data(record_data: str) -> str:
-        return solidity_hash(["string"], [record_data]).hex()
+        return hash_typed_values(["string"], [record_data])
 
 
 class VBaseJsonObject(VBaseObject):
@@ -300,10 +300,10 @@ class VBasePortfolioObject(VBaseObject):
         # fixed point base -- uint256.
         vals: List[Any] = [float_to_field(val) for val in list(record_data.values())]
         # Both arrays are concatenated to calculate the hash.
-        return solidity_hash(
+        return hash_typed_values(
             ["uint64"] * len(ids) + ["uint256"] * len(vals),
             ids + vals,
-        ).hex()
+        )
 
 
 VBASE_OBJECT_TYPES = {
