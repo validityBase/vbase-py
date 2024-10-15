@@ -178,3 +178,7 @@ class TestVBaseClient(unittest.TestCase):
             TEST_HASH1, object_hashes, timestamps
         )
         self._verify_sets_objects_batch(cl, object_hashes, timestamps)
+
+
+if __name__ == "__main__":
+    unittest.main()

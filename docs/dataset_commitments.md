@@ -1,6 +1,6 @@
 # Dataset Commitments
 
-Below is a survey of the principles for making effective commitments 
+Below is a survey of the principles for making effective commitments
 that deliver maximum value for data consumers.
 
 ## General Principles
@@ -21,7 +21,7 @@ requiring expensive testing.
 
 ## External Examples
 
-vBase commitments and the ability to `rewind the information to "as it actually was" ` 
+vBase commitments and the ability to `rewind the information to "as it actually was" `
 enable bitemporal modeling for any data: https://en.wikipedia.org/wiki/Bitemporal_modeling.
 Indeed, the underlying objective cryptographic commitments enable verification,
 bitemporal modeling, and historical simulation for any untrusted 3rd party data
@@ -34,16 +34,16 @@ important macroeconomic series with frequent revisions:
 
 ## vBase Commitment Examples
 
-We will use the above Total Nonfarm (PAYEMS) series 
+We will use the above Total Nonfarm (PAYEMS) series
 to illustrate how vBase commitments establish high-fidelity "vintage timestamps"
 identifying when data and its revisions became available.
 
-For simplicity, we will assume all commitments are made at midnight GMT, 
-beginning with the `20221104` vintage. 
+For simplicity, we will assume all commitments are made at midnight GMT,
+beginning with the `20221104` vintage.
 
 ### Initial commitment
 
-The initial dataset is the full history for the `2022-11-04` vintage: 
+The initial dataset is the full history for the `2022-11-04` vintage:
 ```
 t           value
 1939-01-01	29923
@@ -55,7 +55,7 @@ t           value
 2022-10-01	153308
 ```
 
-These initial and subsequent records can be committed as 
+These initial and subsequent records can be committed as
 `VBaseJsonSeries` or `VBaseStringSeries` objects.
 If data is available in an AWS S3 bucket,
 it can also be committed using the `commit_s3_objects` tool:

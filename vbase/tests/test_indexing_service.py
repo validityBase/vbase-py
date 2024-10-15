@@ -193,3 +193,7 @@ class TestIndexingService(unittest.TestCase):
         object_cid = "0x" + secrets.token_bytes(32).hex()
         commitment_receipt = self.indexing_service.find_last_object(object_cid)
         assert commitment_receipt is None
+
+
+if __name__ == "__main__":
+    unittest.main()

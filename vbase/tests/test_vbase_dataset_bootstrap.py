@@ -47,7 +47,6 @@ class TestVBaseDatasetBootstrap(unittest.TestCase):
             )
             assert cl["timestamp"] == ts
             time.sleep(1)
-        assert cl is not None
         assert self.vbc.verify_user_set_objects(
             dsw.owner, dsw.cid, str(hex(dsw.object_cid_sum))
         )
@@ -86,3 +85,7 @@ class TestVBaseDatasetBootstrap(unittest.TestCase):
         )
 
         dataset_from_json_checks(self.vbc, dsw)
+
+
+if __name__ == "__main__":
+    unittest.main()

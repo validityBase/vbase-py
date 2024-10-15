@@ -3,8 +3,18 @@ Common cryptographic utility functions
 """
 
 from typing import Any, List, Union
+import hashlib
+from eth_typing import (
+    HexStr,
+)
+from eth_utils import (
+    add_0x_prefix,
+    remove_0x_prefix,
+)
+from web3._utils.encoding import (
+    hex_encode_abi_type,
+)
 from web3 import Web3
-
 
 # Field prime P used in ZK proofs
 # Field element are positive integer values in [0, p - 1].
@@ -19,9 +29,9 @@ DECIMALS = 9
 DECIMALS_BASE = int(1e9)
 
 
-def solidity_hash(abi_types: List[str], values: List[Any]) -> bytes:
+def solidity_hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
     """
-    Executes a keccak256 hash exactly as Solidity does.
+    Calcualtes a keccak256 hash exactly as Solidity does.
 
     :param abi_types: A list of Solidity ABI types.
     :param values: A list of values to hash.
@@ -31,7 +41,52 @@ def solidity_hash(abi_types: List[str], values: List[Any]) -> bytes:
     # because of difficulties with a decorated declaration:
     # E1120: No value for argument 'values' in unbound method call (no-value-for-parameter)
     # pylint: disable=E1120
-    return Web3.solidity_keccak(abi_types, values)
+    return Web3.solidity_keccak(abi_types, values).hex()
+
+
+def convert_typed_values_to_bytes(abi_types: List[str], values: List[Any]) -> bytes:
+    """
+    Marshalls ABI types as Solidity does.
+    Based on the marshalling in solidity_keccak.
+    We use this function to factor out Web3/Solidity marshalling
+    and unit-test it to ensure compatibility with Solidity.
+    Actual hashing is done in the hash_typed_values function
+    where we use the standard Python hashlib library's sha3-256.
+
+    :param abi_types: A list of Solidity ABI types.
+    :param values: A list of values to hash.
+    :return: The resulting bytes.
+    """
+    if len(abi_types) != len(values):
+        raise ValueError(
+            "Length mismatch between provided abi types and values.  Got "
+            f"{len(abi_types)} types and {len(values)} values."
+        )
+
+    normalized_values = Web3.normalize_values(None, abi_types, values)
+
+    hex_string = HexStr(
+        "".join(
+            remove_0x_prefix(hex_encode_abi_type(abi_type, value))
+            for abi_type, value in zip(abi_types, normalized_values)
+        )
+    )
+    return bytes.fromhex(hex_string)
+
+
+def hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
+    """
+    Calcualtes a sha3-256 hash on ABI types marshalled as Solidity does.
+    Based on the marshalling in solidity_keccak.
+
+    :param abi_types: A list of Solidity ABI types.
+    :param values: A list of values to hash.
+    :return: The resulting hash.
+    """
+    data_bytes = convert_typed_values_to_bytes(abi_types, values)
+    hash_obj = hashlib.sha3_256()
+    hash_obj.update(data_bytes)
+    return add_0x_prefix(str(hash_obj.hexdigest()))
 
 
 def bytes_to_hex_str(byte_arr: bytes) -> str:
@@ -120,7 +175,7 @@ def string_to_u64_id(s: str) -> int:
     :param s: The string to convert.
     :returns: The u64 integer used in commitments.
     """
-    return int(solidity_hash(["string"], [s]).hex(), 16) % (2**64)
+    return int(hash_typed_values(["string"], [s]), 16) % (2**64)
 
 
 def float_to_field(x: float) -> int:

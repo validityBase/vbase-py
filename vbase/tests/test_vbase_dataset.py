@@ -317,3 +317,7 @@ class TestVBaseDataset(unittest.TestCase):
         assert l_log[0].startswith(
             "Invalid record: Failed to find timestamp for object"
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -16,6 +16,6 @@ for the latest vBase release.
     * CommitmentsService
       * Address: `0x80D2AB15EE5b91cD7A183b8938dC277fE6191F7d`
       * [Deployment transaction](https://polygonscan.com/tx/0xb60915c7a8da9a277d09e7f9807ba70d75f203040135faa6f77d555c12918b84)
-    * CommitmentsServiceTest 
+    * CommitmentsServiceTest
       * Address: `0xD4dF7c779beEd417aD02adf6129949183a932263`
       * [Deployment transaction](https://polygonscan.com/tx/0xf57bcde72d657e14412d5bf9214e4195b8721546f356820ed148f08e29bd9a97)
