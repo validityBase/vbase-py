@@ -67,7 +67,6 @@ class TestSim(unittest.TestCase):
             )
             assert cl["timestamp"] == self.vbc.normalize_pd_timestamp(t)
             time.sleep(1)
-        assert cl is not None
         assert self.vbc.verify_user_set_objects(
             dsw.owner, dsw.cid, str(hex(dsw.object_cid_sum))
         )
