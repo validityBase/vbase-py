@@ -31,7 +31,7 @@ DECIMALS_BASE = int(1e9)
 
 def solidity_hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
     """
-    Calcualtes a keccak256 hash exactly as Solidity does.
+    Calculates a keccak256 hash exactly as Solidity does.
 
     :param abi_types: A list of Solidity ABI types.
     :param values: A list of values to hash.
@@ -76,7 +76,7 @@ def convert_typed_values_to_bytes(abi_types: List[str], values: List[Any]) -> by
 
 def hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
     """
-    Calcualtes a sha3-256 hash on ABI types marshalled as Solidity does.
+    Calculates a sha3-256 hash on ABI types marshalled as Solidity does.
     Based on the marshalling in solidity_keccak.
 
     :param abi_types: A list of Solidity ABI types.

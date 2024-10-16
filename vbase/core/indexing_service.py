@@ -126,13 +126,26 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
-    def find_objects(self, object_cid: str) -> List[dict]:
+    def find_objects(self, object_cids: List[str]) -> List[dict]:
         """
-        Returns the list of receipts for object commitments.
-        Find and returns individual object commitments irrespective of the set
+        Returns the list of receipts for object commitments
+        for a list of object CIDs.
+        Finds and returns individual object commitments irrespective of the set
         they may have been committed to.
 
-        :param object_cid: The CID for the object.
+        :param object_cids: The CIDs for the objects to search.
+        :return: The list of commitment receipts for all object commitments.
+        """
+        raise NotImplementedError()
+
+    def find_object(self, object_cid: str) -> List[dict]:
+        """
+        Returns the list of receipts for object commitments
+        for a single object CID.
+        Finds and returns individual object commitments irrespective of the set
+        they may have been committed to.
+
+        :param object_cid: The CID for the objects to search.
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
@@ -140,7 +153,7 @@ class IndexingService(ABC):
     def find_last_object(self, object_cid: str) -> Union[dict, None]:
         """
         Returns the last/latest receipt, if any, for object commitments.
-        Find and returns individual object commitment irrespective of the set
+        Finds and returns individual object commitment irrespective of the set
         they may have been committed to.
 
         :param object_cid: The CID for the object.
@@ -256,8 +269,8 @@ class Web3HTTPIndexingService(IndexingService):
         receipts = self.find_user_set_objects(user, set_cid)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None
 
-    def find_objects(self, object_cid: str) -> List[dict]:
-        # Find events across all commitment services.
+    def find_objects(self, object_cids: List[str]) -> List[dict]:
+        # Find receipts across all commitment services.
         receipts = []
         for cs in self.commitment_services:
             # Return chain_id with each receipt.
@@ -271,7 +284,9 @@ class Web3HTTPIndexingService(IndexingService):
             event_filter = cs.csc.events.AddObject.create_filter(
                 fromBlock=0,
                 argument_filters={
-                    "objectCid": hex_str_to_bytes(object_cid),
+                    "objectCid": [
+                        hex_str_to_bytes(object_cid) for object_cid in object_cids
+                    ],
                 },
             )
             # Retrieve and parse the events into commitment receipts.
@@ -291,7 +306,17 @@ class Web3HTTPIndexingService(IndexingService):
             ]
             receipts += cs_receipts
         # end for cs in self.commitment_services
+
+        # Sort receipts by timestamp.
+        # This is essential since we may have iterated
+        # over multiple commitment services above.
+        receipts = sorted(receipts, key=lambda x: x["timestamp"])
+
         return receipts
+
+    def find_object(self, object_cid: str) -> List[dict]:
+        # Pass through to find_objects with a single object_cid.
+        return self.find_objects([object_cid])
 
     def find_last_object(self, object_cid: str) -> Union[dict, None]:
         # TODO: This implementation is horribly inefficient.
@@ -299,5 +324,5 @@ class Web3HTTPIndexingService(IndexingService):
         # to get the latest event for a given filter on EVM blockchains.
         # Long-term, we will have to search for events after a given timestamp.
         # Longer-term, this will be superseded by higher-performance indexing services.
-        receipts = self.find_objects(object_cid)
+        receipts = self.find_object(object_cid)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None
