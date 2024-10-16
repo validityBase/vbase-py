@@ -4,12 +4,14 @@
     "dictionaryDefinitions": [],
     "dictionaries": [],
     "words": [
-        "np.arange",
         "automine",
         "cids",
         "dotenv",
+        "duplicative",
         "inds",
         "keccak",
+        "multichain",
+        "np.arange",
         "timeseries",
         "uints",
         "vbase"        

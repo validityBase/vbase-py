@@ -13,6 +13,7 @@ from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
 
 from vbase.tests.utils import (
+    int_to_hash,
     TEST_HASH1,
     TEST_HASH2,
     compare_dict_subset,
@@ -109,14 +110,14 @@ class TestIndexingServiceDual(unittest.TestCase):
             },
         )
 
-    def test_add_object_find_objects(self):
+    def test_add_object_find_object(self):
         """
-        Test a simple object commitment followed by find_objects().
+        Test a simple object commitment followed by find_object().
         """
         self.vbc1.add_object(object_cid=TEST_HASH2)
         cl2 = self.vbc2.add_object(object_cid=TEST_HASH2)
         user = cl2["user"]
-        commitment_receipts = self.indexing_service.find_objects(object_cid=TEST_HASH2)
+        commitment_receipts = self.indexing_service.find_object(object_cid=TEST_HASH2)
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
         assert compare_dict_subset(
@@ -128,6 +129,36 @@ class TestIndexingServiceDual(unittest.TestCase):
                 "timestamp": cl2["timestamp"],
             },
         )
+
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
+    def test_add_objects_find_objects(self):
+        """
+        Test add and find for multiple objects.
+        """
+        cls1 = [self.vbc1.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
+        cls2 = [self.vbc1.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
+        user = cls1[0]["user"]
+        cl_inds = [1, 2]
+        cids = [cls1[i]["objectCid"] for i in cl_inds] + [
+            cls2[i]["objectCid"] for i in cl_inds
+        ]
+        timestamps = [cls1[i]["timestamp"] for i in cl_inds] + [
+            cls2[i]["timestamp"] for i in cl_inds
+        ]
+        commitment_receipts = self.indexing_service.find_objects(object_cids=cids[:2])
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        for i in range(4):
+            assert compare_dict_subset(
+                commitment_receipts[-4 + i],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "objectCid": cids[i],
+                    "timestamp": timestamps[i],
+                },
+            )
 
 
 if __name__ == "__main__":
