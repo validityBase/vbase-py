@@ -1,0 +1,21 @@
+{
+    "version": "0.2",
+    "ignorePaths": [],
+    "dictionaryDefinitions": [],
+    "dictionaries": [],
+    "words": [
+        "automine",
+        "cids",
+        "dotenv",
+        "duplicative",
+        "inds",
+        "keccak",
+        "multichain",
+        "np.arange",
+        "timeseries",
+        "uints",
+        "vbase"        
+    ],
+    "ignoreWords": [],
+    "import": []
+}

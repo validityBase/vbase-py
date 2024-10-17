@@ -148,13 +148,13 @@ class TestIndexingService(unittest.TestCase):
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
-    def test_add_object_find_objects(self):
+    def test_add_object_find_object(self):
         """
-        Test a simple object commitment following by find_objects().
+        Test a simple object commitment following by find_object().
         """
         cl = self.vbc.add_object(object_cid=TEST_HASH2)
         user = cl["user"]
-        commitment_receipts = self.indexing_service.find_objects(object_cid=TEST_HASH2)
+        commitment_receipts = self.indexing_service.find_object(object_cid=TEST_HASH2)
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
         assert compare_dict_subset(
@@ -166,6 +166,31 @@ class TestIndexingService(unittest.TestCase):
                 "timestamp": cl["timestamp"],
             },
         )
+
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
+    def test_add_objects_find_objects(self):
+        """
+        Test add and find for multiple objects.
+        """
+        cls = [self.vbc.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
+        user = cls[0]["user"]
+        cl_inds = [1, 2]
+        cids = [cls[i]["objectCid"] for i in cl_inds]
+        timestamps = [cls[i]["timestamp"] for i in cl_inds]
+        commitment_receipts = self.indexing_service.find_objects(object_cids=cids)
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        for i in range(2):
+            assert compare_dict_subset(
+                commitment_receipts[-2 + i],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "objectCid": cids[i],
+                    "timestamp": timestamps[i],
+                },
+            )
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
