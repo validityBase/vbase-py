@@ -13,7 +13,7 @@ from typing import List, Optional, Union
 from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import (
-    buffered_gas_estimate_middleware,    
+    buffered_gas_estimate_middleware,
     construct_sign_and_send_raw_middleware,
     geth_poa_middleware,
 )

@@ -119,6 +119,11 @@ class Web3CommitmentService(CommitmentService, ABC):
                 cl = dict(event_data["args"])
                 cl["setCid"] = bytes_to_hex_str(cl["setCid"])
                 cl["transactionHash"] = receipt["transactionHash"]
+                # To return set timestamps for UX and compatibility
+                # we retrieve these from the transaction timestamps.
+                cl["timestamp"] = self.convert_timestamp_chain_to_str(
+                    self.w3.eth.get_block(event_data["blockNumber"])["timestamp"]
+                )
             else:
                 # Return an empty commitment log.
                 cl = {}
