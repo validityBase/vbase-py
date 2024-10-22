@@ -279,6 +279,7 @@ class Web3HTTPIndexingService(IndexingService):
         receipts = sorted(receipts, key=lambda x: x["timestamp"])
 
         return receipts
+
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         # The operation is similar to find_user_sets.
         # We could factor out the common code, but an extra layer of abstraction
@@ -343,11 +344,11 @@ class Web3HTTPIndexingService(IndexingService):
             # Return chain_id with each receipt.
             # We may have multiple commitment services
             # connected to different chains and clients may not be able to uniquely
-            # identify transactions without the chain_id.            
+            # identify transactions without the chain_id.
             chain_id = cs.w3.eth.chain_id
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
-            # so we must convert it explicitly.            
+            # so we must convert it explicitly.
             event_filter = cs.csc.events.AddObject.create_filter(
                 fromBlock=0,
                 argument_filters={
