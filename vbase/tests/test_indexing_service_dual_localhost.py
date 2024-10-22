@@ -6,6 +6,7 @@ Tests multichain and app compat scenarios for multiple commitment services.
 
 import json
 import os
+import secrets
 import unittest
 
 from vbase.core.indexing_service import Web3HTTPIndexingService
@@ -76,6 +77,71 @@ class TestIndexingServiceDual(unittest.TestCase):
         self.chain_id = self.vbc1.commitment_service.w3.eth.chain_id
         self.vbc1.add_set(TEST_HASH1)
         self.vbc2.add_set(TEST_HASH1)
+
+    def test_add_set_indexing(self):
+        """
+        Test a simple set commitment.
+        """
+        # Use a random set CID to avoid collisions with other tests.
+        set_cid1 = "0x" + secrets.token_bytes(32).hex()
+        cl1 = self.vbc1.add_set(set_cid=set_cid1)
+        set_cid2 = "0x" + secrets.token_bytes(32).hex()
+        cl2 = self.vbc2.add_set(set_cid=set_cid2)
+        user = cl1["user"]
+        commitment_receipts = self.indexing_service.find_user_sets(
+            user=user,
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        assert compare_dict_subset(
+            commitment_receipts[-2],
+            {
+                "chainId": self.chain_id,
+                "user": user,
+                "setCid": set_cid1,
+                "timestamp": cl1["timestamp"],
+            },
+        )
+        assert compare_dict_subset(
+            commitment_receipts[-1],
+            {
+                "chainId": self.chain_id,
+                "user": user,
+                "setCid": set_cid2,
+                "timestamp": cl2["timestamp"],
+            },
+        )
+
+    def test_add_sets_indexing(self):
+        """
+        Test a list of set commitments.
+        """
+        cls = []
+        # Use a random set CID to avoid collisions with other tests.
+        set_cids = ["0x" + secrets.token_bytes(32).hex() for i in range(5)]
+        for set_cid in set_cids:
+            cl = self.vbc1.add_set(set_cid=set_cid)
+            cls.append(cl)
+        set_cids = ["0x" + secrets.token_bytes(32).hex() for i in range(5)]
+        for set_cid in set_cids:
+            cl = self.vbc2.add_set(set_cid=set_cid)
+            cls.append(cl)            
+        user = cls[0]["user"]
+        commitment_receipts = self.indexing_service.find_user_sets(
+            user=user,
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        for i in range(10):
+            assert compare_dict_subset(
+                commitment_receipts[-10 + i],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "setCid": cls[i]["setCid"],
+                    "timestamp": cls[i]["timestamp"],
+                },
+            )
 
     def test_add_set_object_indexing(self):
         """
