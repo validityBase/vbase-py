@@ -41,6 +41,56 @@ class TestIndexingService(unittest.TestCase):
         cl = self.vbc.add_set(TEST_HASH1)
         assert cl["setCid"] == TEST_HASH1
 
+    def test_add_set_indexing(self):
+        """
+        Test a simple set commitment.
+        """
+        # Use a random set CID to avoid collisions with other tests.
+        set_cid = "0x" + secrets.token_bytes(32).hex()
+        cl = self.vbc.add_set(set_cid=set_cid)
+        user = cl["user"]
+        commitment_receipts = self.indexing_service.find_user_sets(
+            user=user,
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        assert compare_dict_subset(
+            commitment_receipts[-1],
+            {
+                "chainId": self.chain_id,
+                "user": user,
+                "setCid": set_cid,
+                "timestamp": cl["timestamp"],
+            },
+        )
+
+    def test_add_sets_indexing(self):
+        """
+        Test a list of set commitments.
+        """
+        # Use a random set CID to avoid collisions with other tests.
+        set_cids = ["0x" + secrets.token_bytes(32).hex() for i in range(5)]
+        cls = []
+        for set_cid in set_cids:
+            cl = self.vbc.add_set(set_cid=set_cid)
+            cls.append(cl)
+        user = cls[0]["user"]
+        commitment_receipts = self.indexing_service.find_user_sets(
+            user=user,
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        for i in range(5):
+            assert compare_dict_subset(
+                commitment_receipts[-5 + i],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "setCid": set_cids[i],
+                    "timestamp": cls[i]["timestamp"],
+                },
+            )
+
     # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_object_indexing(self):
@@ -73,40 +123,31 @@ class TestIndexingService(unittest.TestCase):
         """
         # Use a random set CID to avoid collisions with other tests.
         set_cid = "0x" + secrets.token_bytes(32).hex()
-        for i in range(1, 6):
+        cls = []
+        for i in range(5):
             cl = self.vbc.add_set_object_with_timestamp(
                 set_cid=set_cid,
                 object_cid=int_to_hash(i),
                 timestamp=self.vbc.commitment_service.convert_timestamp_chain_to_str(i),
             )
-        user = cl["user"]
+            cls.append(cl)
+        user = cls[0]["user"]
         commitment_receipts = self.indexing_service.find_user_set_objects(
             user=user, set_cid=set_cid
         )
-        assert compare_dict_subset(
-            commitment_receipts[-5],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": set_cid,
-                "objectCid": int_to_hash(1),
-                "timestamp": self.vbc.commitment_service.convert_timestamp_chain_to_str(
-                    1
-                ),
-            },
-        )
-        assert compare_dict_subset(
-            commitment_receipts[-1],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": set_cid,
-                "objectCid": int_to_hash(5),
-                "timestamp": self.vbc.commitment_service.convert_timestamp_chain_to_str(
-                    5
-                ),
-            },
-        )
+        for i in range(5):
+            assert compare_dict_subset(
+                commitment_receipts[-5 + i],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "setCid": set_cid,
+                    "objectCid": int_to_hash(i),
+                    "timestamp": self.vbc.commitment_service.convert_timestamp_chain_to_str(
+                        i
+                    ),
+                },
+            )
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
