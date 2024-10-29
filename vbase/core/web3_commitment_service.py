@@ -120,10 +120,14 @@ class Web3CommitmentService(CommitmentService, ABC):
                 cl["setCid"] = bytes_to_hex_str(cl["setCid"])
                 cl["transactionHash"] = receipt["transactionHash"]
                 # To return set timestamps for UX and compatibility
-                # we retrieve these from the transaction timestamps.
-                cl["timestamp"] = self.convert_timestamp_chain_to_str(
-                    self.w3.eth.get_block(event_data["blockNumber"])["timestamp"]
-                )
+                # we would need to retrieve these from the transaction timestamps.
+                # This worker function is called by the ForwarderCommitmentService
+                # that does not have direct access to the node.
+                # Thus, getting the timestamp requires additional calls
+                # to initialize a w3 instance and access the node.
+                # Since there is currently no consumers for this timestamp, we do not return it.
+                # Conceptually, sets are containers for objects
+                # and we need to expose object, not set, timestamps.
             else:
                 # Return an empty commitment log.
                 cl = {}

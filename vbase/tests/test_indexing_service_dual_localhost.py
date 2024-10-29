@@ -99,7 +99,6 @@ class TestIndexingServiceDual(unittest.TestCase):
                 "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid1,
-                "timestamp": cl1["timestamp"],
             },
         )
         assert compare_dict_subset(
@@ -108,7 +107,6 @@ class TestIndexingServiceDual(unittest.TestCase):
                 "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid2,
-                "timestamp": cl2["timestamp"],
             },
         )
 
@@ -139,7 +137,6 @@ class TestIndexingServiceDual(unittest.TestCase):
                     "chainId": self.chain_id,
                     "user": user,
                     "setCid": cls[i]["setCid"],
-                    "timestamp": cls[i]["timestamp"],
                 },
             )
 

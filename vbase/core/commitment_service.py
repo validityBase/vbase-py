@@ -112,7 +112,9 @@ class CommitmentService(ABC):
     @abstractmethod
     def verify_user_sets(self, user: str, user_set_cid_sum: str) -> bool:
         """
-        Verifies set commitments previously recorded by the user.
+        Verifies all set commitments previously recorded by the user.
+        This verifies all set commitments for completeness.
+        The sum of all set CIDs for the user encodes the collection of all sets.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
