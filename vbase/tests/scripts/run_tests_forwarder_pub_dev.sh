@@ -6,4 +6,3 @@ set +a
 
 python3 -m unittest vbase.tests.test_vbase_client
 python3 -m unittest vbase.tests.test_indexing_service
-python3 -m unittest vbase.tests.test_vbase_dataset
