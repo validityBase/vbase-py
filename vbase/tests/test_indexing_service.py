@@ -2,13 +2,11 @@
 Tests of the indexing service for the vbase package
 """
 
-from typing import cast
 import secrets
 import unittest
 
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.core.indexing_service import Web3HTTPIndexingService
+from vbase.core.indexing_service import IndexingService
 
 from vbase.tests.utils import (
     int_to_hash,
@@ -31,11 +29,14 @@ class TestIndexingService(unittest.TestCase):
         # for instance when testing on a public testnet.
         if not hasattr(self, "vbc"):
             self.vbc = VBaseClientTest.create_instance_from_env()
-            self.indexing_service = Web3HTTPIndexingService(
-                [cast(Web3HTTPCommitmentService, self.vbc.commitment_service)]
+            self.indexing_service = (
+                IndexingService.create_instance_from_commitment_service(
+                    self.vbc.commitment_service
+                )
             )
         self.assertTrue(self.indexing_service is not None)
-        self.chain_id = self.vbc.commitment_service.w3.eth.chain_id
+        self.assertEqual(len(self.indexing_service.commitment_services), 1)
+        self.chain_id = self.indexing_service.commitment_services[0].w3.eth.chain_id
         self.vbc.clear_sets()
         self.vbc.clear_set_objects(TEST_HASH1)
         cl = self.vbc.add_set(TEST_HASH1)
@@ -60,7 +61,6 @@ class TestIndexingService(unittest.TestCase):
                 "chainId": self.chain_id,
                 "user": user,
                 "setCid": set_cid,
-                "timestamp": cl["timestamp"],
             },
         )
 
@@ -87,7 +87,6 @@ class TestIndexingService(unittest.TestCase):
                     "chainId": self.chain_id,
                     "user": user,
                     "setCid": set_cids[i],
-                    "timestamp": cls[i]["timestamp"],
                 },
             )
 
