@@ -85,9 +85,9 @@ class TestIndexingServiceDual(unittest.TestCase):
         # Use a random set CID to avoid collisions with other tests.
         set_cid1 = "0x" + secrets.token_bytes(32).hex()
         cl1 = self.vbc1.add_set(set_cid=set_cid1)
-        set_cid2 = "0x" + secrets.token_bytes(32).hex()
-        cl2 = self.vbc2.add_set(set_cid=set_cid2)
         user = cl1["user"]
+        set_cid2 = "0x" + secrets.token_bytes(32).hex()
+        self.vbc2.add_set(set_cid=set_cid2)
         commitment_receipts = self.indexing_service.find_user_sets(
             user=user,
         )

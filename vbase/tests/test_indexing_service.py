@@ -2,7 +2,6 @@
 Tests of the indexing service for the vbase package
 """
 
-from typing import cast
 import secrets
 import unittest
 
@@ -30,8 +29,10 @@ class TestIndexingService(unittest.TestCase):
         # for instance when testing on a public testnet.
         if not hasattr(self, "vbc"):
             self.vbc = VBaseClientTest.create_instance_from_env()
-            self.indexing_service = IndexingService.create_instance_from_commitment_service(
-                self.vbc.commitment_service
+            self.indexing_service = (
+                IndexingService.create_instance_from_commitment_service(
+                    self.vbc.commitment_service
+                )
             )
         self.assertTrue(self.indexing_service is not None)
         self.assertEqual(len(self.indexing_service.commitment_services), 1)
