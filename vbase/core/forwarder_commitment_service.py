@@ -12,7 +12,7 @@ from typing import List, Optional, Union
 import pprint
 import requests
 from eth_account import Account
-from eth_account.messages import encode_structured_data
+from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from dotenv import load_dotenv
 from web3 import Web3
@@ -171,7 +171,11 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
-            if not response_json["success"]:
+            # Newer servers may not return a "success" field.
+            # They signal error with HTTPError only.
+            # Check whether the "success" field is present and False
+            # to determine if an older server is returning a failure via this field.
+            if "success" in response_json and not response_json["success"]:
                 raise requests.RequestException(response_json["log"])
             response_data = response_json["data"]
 
@@ -276,12 +280,10 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
 
         # Encode the CommitmentService smart contract call.
-        function_data = self.csc.encodeABI(fn_name=fn_name, args=args)
+        function_data = self.csc.encode_abi(fn_name=fn_name, args=args)
         # Sign the meta-transaction for the call.
-        # TODO: Fix: DeprecationWarning: `encode_structured_data` is deprecated
-        # and will be removed in a future release. Use encode_typed_data instead.
-        signable_message = encode_structured_data(
-            {
+        signable_message = encode_typed_data(
+            full_message={
                 "types": {
                     "EIP712Domain": [
                         {"name": "name", "type": "string"},
@@ -376,7 +378,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # Encode the CommitmentService smart contract call.
         # web3.py requires checksum addresses.
         user = self.w3.to_checksum_address(user)
-        function_data = self.csc.encodeABI(
+        function_data = self.csc.encode_abi(
             fn_name="userSetCommitments", args=[user, set_cid]
         )
 
@@ -397,7 +399,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         user = self.w3.to_checksum_address(user)
         # verifyUserSets setCidSum argument is uint256.
         user_set_cid_sum = int(user_set_cid_sum, base=16)
-        function_data = self.csc.encodeABI(
+        function_data = self.csc.encode_abi(
             fn_name="verifyUserSets", args=[user, user_set_cid_sum]
         )
         ret = self._call_forwarder_api(
@@ -418,7 +420,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
         user = self.w3.to_checksum_address(user)
-        function_data = self.csc.encodeABI(
+        function_data = self.csc.encode_abi(
             fn_name="verifyUserObject",
             args=[user, object_cid, self.convert_timestamp_str_to_chain(timestamp)],
         )
@@ -462,7 +464,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         user = self.w3.to_checksum_address(user)
         # verifyUserSetObjectsCidSum setObjectHashSum argument is uint256.
         user_set_object_cid_sum = int(user_set_object_cid_sum, base=16)
-        function_data = self.csc.encodeABI(
+        function_data = self.csc.encode_abi(
             fn_name="verifyUserSetObjectsCidSum",
             args=[user, set_cid, user_set_object_cid_sum],
         )

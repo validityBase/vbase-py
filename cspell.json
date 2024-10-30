@@ -8,13 +8,14 @@
         "cids",
         "dotenv",
         "duplicative",
+        "hexbytes",
         "inds",
         "keccak",
         "multichain",
         "np.arange",
         "timeseries",
         "uints",
-        "vbase"        
+        "vbase"
     ],
     "ignoreWords": [],
     "import": []
