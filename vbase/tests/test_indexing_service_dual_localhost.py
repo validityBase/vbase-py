@@ -66,8 +66,8 @@ class TestIndexingServiceDual(unittest.TestCase):
         self.indexing_service = (
             Web3HTTPIndexingService.create_instance_from_env_json_descriptor()
         )
-        assert self.indexing_service.commitment_services[0].w3.is_connected()
-        assert self.indexing_service.commitment_services[1].w3.is_connected()
+        self.assertTrue(self.indexing_service.commitment_services[0].w3.is_connected())
+        self.assertTrue(self.indexing_service.commitment_services[1].w3.is_connected())
 
         # Use these commitment services to define others client state.
         self.cs1 = self.indexing_service.commitment_services[0]
@@ -78,6 +78,8 @@ class TestIndexingServiceDual(unittest.TestCase):
         self.vbc1.add_set(TEST_HASH1)
         self.vbc2.add_set(TEST_HASH1)
 
+    # Disable R0801: Similar lines in 2 files for duplicate tests.
+    # pylint: disable=R0801
     def test_add_set_indexing(self):
         """
         Test a simple set commitment.
@@ -93,21 +95,25 @@ class TestIndexingServiceDual(unittest.TestCase):
         )
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
-        assert compare_dict_subset(
-            commitment_receipts[-2],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": set_cid1,
-            },
+        self.assertTrue(
+            compare_dict_subset(
+                commitment_receipts[-2],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "setCid": set_cid1,
+                },
+            )
         )
-        assert compare_dict_subset(
-            commitment_receipts[-1],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": set_cid2,
-            },
+        self.assertTrue(
+            compare_dict_subset(
+                commitment_receipts[-1],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "setCid": set_cid2,
+                },
+            )
         )
 
     def test_add_sets_indexing(self):
@@ -131,47 +137,83 @@ class TestIndexingServiceDual(unittest.TestCase):
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
         for i in range(10):
-            assert compare_dict_subset(
-                commitment_receipts[-10 + i],
-                {
-                    "chainId": self.chain_id,
-                    "user": user,
-                    "setCid": cls[i]["setCid"],
-                },
+            self.assertTrue(
+                compare_dict_subset(
+                    commitment_receipts[-10 + i],
+                    {
+                        "chainId": self.chain_id,
+                        "user": user,
+                        "setCid": cls[i]["setCid"],
+                    },
+                )
             )
 
+    # Disable R0801: Similar lines in 2 files for duplicate tests.
+    # pylint: disable=R0801
     def test_add_set_object_indexing(self):
         """
         Test a simple set object commitment.
         """
-        cl1 = self.vbc1.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH1)
-        cl2 = self.vbc2.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH2)
-        user = cl2["user"]
+        cls = [
+            self.vbc1.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH1),
+            self.vbc2.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH2),
+        ]
+        object_cids = [TEST_HASH1, TEST_HASH2]
+        user = cls[0]["user"]
+        expected_receipts = [
+            {
+                "chainId": self.chain_id,
+                "user": user,
+                "setCid": TEST_HASH1,
+                "objectCid": object_cids[i],
+                "timestamp": cl["timestamp"],
+            }
+            for i, cl in enumerate(cls)
+        ]
+
+        # Verify find_user_set_objects().
         commitment_receipts = self.indexing_service.find_user_set_objects(
             user=user, set_cid=TEST_HASH1
         )
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
-        assert compare_dict_subset(
-            commitment_receipts[-2],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": TEST_HASH1,
-                "objectCid": TEST_HASH1,
-                "timestamp": cl1["timestamp"],
-            },
+        for i, cr in enumerate(commitment_receipts[-2:]):
+            self.assertTrue(
+                compare_dict_subset(
+                    cr,
+                    expected_receipts[i],
+                )
+            )
+
+        # Verify find_objects().
+        commitment_receipts = self.indexing_service.find_objects(
+            object_cids=[TEST_HASH1, TEST_HASH2]
         )
-        assert compare_dict_subset(
-            commitment_receipts[-1],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "setCid": TEST_HASH1,
-                "objectCid": TEST_HASH2,
-                "timestamp": cl2["timestamp"],
-            },
+        self.assertNotIn("setCid", commitment_receipts[-1])
+        for i, cr in enumerate(commitment_receipts[-2:]):
+            self.assertTrue(
+                compare_dict_subset(
+                    cr,
+                    {
+                        "chainId": self.chain_id,
+                        "user": user,
+                        "objectCid": expected_receipts[i]["objectCid"],
+                        "timestamp": expected_receipts[i]["timestamp"],
+                    },
+                )
+            )
+
+        # Verify find_objects(return_set_cids=True).
+        commitment_receipts = self.indexing_service.find_objects(
+            object_cids=[TEST_HASH1, TEST_HASH2], return_set_cids=True
         )
+        for i, cr in enumerate(commitment_receipts[-2:]):
+            self.assertTrue(
+                compare_dict_subset(
+                    cr,
+                    expected_receipts[i],
+                )
+            )
 
     def test_add_object_find_object(self):
         """
@@ -183,14 +225,16 @@ class TestIndexingServiceDual(unittest.TestCase):
         commitment_receipts = self.indexing_service.find_object(object_cid=TEST_HASH2)
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
-        assert compare_dict_subset(
-            commitment_receipts[-1],
-            {
-                "chainId": self.chain_id,
-                "user": user,
-                "objectCid": TEST_HASH2,
-                "timestamp": cl2["timestamp"],
-            },
+        self.assertTrue(
+            compare_dict_subset(
+                commitment_receipts[-1],
+                {
+                    "chainId": self.chain_id,
+                    "user": user,
+                    "objectCid": TEST_HASH2,
+                    "timestamp": cl2["timestamp"],
+                },
+            )
         )
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
@@ -213,14 +257,16 @@ class TestIndexingServiceDual(unittest.TestCase):
         # The node may run multiple tests accumulating multiple events.
         # Validate the tail.
         for i in range(4):
-            assert compare_dict_subset(
-                commitment_receipts[-4 + i],
-                {
-                    "chainId": self.chain_id,
-                    "user": user,
-                    "objectCid": cids[i],
-                    "timestamp": timestamps[i],
-                },
+            self.assertTrue(
+                compare_dict_subset(
+                    commitment_receipts[-4 + i],
+                    {
+                        "chainId": self.chain_id,
+                        "user": user,
+                        "objectCid": cids[i],
+                        "timestamp": timestamps[i],
+                    },
+                )
             )
 
 

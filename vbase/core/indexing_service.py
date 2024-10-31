@@ -138,7 +138,7 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
-    def find_objects(self, object_cids: List[str]) -> List[dict]:
+    def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
         """
         Returns the list of receipts for object commitments
         for a list of object CIDs.
@@ -146,11 +146,12 @@ class IndexingService(ABC):
         they may have been committed to.
 
         :param object_cids: The CIDs for the objects to search.
+        :param return_set_cids: If True, return the set CIDs, if any, for the objects.
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
 
-    def find_object(self, object_cid: str) -> List[dict]:
+    def find_object(self, object_cid: str, return_set_cids=False) -> List[dict]:
         """
         Returns the list of receipts for object commitments
         for a single object CID.
@@ -158,17 +159,21 @@ class IndexingService(ABC):
         they may have been committed to.
 
         :param object_cid: The CID for the objects to search.
+        :param return_set_cids: If True, return the set CIDs, if any, for the objects.
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
 
-    def find_last_object(self, object_cid: str) -> Union[dict, None]:
+    def find_last_object(
+        self, object_cid: str, return_set_cid=False
+    ) -> Union[dict, None]:
         """
         Returns the last/latest receipt, if any, for object commitments.
         Finds and returns individual object commitment irrespective of the set
-        they may have been committed to.
+        it may have been committed to.
 
         :param object_cid: The CID for the object for search.
+        :param return_set_cid: If True, return the set CIDs, if any, for the object.
         :return: The commitment receipt for the last/latest object commitment.
         """
         raise NotImplementedError()
@@ -333,7 +338,7 @@ class Web3HTTPIndexingService(IndexingService):
         receipts = self.find_user_set_objects(user, set_cid)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None
 
-    def find_objects(self, object_cids: List[str]) -> List[dict]:
+    def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
         # The operation is similar to find_user_sets.
         # We could factor out the common code, but an extra layer of abstraction
         # does not seem worth it for now since the filter and receipt construction
@@ -374,6 +379,61 @@ class Web3HTTPIndexingService(IndexingService):
             receipts += cs_receipts
         # end for cs in self.commitment_services
 
+        if return_set_cids:
+            set_receipts = []
+            # Find set commitments across all commitment services.
+            # This is a substantially similar loop to the one above.
+            for cs in self.commitment_services:
+                chain_id = cs.w3.eth.chain_id
+                event_filter = cs.csc.events.AddSetObject.create_filter(
+                    fromBlock=0,
+                    argument_filters={
+                        "objectCid": [
+                            hex_str_to_bytes(object_cid) for object_cid in object_cids
+                        ],
+                    },
+                )
+                events = event_filter.get_all_entries()
+                # Retrieve a subset of the fields from the event
+                # needed to join the object and set commitments.
+                cs_receipts = [
+                    {
+                        "chainId": chain_id,
+                        "transactionHash": bytes_to_hex_str_auto(
+                            event["transactionHash"]
+                        ),
+                        "setCid": bytes_to_hex_str(event["args"]["setCid"]),
+                        "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
+                    }
+                    for event in events
+                ]
+                set_receipts += cs_receipts
+            # end for cs in self.commitment_services
+
+            # Join the object and set object commitments.
+            # Join receipts and set_receipts on (chainId, transactionHash, objectCid).
+            # This is a simple O(n^2) join.
+            # We could use a more efficient join by pre-sorting.
+            # If this becomes a performance bottleneck, we will have to optimize.
+            # This should not be necessary as the runtime should be dominated
+            # by node RPC calls above.
+            for receipt in receipts:
+                for set_receipt in set_receipts:
+                    # TODO: Consider a single tx with multiple (objectCid, setCid) commitments.
+                    # This is not expected in the normal course of operation, but may change.
+                    # Strictly speaking, consecutive events can be thus joined
+                    # since they are emitted by a single addSetObject() call.
+                    # We can handle this with an index for multiple (objectCid, setCid) commitments.
+                    if (
+                        receipt["chainId"] == set_receipt["chainId"]
+                        and receipt["transactionHash"] == set_receipt["transactionHash"]
+                        and receipt["objectCid"] == set_receipt["objectCid"]
+                    ):
+                        receipt["setCid"] = set_receipt["setCid"]
+                        break
+            # end for receipt in receipts
+        # end if return_set_cids
+
         # Sort receipts by timestamp.
         # This is essential since we may have iterated
         # over multiple commitment services above.
@@ -381,15 +441,15 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
-    def find_object(self, object_cid: str) -> List[dict]:
+    def find_object(self, object_cid: str, return_set_cids=False) -> List[dict]:
         # Pass through to find_objects with a single object_cid.
-        return self.find_objects([object_cid])
+        return self.find_objects([object_cid], return_set_cids)
 
-    def find_last_object(self, object_cid: str) -> Union[dict, None]:
+    def find_last_object(self, *args, **kwargs) -> Union[dict, None]:
         # TODO: This implementation is horribly inefficient.
         # There does not appear to be a simple and clean way
         # to get the latest event for a given filter on EVM blockchains.
         # Long-term, we will have to search for events after a given timestamp.
         # Longer-term, this will be superseded by higher-performance indexing services.
-        receipts = self.find_object(object_cid)
+        receipts = self.find_object(*args, **kwargs)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None
