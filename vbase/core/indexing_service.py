@@ -445,11 +445,13 @@ class Web3HTTPIndexingService(IndexingService):
         # Pass through to find_objects with a single object_cid.
         return self.find_objects([object_cid], return_set_cids)
 
-    def find_last_object(self, *args, **kwargs) -> Union[dict, None]:
+    def find_last_object(
+        self, object_cid: str, return_set_cid=False
+    ) -> Union[dict, None]:
         # TODO: This implementation is horribly inefficient.
         # There does not appear to be a simple and clean way
         # to get the latest event for a given filter on EVM blockchains.
         # Long-term, we will have to search for events after a given timestamp.
         # Longer-term, this will be superseded by higher-performance indexing services.
-        receipts = self.find_object(*args, **kwargs)
+        receipts = self.find_object(object_cid, return_set_cids=return_set_cid)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None

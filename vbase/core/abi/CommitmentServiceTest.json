@@ -373,7 +373,7 @@
       "inputs": [
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
@@ -391,7 +391,7 @@
       "inputs": [
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
@@ -580,7 +580,7 @@
         },
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
@@ -603,7 +603,7 @@
         },
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
@@ -631,7 +631,7 @@
         },
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
@@ -654,7 +654,7 @@
         },
         {
           "internalType": "bytes32[]",
-          "name": "setCides",
+          "name": "setCids",
           "type": "bytes32[]"
         },
         {
