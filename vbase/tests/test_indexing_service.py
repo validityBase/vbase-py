@@ -312,6 +312,56 @@ class TestIndexingService(unittest.TestCase):
 
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
+    def test_add_objects_find_user_objects(self):
+        """
+        Test add and find for multiple user objects.
+        """
+        for i in range(5):
+            self.vbc.add_set(set_cid=int_to_hash(i + 1))
+        cls = [self.vbc.add_object(object_cid=int_to_hash(i + 1)) for i in range(5)] + [
+            self.vbc.add_set_object(
+                set_cid=int_to_hash(i + 1), object_cid=int_to_hash(i + 10)
+            )
+            for i in range(5)
+        ]
+        user = cls[0]["user"]
+        cl_inds = range(10)
+        set_cids = [None] * 5 + [int_to_hash(i + 1) for i in range(5)]
+        object_cids = [cls[i]["objectCid"] for i in cl_inds]
+        timestamps = [cls[i]["timestamp"] for i in cl_inds]
+        commitment_receipts = self.indexing_service.find_user_objects(
+            user=user, return_set_cids=True
+        )
+        # The node may run multiple tests accumulating multiple events.
+        # Validate the tail.
+        for i in range(5):
+            self.assertTrue(
+                compare_dict_subset(
+                    commitment_receipts[-10 + i],
+                    {
+                        "chainId": self.chain_id,
+                        "user": user,
+                        "objectCid": object_cids[i],
+                        "timestamp": timestamps[i],
+                    },
+                )
+            )
+        for i in range(5):
+            self.assertTrue(
+                compare_dict_subset(
+                    commitment_receipts[-5 + i],
+                    {
+                        "chainId": self.chain_id,
+                        "user": user,
+                        "setCid": set_cids[5 + i],
+                        "objectCid": object_cids[5 + i],
+                        "timestamp": timestamps[5 + i],
+                    },
+                )
+            )
+
+    # Disable R0801: Similar lines in 2 files for duplicative tests.
+    # pylint: disable=R0801
     def test_find_last_object(self):
         """
         Test a simple object commitment following by find_last_object().
