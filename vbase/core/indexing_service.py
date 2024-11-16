@@ -303,6 +303,51 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
+    @staticmethod
+    def _process_add_object_events(
+        cs: Web3HTTPCommitmentService, events: List[dict]
+    ) -> List[dict]:
+        """
+        A worker function to get AddObject receipts from events.
+        """
+        chain_id = cs.w3.eth.chain_id
+        cs_receipts = [
+            {
+                "chainId": chain_id,
+                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                "user": event["args"]["user"],
+                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
+                "timestamp": cs.convert_timestamp_chain_to_str(
+                    event["args"]["timestamp"]
+                ),
+            }
+            for event in events
+        ]
+        return cs_receipts
+
+    @staticmethod
+    def _process_add_set_object_events(
+        cs: Web3HTTPCommitmentService, events: List[dict]
+    ) -> List[dict]:
+        """
+        A worker function to get AddSetObject receipts from events.
+        """
+        chain_id = cs.w3.eth.chain_id
+        cs_receipts = [
+            {
+                "chainId": chain_id,
+                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                "user": event["args"]["user"],
+                "setCid": bytes_to_hex_str(event["args"]["setCid"]),
+                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
+                "timestamp": cs.convert_timestamp_chain_to_str(
+                    event["args"]["timestamp"]
+                ),
+            }
+            for event in events
+        ]
+        return cs_receipts
+
     def _join_receipts_on_object_cid(
         self, receipts: List[dict], set_receipts: List[dict]
     ) -> List[dict]:
@@ -367,29 +412,6 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
-    @staticmethod
-    def _process_add_set_object_events(
-        cs: Web3HTTPCommitmentService, events: List[dict]
-    ) -> List[dict]:
-        """
-        A worker function to get AddSetObject receipts from events.
-        """
-        chain_id = cs.w3.eth.chain_id
-        cs_receipts = [
-            {
-                "chainId": chain_id,
-                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                "user": event["args"]["user"],
-                "setCid": bytes_to_hex_str(event["args"]["setCid"]),
-                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
-                "timestamp": cs.convert_timestamp_chain_to_str(
-                    event["args"]["timestamp"]
-                ),
-            }
-            for event in events
-        ]
-        return cs_receipts
-
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         # The operation is similar to find_user_sets.
 
@@ -418,28 +440,6 @@ class Web3HTTPIndexingService(IndexingService):
         # Longer-term, this will be superseded by higher-performance indexing services.
         receipts = self.find_user_set_objects(user, set_cid)
         return receipts[-1] if receipts is not None and len(receipts) > 0 else None
-
-    @staticmethod
-    def _process_add_object_events(
-        cs: Web3HTTPCommitmentService, events: List[dict]
-    ) -> List[dict]:
-        """
-        A worker function to get AddObject receipts from events.
-        """
-        chain_id = cs.w3.eth.chain_id
-        cs_receipts = [
-            {
-                "chainId": chain_id,
-                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                "user": event["args"]["user"],
-                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
-                "timestamp": cs.convert_timestamp_chain_to_str(
-                    event["args"]["timestamp"]
-                ),
-            }
-            for event in events
-        ]
-        return cs_receipts
 
     def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
         # The operation is similar to find_user_sets.
