@@ -6,7 +6,7 @@ import secrets
 import unittest
 
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.indexing_service import IndexingService
+from vbase.core.indexing_service import Web3HTTPIndexingService
 
 from vbase.tests.utils import (
     int_to_hash,
@@ -30,7 +30,7 @@ class TestIndexingService(unittest.TestCase):
         if not hasattr(self, "vbc"):
             self.vbc = VBaseClientTest.create_instance_from_env()
             self.indexing_service = (
-                IndexingService.create_instance_from_commitment_service(
+                Web3HTTPIndexingService.create_instance_from_commitment_service(
                     self.vbc.commitment_service
                 )
             )
@@ -88,7 +88,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-5 + i],
+                    commitment_receipts[-5:][i],
                     {
                         "chainId": self.chain_id,
                         "user": user,
@@ -188,7 +188,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-5 + i],
+                    commitment_receipts[-5:][i],
                     expected_receipts[i],
                 )
             )
@@ -200,7 +200,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-5 + i],
+                    commitment_receipts[-5:][i],
                     {
                         k: expected_receipts[i][k]
                         for k in ("chainId", "user", "objectCid", "timestamp")
@@ -215,7 +215,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-5 + i],
+                    commitment_receipts[-5:][i],
                     expected_receipts[i],
                 )
             )
@@ -300,7 +300,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(2):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-2 + i],
+                    commitment_receipts[-2:][i],
                     {
                         "chainId": self.chain_id,
                         "user": user,
@@ -337,7 +337,7 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-10 + i],
+                    commitment_receipts[-10:][i],
                     {
                         "chainId": self.chain_id,
                         "user": user,
@@ -349,13 +349,13 @@ class TestIndexingService(unittest.TestCase):
         for i in range(5):
             self.assertTrue(
                 compare_dict_subset(
-                    commitment_receipts[-5 + i],
+                    commitment_receipts[-5:][i],
                     {
                         "chainId": self.chain_id,
                         "user": user,
-                        "setCid": set_cids[5 + i],
-                        "objectCid": object_cids[5 + i],
-                        "timestamp": timestamps[5 + i],
+                        "setCid": set_cids[5:][i],
+                        "objectCid": object_cids[5:][i],
+                        "timestamp": timestamps[5:][i],
                     },
                 )
             )
