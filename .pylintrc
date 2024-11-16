@@ -2,4 +2,4 @@
 [BASIC]
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=i, j, k, x, y, n, n1, f, s, mu, cl, t, ts, tx, w3
+good-names=cr, cs, e, i, j, k, x, y, n, n1, f, s, mu, cl, t, ts, tx, w3
