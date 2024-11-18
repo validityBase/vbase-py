@@ -116,6 +116,19 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
+    def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
+        """
+        Returns the list of receipts for user object commitments
+        for a given user.
+        Finds and returns individual object commitments irrespective of the set
+        they may have been committed to.
+
+        :param user: The address for the user who made the commitments.
+        :param object_cids: The CIDs for the objects to search.
+        :return: The list of commitment receipts for all user object commitments.
+        """
+        raise NotImplementedError()
+
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         """
         Returns the list of receipts for user set object commitments
@@ -234,15 +247,40 @@ class Web3HTTPIndexingService(IndexingService):
 
         return Web3HTTPIndexingService.create_instance_from_json_descriptor(is_json)
 
+    @staticmethod
+    def _process_add_set_events(
+        cs: Web3HTTPCommitmentService, events: List[dict]
+    ) -> List[dict]:
+        """
+        A worker function to get AddSet receipts from events.
+        """
+        # Return chain_id with each receipt.
+        # We may have multiple commitment services
+        # connected to different chains and clients may not be able to uniquely
+        # identify transactions without the chain_id.
+        chain_id = cs.w3.eth.chain_id
+        cs_receipts = [
+            {
+                "chainId": chain_id,
+                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                "user": event["args"]["user"],
+                "setCid": bytes_to_hex_str(event["args"]["setCid"]),
+                # Get block timestamp for the event from the transaction receipt.
+                # This can be done more efficiently if we maintain a cache of block timestamps.
+                "timestamp": cs.convert_timestamp_chain_to_str(
+                    # If the timestamp is not defined, raise an exception.
+                    # Hence, we can ignore the type check for whether timestamp is defined.
+                    cs.w3.eth.get_block(event["blockNumber"])["timestamp"]  # type: ignore
+                ),
+            }
+            for event in events
+        ]
+        return cs_receipts
+
     def find_user_sets(self, user: str) -> List[dict]:
         # Find events across all commitment services.
         receipts = []
         for cs in self.commitment_services:
-            # Return chain_id with each receipt.
-            # We may have multiple commitment services
-            # connected to different chains and clients may not be able to uniquely
-            # identify transactions without the chain_id.
-            chain_id = cs.w3.eth.chain_id
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
@@ -254,29 +292,9 @@ class Web3HTTPIndexingService(IndexingService):
             )
             # Retrieve and parse the events into commitment receipts.
             events = event_filter.get_all_entries()
-            # A set commitment receipt comprises setCid.
-            # Timestamp is is not part of set commitments on-chain data.
-            # Data or objects have timestamps, but their container sets do not.
-            # The first and last timestamps of a set are the timestamps
-            # of the corresponding set object commitments.
-            # To return set timestamps for UX and compatibility
-            # we retrieve these from the transaction timestamps.
-            cs_receipts = [
-                {
-                    "chainId": chain_id,
-                    "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                    "user": user,
-                    "setCid": bytes_to_hex_str(event["args"]["setCid"]),
-                    # Get block timestamp for the event from the transaction receipt.
-                    # This can be done more efficiently if we maintain a cache of block timestamps.
-                    "timestamp": cs.convert_timestamp_chain_to_str(
-                        cs.w3.eth.get_block(event["blockNumber"])["timestamp"]
-                    ),
-                }
-                for event in events
-            ]
+            # Build the commitment receipts from the events.
+            cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
-        # end for cs in self.commitment_services
 
         # Sort receipts by timestamp.
         # This is essential since we may have iterated
@@ -285,18 +303,120 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
+    @staticmethod
+    def _process_add_object_events(
+        cs: Web3HTTPCommitmentService, events: List[dict]
+    ) -> List[dict]:
+        """
+        A worker function to get AddObject receipts from events.
+        """
+        chain_id = cs.w3.eth.chain_id
+        cs_receipts = [
+            {
+                "chainId": chain_id,
+                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                "user": event["args"]["user"],
+                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
+                "timestamp": cs.convert_timestamp_chain_to_str(
+                    event["args"]["timestamp"]
+                ),
+            }
+            for event in events
+        ]
+        return cs_receipts
+
+    @staticmethod
+    def _process_add_set_object_events(
+        cs: Web3HTTPCommitmentService, events: List[dict]
+    ) -> List[dict]:
+        """
+        A worker function to get AddSetObject receipts from events.
+        """
+        chain_id = cs.w3.eth.chain_id
+        cs_receipts = [
+            {
+                "chainId": chain_id,
+                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                "user": event["args"]["user"],
+                "setCid": bytes_to_hex_str(event["args"]["setCid"]),
+                "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
+                "timestamp": cs.convert_timestamp_chain_to_str(
+                    event["args"]["timestamp"]
+                ),
+            }
+            for event in events
+        ]
+        return cs_receipts
+
+    def _join_receipts_on_object_cid(
+        self, receipts: List[dict], set_receipts: List[dict]
+    ) -> List[dict]:
+        # Join the object and set object commitments.
+        # Join receipts and set_receipts on (chainId, transactionHash, objectCid).
+        # This is a simple O(n^2) join.
+        # We could use a more efficient join by pre-sorting.
+        # If this becomes a performance bottleneck, we will have to optimize.
+        # This should not be necessary as the runtime should be dominated
+        # by node RPC calls above.
+        for receipt in receipts:
+            for set_receipt in set_receipts:
+                # TODO: Consider a single tx with multiple (objectCid, setCid) commitments.
+                # This is not expected in the normal course of operation, but may change.
+                # Strictly speaking, consecutive events can be thus joined
+                # since they are emitted by a single addSetObject() call.
+                # We can handle this with an index for multiple (objectCid, setCid) commitments.
+                if (
+                    receipt["chainId"] == set_receipt["chainId"]
+                    and receipt["transactionHash"] == set_receipt["transactionHash"]
+                    and receipt["objectCid"] == set_receipt["objectCid"]
+                ):
+                    receipt["setCid"] = set_receipt["setCid"]
+                    break
+
+        return receipts
+
+    def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
+        # The operation is similar to find_user_sets and find_objects.
+
+        receipts = []
+        # Find receipts across all commitment services.
+        for cs in self.commitment_services:
+            # Create the event filter for AddObject events.
+            event_filter = cs.csc.events.AddObject.create_filter(
+                fromBlock=0,
+                argument_filters={
+                    "user": user,
+                },
+            )
+            events = event_filter.get_all_entries()
+            cs_receipts = self._process_add_object_events(cs, events)
+            receipts += cs_receipts
+
+        if return_set_cids:
+            set_receipts = []
+            # Find set commitments across all commitment services.
+            # This is a substantially similar loop to the one above.
+            for cs in self.commitment_services:
+                event_filter = cs.csc.events.AddSetObject.create_filter(
+                    fromBlock=0,
+                    argument_filters={
+                        "user": user,
+                    },
+                )
+                events = event_filter.get_all_entries()
+                cs_receipts = self._process_add_set_object_events(cs, events)
+                set_receipts += cs_receipts
+            receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
+
+        receipts = sorted(receipts, key=lambda x: x["timestamp"])
+
+        return receipts
+
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
         # The operation is similar to find_user_sets.
-        # We could factor out the common code, but an extra layer of abstraction
-        # does not seem worth it for now since the filter and receipt construction
-        # are slightly different.
+
         receipts = []
         for cs in self.commitment_services:
-            # Return chain_id with each receipt.
-            # We may have multiple commitment services
-            # connected to different chains and clients may not be able to uniquely
-            # identify transactions without the chain_id.
-            chain_id = cs.w3.eth.chain_id
             event_filter = cs.csc.events.AddSetObject.create_filter(
                 fromBlock=0,
                 argument_filters={
@@ -305,26 +425,9 @@ class Web3HTTPIndexingService(IndexingService):
                 },
             )
             events = event_filter.get_all_entries()
-            # A set object commitment receipt comprises setCid, objectCid, timestamp fields.
-            cs_receipts = [
-                {
-                    "chainId": chain_id,
-                    "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                    "user": user,
-                    "setCid": set_cid,
-                    "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
-                    "timestamp": cs.convert_timestamp_chain_to_str(
-                        event["args"]["timestamp"]
-                    ),
-                }
-                for event in events
-            ]
+            cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
-        # end for cs in self.commitment_services
 
-        # Sort receipts by timestamp.
-        # This is essential since we may have iterated
-        # over multiple commitment services above.
         receipts = sorted(receipts, key=lambda x: x["timestamp"])
 
         return receipts
@@ -340,17 +443,10 @@ class Web3HTTPIndexingService(IndexingService):
 
     def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
         # The operation is similar to find_user_sets.
-        # We could factor out the common code, but an extra layer of abstraction
-        # does not seem worth it for now since the filter and receipt construction
-        # are slightly different.
+
         receipts = []
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
-            # Return chain_id with each receipt.
-            # We may have multiple commitment services
-            # connected to different chains and clients may not be able to uniquely
-            # identify transactions without the chain_id.
-            chain_id = cs.w3.eth.chain_id
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
@@ -363,28 +459,14 @@ class Web3HTTPIndexingService(IndexingService):
                 },
             )
             events = event_filter.get_all_entries()
-            # A commitment receipt comprises setCid, objectCid, timestamp fields.
-            cs_receipts = [
-                {
-                    "chainId": chain_id,
-                    "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                    "user": event["args"]["user"],
-                    "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
-                    "timestamp": cs.convert_timestamp_chain_to_str(
-                        event["args"]["timestamp"]
-                    ),
-                }
-                for event in events
-            ]
+            cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
-        # end for cs in self.commitment_services
 
         if return_set_cids:
             set_receipts = []
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                chain_id = cs.w3.eth.chain_id
                 event_filter = cs.csc.events.AddSetObject.create_filter(
                     fromBlock=0,
                     argument_filters={
@@ -394,49 +476,11 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
                 events = event_filter.get_all_entries()
-                # Retrieve a subset of the fields from the event
-                # needed to join the object and set commitments.
-                cs_receipts = [
-                    {
-                        "chainId": chain_id,
-                        "transactionHash": bytes_to_hex_str_auto(
-                            event["transactionHash"]
-                        ),
-                        "setCid": bytes_to_hex_str(event["args"]["setCid"]),
-                        "objectCid": bytes_to_hex_str(event["args"]["objectCid"]),
-                    }
-                    for event in events
-                ]
+                cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
-            # end for cs in self.commitment_services
 
-            # Join the object and set object commitments.
-            # Join receipts and set_receipts on (chainId, transactionHash, objectCid).
-            # This is a simple O(n^2) join.
-            # We could use a more efficient join by pre-sorting.
-            # If this becomes a performance bottleneck, we will have to optimize.
-            # This should not be necessary as the runtime should be dominated
-            # by node RPC calls above.
-            for receipt in receipts:
-                for set_receipt in set_receipts:
-                    # TODO: Consider a single tx with multiple (objectCid, setCid) commitments.
-                    # This is not expected in the normal course of operation, but may change.
-                    # Strictly speaking, consecutive events can be thus joined
-                    # since they are emitted by a single addSetObject() call.
-                    # We can handle this with an index for multiple (objectCid, setCid) commitments.
-                    if (
-                        receipt["chainId"] == set_receipt["chainId"]
-                        and receipt["transactionHash"] == set_receipt["transactionHash"]
-                        and receipt["objectCid"] == set_receipt["objectCid"]
-                    ):
-                        receipt["setCid"] = set_receipt["setCid"]
-                        break
-            # end for receipt in receipts
-        # end if return_set_cids
+            receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
 
-        # Sort receipts by timestamp.
-        # This is essential since we may have iterated
-        # over multiple commitment services above.
         receipts = sorted(receipts, key=lambda x: x["timestamp"])
 
         return receipts
