@@ -9,8 +9,9 @@ import json
 import logging
 import os
 import pprint
-from typing import List, Union
+from typing import cast, List, Union
 from dotenv import load_dotenv
+from web3.contract.contract import ContractEvent
 
 from vbase.utils.crypto_utils import (
     bytes_to_hex_str,
@@ -284,14 +285,12 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cs.csc.events.AddSet.create_filter(
+            events = cast(ContractEvent, cs.csc.events.AddSet).create_filter(
                 fromBlock=0,
                 argument_filters={
                     "user": user,
                 },
-            )
-            # Retrieve and parse the events into commitment receipts.
-            events = event_filter.get_all_entries()
+            ).get_all_entries()
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
@@ -382,13 +381,12 @@ class Web3HTTPIndexingService(IndexingService):
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
-            event_filter = cs.csc.events.AddObject.create_filter(
+            events = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
                 fromBlock=0,
                 argument_filters={
                     "user": user,
                 },
-            )
-            events = event_filter.get_all_entries()
+            ).get_all_entries()
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -397,13 +395,12 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cs.csc.events.AddSetObject.create_filter(
+                events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
                     fromBlock=0,
                     argument_filters={
                         "user": user,
                     },
-                )
-                events = event_filter.get_all_entries()
+                ).get_all_entries()
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
@@ -417,14 +414,13 @@ class Web3HTTPIndexingService(IndexingService):
 
         receipts = []
         for cs in self.commitment_services:
-            event_filter = cs.csc.events.AddSetObject.create_filter(
+            events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
                 fromBlock=0,
                 argument_filters={
                     "user": user,
                     "setCid": hex_str_to_bytes(set_cid),
                 },
-            )
-            events = event_filter.get_all_entries()
+            ).get_all_entries()
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
 
@@ -450,15 +446,14 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cs.csc.events.AddObject.create_filter(
+            events = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
                 fromBlock=0,
                 argument_filters={
                     "objectCid": [
                         hex_str_to_bytes(object_cid) for object_cid in object_cids
                     ],
                 },
-            )
-            events = event_filter.get_all_entries()
+            ).get_all_entries()
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -467,15 +462,14 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cs.csc.events.AddSetObject.create_filter(
+                events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
                     fromBlock=0,
                     argument_filters={
                         "objectCid": [
                             hex_str_to_bytes(object_cid) for object_cid in object_cids
                         ],
                     },
-                )
-                events = event_filter.get_all_entries()
+                ).get_all_entries()
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
 
