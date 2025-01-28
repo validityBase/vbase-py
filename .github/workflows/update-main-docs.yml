@@ -3,8 +3,8 @@ name: Update the Main Docs Repository
 on:
   workflow_dispatch:
   push:
-    #branches:
-      #- main
+    branches:
+      - main
 
 jobs:
   update-main-docs:
@@ -34,4 +34,3 @@ jobs:
         with:
           docs-repo-access-token: ${{ secrets.DOCS_REPO_ACCESS_TOKEN }}
           source-docs-path: 'docs/_build/markdown'
-          target-repository-branch: 'feature/vbase-py-doc-publishing'
