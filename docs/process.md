@@ -1,3 +1,7 @@
+--------------------------
+The Process
+--------------------------
+
 # The Process
 
 ## Establishing Data Provenance with vBase: A Secure and Lightweight Approach

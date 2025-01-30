@@ -1,4 +1,4 @@
-Package vbase
+vBase Python SDK
 =============
 
 .. automodule:: vbase

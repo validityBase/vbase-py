@@ -27,11 +27,16 @@ extensions = [
     "sphinx_markdown_builder",
 ]
 
-# Use theme suitable for import into external docs.
-html_theme = "sphinx_rtd_theme"
+# Add Markdown as a supported source format.
+source_suffix = [".rst", ".md"]
 
-# Hide the Sphinx footer text.
-# These settings are used by some themes and may give warning with unsupported themes.
-html_show_sphinx = False
-html_show_sourcelink = False
-html_theme_options = {}
+# Configure Markdown output.
+markdown_builder_options = {
+    # Set the output folder for Markdown files.
+    "output": "docs/_build/markdown",
+}
+
+# Tell the myst_parser to generate labels for heading anchors
+# for h1 and h2 level headings
+# (corresponding to #, ## in markdown).
+myst_heading_anchors = 2
