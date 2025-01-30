@@ -1,7 +1,6 @@
 -----------------------------------------------------------------------
 vBase Smart Contract Addresses
 -----------------------------------------------------------------------
-# vBase Smart Contract Addresses
 
 Below are the addresses for smart contracts providing commitment services
 for the latest vBase release.

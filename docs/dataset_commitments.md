@@ -2,8 +2,6 @@
 Dataset Commitments
 ------------------------------------------------------------------------
 
-# Dataset Commitments
-
 Below is a survey of the principles for making effective commitments
 that deliver maximum value for data consumers.
 

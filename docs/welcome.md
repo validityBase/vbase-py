@@ -1,7 +1,6 @@
 --------------------------
 Welcome to vBase
 --------------------------
-# Welcome to vBase
 
 ### Your data, made credible
 
