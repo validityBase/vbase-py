@@ -5,10 +5,8 @@ __pycache__/
 *.pyd
 venv/
 
-# Build folder
-*.egg-info/
-
 # Package build
+*.egg-info/
 build/
 dist/
 
