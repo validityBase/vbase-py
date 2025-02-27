@@ -17,8 +17,7 @@ _LOG.setLevel(logging.INFO)
 
 class CommitmentServiceTest(CommitmentService):
     """
-    Base test commitment operations
-    Various commitment services may provide a subset of the below operations that they support.
+    Interface for base commitment operations    
     """
 
     @abstractmethod

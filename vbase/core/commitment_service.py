@@ -16,8 +16,7 @@ _LOG.setLevel(logging.INFO)
 
 class CommitmentService(ABC):
     """
-    Base commitment operations
-    Various commitment services may provide a subset of the below operations that they support.
+    Interface for base commitment operations    
     """
 
     @staticmethod
