@@ -6,18 +6,13 @@ Higher-order abstractions, such as datasets
 comprise one or more records (objects) belonging to a set.
 """
 
-from abc import ABC, abstractmethod
 import json
 import logging
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from vbase.utils.crypto_utils import (
-    hash_typed_values,
-    string_to_u64_id,
-    float_to_field,
-)
+from vbase.utils.crypto_utils import float_to_field, hash_typed_values, string_to_u64_id
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

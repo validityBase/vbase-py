@@ -4,7 +4,6 @@ Default logging interface
 
 import logging
 
-
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
 )

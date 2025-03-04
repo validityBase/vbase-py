@@ -80,7 +80,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:
@@ -233,7 +233,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:
@@ -457,7 +457,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:
@@ -665,7 +665,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:
@@ -1190,7 +1190,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:
@@ -1334,7 +1334,7 @@ Syntactic sugar for initializing new commitment objects using settings
 stored in a .env file or in environment variables.
 
 * **Parameters:**
-  **dotenv_path** – 
+  **dotenv_path** –
 
   Path to the .env file.
   Below is the default treatment that should be appropriate in most scenarios:

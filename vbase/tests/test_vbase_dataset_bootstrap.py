@@ -7,10 +7,7 @@ import unittest
 
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBasePortfolioObject
-from vbase.tests.utils import (
-    create_dataset_worker,
-    dataset_from_json_checks,
-)
+from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
 
 
 class TestVBaseDatasetBootstrap(unittest.TestCase):

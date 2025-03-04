@@ -5,21 +5,17 @@ accessing committed data precisely as it existed historically.
 """
 
 import logging
-
 import time
 import unittest
+
 import numpy as np
 import pandas as pd
 
 import vbase.core.vbase_client
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseIntObject
+from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
 from vbase.utils.log import get_default_logger
-from vbase.tests.utils import (
-    create_dataset_worker,
-    dataset_from_json_checks,
-)
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

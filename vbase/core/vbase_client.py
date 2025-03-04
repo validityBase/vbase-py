@@ -5,17 +5,17 @@ The vbase module provides access to base validityBase (vBase) commitments.
 import logging
 import os
 from typing import Callable, List, Union
-from dotenv import load_dotenv
-import pandas as pd
 
-from vbase.utils.log import get_default_logger
+import pandas as pd
+from dotenv import load_dotenv
+
 from vbase.core.commitment_service import CommitmentService
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import add_uint256_uint256
-
+from vbase.utils.log import get_default_logger
 
 LOG = get_default_logger(__name__)
 LOG.setLevel(logging.INFO)

@@ -3,24 +3,21 @@ Dataset support for the validityBase (vBase) platform.
 A vBase dataset comprises one or more records (objects) belonging to a set.
 """
 
-from abc import ABC
-from enum import Enum
 import json
 import logging
+from abc import ABC
+from enum import Enum
 from typing import Any, List, Type, Union
+
 import numpy as np
 import pandas as pd
 
+from vbase.core.indexing_service import IndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.vbase_object import VBaseObject, VBASE_OBJECT_TYPES
-from vbase.core.indexing_service import IndexingService
-from vbase.utils.crypto_utils import (
-    add_int_uint256,
-    hash_typed_values,
-)
+from vbase.core.vbase_object import VBASE_OBJECT_TYPES, VBaseObject
+from vbase.utils.crypto_utils import add_int_uint256, hash_typed_values
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

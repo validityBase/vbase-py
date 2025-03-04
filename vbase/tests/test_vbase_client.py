@@ -2,17 +2,13 @@
 Tests of the vbase_client module
 """
 
-from typing import List
 import unittest
+from typing import List
+
 import pandas as pd
 
 from vbase.core.vbase_client_test import VBaseClientTest
-
-from vbase.tests.utils import (
-    int_to_hash,
-    TEST_HASH1,
-    TEST_HASH2,
-)
+from vbase.tests.utils import TEST_HASH1, TEST_HASH2, int_to_hash
 
 
 class TestVBaseClient(unittest.TestCase):

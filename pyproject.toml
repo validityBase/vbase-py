@@ -1,0 +1,6 @@
+[tool.isort]
+# Avoid conflicts with black formatter.
+profile = "black"
+# Skip the main __init__.py that defines exports.
+# This file is ordered logically rather than alphabetically.
+skip = ["vbase/__init__.py"]

@@ -10,10 +10,9 @@ from typing import Type
 
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.vbase_object import VBaseObject
 from vbase.core.vbase_dataset import VBaseDataset
+from vbase.core.vbase_object import VBaseObject
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

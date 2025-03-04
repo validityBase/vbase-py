@@ -12,14 +12,7 @@ import unittest
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-
-from vbase.tests.utils import (
-    int_to_hash,
-    TEST_HASH1,
-    TEST_HASH2,
-    compare_dict_subset,
-)
-
+from vbase.tests.utils import TEST_HASH1, TEST_HASH2, compare_dict_subset, int_to_hash
 
 # Test RPC endpoint.
 _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"

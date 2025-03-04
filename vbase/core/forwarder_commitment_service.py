@@ -7,21 +7,21 @@ This implementation uses a forwarder to execute meta-transactions on a user's be
 import json
 import logging
 import os
+import pprint
 from enum import Enum
 from typing import List, Optional, Union
-import pprint
+
 import requests
+from dotenv import load_dotenv
 from eth_account import Account
 from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
-from dotenv import load_dotenv
 from web3 import Web3
 
-from vbase.utils.log import get_default_logger
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-
+from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

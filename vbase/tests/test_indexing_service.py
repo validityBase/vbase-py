@@ -5,15 +5,9 @@ Tests of the indexing service for the vbase package
 import secrets
 import unittest
 
-from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.indexing_service import Web3HTTPIndexingService
-
-from vbase.tests.utils import (
-    int_to_hash,
-    TEST_HASH1,
-    TEST_HASH2,
-    compare_dict_subset,
-)
+from vbase.core.vbase_client_test import VBaseClientTest
+from vbase.tests.utils import TEST_HASH1, TEST_HASH2, compare_dict_subset, int_to_hash
 
 
 class TestIndexingService(unittest.TestCase):

@@ -10,6 +10,7 @@ import os
 import pprint
 import time
 from typing import List, Optional, Union
+
 from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import (
@@ -18,11 +19,10 @@ from web3.middleware import (
     geth_poa_middleware,
 )
 
-from vbase.utils.log import get_default_logger
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-
+from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)

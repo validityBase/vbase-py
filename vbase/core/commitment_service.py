@@ -4,11 +4,10 @@ such as blockchain-based smart contracts.
 """
 
 import logging
-from typing import List, Union
 from abc import ABC, abstractmethod
+from typing import List, Union
 
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -16,7 +15,7 @@ _LOG.setLevel(logging.INFO)
 
 class CommitmentService(ABC):
     """
-    Interface for base commitment operations    
+    Interface for base commitment operations
     """
 
     @staticmethod

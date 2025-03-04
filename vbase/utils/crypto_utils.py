@@ -2,19 +2,13 @@
 Common cryptographic utility functions
 """
 
-from typing import Any, List, Union
 import hashlib
-from eth_typing import (
-    HexStr,
-)
-from eth_utils import (
-    add_0x_prefix,
-    remove_0x_prefix,
-)
-from web3._utils.encoding import (
-    hex_encode_abi_type,
-)
+from typing import Any, List, Union
+
+from eth_typing import HexStr
+from eth_utils import add_0x_prefix, remove_0x_prefix
 from web3 import Web3
+from web3._utils.encoding import hex_encode_abi_type
 
 # Field prime P used in ZK proofs
 # Field element are positive integer values in [0, p - 1].

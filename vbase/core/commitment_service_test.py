@@ -10,14 +10,13 @@ from typing import List
 from vbase.core.commitment_service import CommitmentService
 from vbase.utils.log import get_default_logger
 
-
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class CommitmentServiceTest(CommitmentService):
     """
-    Interface for base commitment operations    
+    Interface for base commitment operations
     """
 
     @abstractmethod

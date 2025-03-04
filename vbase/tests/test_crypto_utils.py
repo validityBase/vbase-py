@@ -4,14 +4,14 @@ Test crypto utilities
 
 import hashlib
 import unittest
+
 from web3 import Web3
 
 from vbase.utils.crypto_utils import (
-    solidity_hash_typed_values,
     convert_typed_values_to_bytes,
     hash_typed_values,
+    solidity_hash_typed_values,
 )
-
 
 _STR_TEST = "Hello, world!"
 _INT_TEST1 = 42
