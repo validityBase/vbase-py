@@ -15,3 +15,9 @@ repos:
     hooks:
       - id: black
         language_version: python3
+  -   repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.9.9
+      hooks:
+      - id: ruff
+        # Automatically fix issues and fail if fixes are applied.
+        args: [--fix, --exit-non-zero-on-fix]
