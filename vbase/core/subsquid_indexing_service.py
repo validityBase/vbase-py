@@ -1,0 +1,167 @@
+
+from typing import List, Union
+from indexing_service import IndexingService
+from sqlmodel import Field, SQLModel, Session, create_engine, select
+
+class event_add_object(SQLModel, table=True):
+    __tablename__ = "event_add_object"
+    id: str = Field(primary_key=True, index=True)
+    user: str = Field(index=True)
+    transaction_hash: str = Field(index=True)
+    chain_id: str = Field(index=True)
+    object_cid: str = Field(index=True)
+    timestamp: float = Field(index=True)
+
+
+class event_add_set_object(SQLModel, table=True):
+    __tablename__ = "event_add_set_object"
+    id: str = Field(primary_key=True, index=True)
+    user: str = Field(index=True)
+    set_cid: str = Field(index=True)
+    object_cid: str = Field(index=True)
+    chain_id: str = Field(index=True)
+    transaction_hash: str = Field(index=True)
+    timestamp: float = Field(index=True)
+
+
+class event_add_set(SQLModel, table=True):
+    __tablename__ = "event_add_set"
+    id: str = Field(primary_key=True, index=True)
+    user: str = Field(index=True)
+    set_cid: str = Field(index=True)
+    chain_id: str = Field(index=True)
+    transaction_hash: str = Field(index=True)
+    timestamp: float = Field(index=True)
+
+
+class SubsquidIndexingService(IndexingService):
+    """
+    Indexing service based on chain indexing data collected by Subsquid.
+    """
+    def __init__(self, db_url: str):
+        # open connection to db
+        self.db_engine = create_engine(db_url)
+
+    def find_user_sets(self, user: str) -> List[dict]:
+        """
+        Find all sets for a user.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_set).where(event_add_set.user == user).order_by(event_add_set.timestamp)
+            events = session.exec(statement).all()
+            cs_receipts = [
+                {
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transactionHash,
+                    "user": event.user,
+                    "setCid": event.set_cid,
+                    "timestamp": event.timestamp
+                }
+                for event in events
+            ]
+        return cs_receipts
+
+    def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
+        """
+        find all event_add_object for a user.
+        """
+
+        with Session(self.db_engine) as session:
+            statement = select(event_add_object).where(event_add_object.user == user).order_by(event_add_object.timestamp)
+            events = session.exec(statement).all()
+            cs_receipts = [
+                {
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transaction_hash,
+                    "user": event.user,
+                    "objectCid": event.object_cid,
+                    "timestamp": event.timestamp
+                }
+                for event in events
+            ]
+        if return_set_cids:
+            with Session(self.db_engine) as session:
+                statement = select(event_add_set_object).where(event_add_set_object.user == user)
+                events = session.exec(statement).all()
+                set_cids = {
+                    (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
+                    for event in events
+                }
+
+            for receipt in cs_receipts:
+                receipt["setCid"] = set_cids.get((receipt["objectCid"], receipt["transactionHash"], receipt["chainId"]))
+        return cs_receipts
+
+    def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
+        """
+        Find all objects for a user and set cid.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_set_object).where(
+                event_add_set_object.user == user,
+                event_add_set_object.set_cid == set_cid
+            ).order_by(event_add_set_object.timestamp)
+            events = session.exec(statement).all()
+            cs_receipts = [
+                {
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transaction_hash,
+                    "user": event.user,
+                    "setCid": event.set_cid,
+                    "objectCid": event.object_cid,
+                    "timestamp": event.timestamp
+                }
+                for event in events
+            ]
+        return cs_receipts
+
+    def find_last_user_set_object(self, user: str, set_cid: str) -> Union[dict, None]:
+        """
+        Find the last object for a user and set cid.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_set_object).where(
+                event_add_set_object.user == user,
+                event_add_set_object.set_cid == set_cid
+            ).order_by(event_add_set_object.timestamp.desc())
+            event = session.exec(statement).first()
+            if event:
+                return {
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transaction_hash,
+                    "user": event.user,
+                    "setCid": event.set_cid,
+                    "objectCid": event.object_cid,
+                    "timestamp": event.timestamp
+                }
+        return None
+    
+    def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
+        """
+        Find all objects for a list of object cids.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_object).where(event_add_object.object_cid.in_(object_cids)).order_by(event_add_object.timestamp)
+            events = session.exec(statement).all()
+            cs_receipts = [
+                {
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transaction_hash,
+                    "user": event.user,
+                    "objectCid": event.object_cid,
+                    "timestamp": event.timestamp
+                }
+                for event in events
+            ]
+        if return_set_cids:
+            with Session(self.db_engine) as session:
+                statement = select(event_add_set_object).where(event_add_set_object.object_cid.in_(object_cids))
+                events = session.exec(statement).all()
+                set_cids = {
+                    (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
+                    for event in events
+                }
+
+            for receipt in cs_receipts:
+                receipt["setCid"] = set_cids.get((receipt["objectCid"], receipt["transactionHash"], receipt["chainId"]))
+        return cs_receipts
