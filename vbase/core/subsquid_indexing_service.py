@@ -1,7 +1,7 @@
 # flake8: noqa
 
 from typing import List, Union
-from indexing_service import IndexingService
+from vbase. core.indexing_service import IndexingService
 from sqlmodel import Field, SQLModel, Session, create_engine, select
 
 
@@ -54,7 +54,7 @@ class SubsquidIndexingService(IndexingService):
             cs_receipts = [
                 {
                     "chainId": event.chain_id,
-                    "transactionHash": event.transactionHash,
+                    "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "setCid": event.set_cid,
                     "timestamp": event.timestamp
