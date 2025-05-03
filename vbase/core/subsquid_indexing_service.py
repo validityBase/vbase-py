@@ -1,7 +1,9 @@
+# flake8: noqa
 
 from typing import List, Union
 from indexing_service import IndexingService
 from sqlmodel import Field, SQLModel, Session, create_engine, select
+
 
 class event_add_object(SQLModel, table=True):
     __tablename__ = "event_add_object"
@@ -80,16 +82,7 @@ class SubsquidIndexingService(IndexingService):
                 for event in events
             ]
         if return_set_cids:
-            with Session(self.db_engine) as session:
-                statement = select(event_add_set_object).where(event_add_set_object.user == user)
-                events = session.exec(statement).all()
-                set_cids = {
-                    (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
-                    for event in events
-                }
-
-            for receipt in cs_receipts:
-                receipt["setCid"] = set_cids.get((receipt["objectCid"], receipt["transactionHash"], receipt["chainId"]))
+            cs_receipts = self._assign_set_cid(cs_receipts)
         return cs_receipts
 
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
@@ -154,14 +147,53 @@ class SubsquidIndexingService(IndexingService):
                 for event in events
             ]
         if return_set_cids:
-            with Session(self.db_engine) as session:
-                statement = select(event_add_set_object).where(event_add_set_object.object_cid.in_(object_cids))
-                events = session.exec(statement).all()
-                set_cids = {
-                    (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
-                    for event in events
-                }
-
-            for receipt in cs_receipts:
-                receipt["setCid"] = set_cids.get((receipt["objectCid"], receipt["transactionHash"], receipt["chainId"]))
+            cs_receipts = self._assign_set_cid(cs_receipts)
         return cs_receipts
+
+    def find_object(self, object_cid: str, return_set_cids=False) -> List[dict]:
+        # Pass through to find_objects with a single object_cid.
+        return self.find_objects([object_cid], return_set_cids)
+
+    def find_last_object(
+        self, object_cid: str, return_set_cid=False
+    ) -> Union[dict, None]:
+        """
+        Find the last object for a list of object cids.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_object).where(event_add_object.object_cid == object_cid).order_by(event_add_object.timestamp.desc())
+            event = session.exec(statement).first()
+            if event:
+                cs_receipts = [{
+                    "chainId": event.chain_id,
+                    "transactionHash": event.transaction_hash,
+                    "user": event.user,
+                    "objectCid": event.object_cid,
+                    "timestamp": event.timestamp
+                }]
+
+        if return_set_cid:
+            cs_receipts = self._assign_set_cid(cs_receipts)
+            if cs_receipts:
+                return cs_receipts[0]
+            else:
+                return None
+
+    def _assign_set_cid(self, cs_receipts: List[dict[str, any]]) -> List[dict[str, any]]:
+        """
+        Assign set cid to object cid.
+        """
+        with Session(self.db_engine) as session:
+            statement = select(event_add_set_object).where(event_add_set_object.object_cid.in_(object_cids))
+            events = session.exec(statement).all()
+            set_cids = {
+                (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
+                for event in events
+            }
+
+        for receipt in cs_receipts:
+            key = (receipt["objectCid"], receipt["transactionHash"], receipt["chainId"])
+            if key in set_cids:
+                receipt["setCid"] = set_cids[key]
+        return cs_receipts
+
