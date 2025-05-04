@@ -184,19 +184,34 @@ class SubsquidIndexingService(IndexingService):
 
     def _assign_set_cid(self, cs_receipts: List[dict[str, any]]) -> List[dict[str, any]]:
         """
-        Assign set cid to object cid.
+        Assign set cid to object cid in batches.
         """
-        with Session(self.db_engine) as session:
-            statement = select(event_add_set_object).where(event_add_set_object.object_cid.in_(object_cids))
-            events = session.exec(statement).all()
-            set_cids = {
-                (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
-                for event in events
-            }
+        batch_size = 50
+        object_cid_to_receipts = {}
 
-        for receipt in cs_receipts:
-            key = (receipt["objectCid"], receipt["transactionHash"], receipt["chainId"])
-            if key in set_cids:
-                receipt["setCid"] = set_cids[key]
+        # Group receipts by objectCid
+        for r in cs_receipts:
+            object_cid_to_receipts.setdefault(r["objectCid"], []).append(r)
+
+        object_cids = list(object_cid_to_receipts.keys())
+
+        # Process in batches
+        for i in range(0, len(object_cids), batch_size):
+            batch_cids = object_cids[i:i + batch_size]
+            with Session(self.db_engine) as session:
+                statement = select(event_add_set_object).where(
+                    event_add_set_object.object_cid.in_(batch_cids)
+                )
+                events = session.exec(statement).all()
+                set_cids = {
+                    (event.object_cid, event.transaction_hash, event.chain_id): event.set_cid
+                    for event in events
+                }
+
+            for receipt in cs_receipts:
+                key = (receipt["objectCid"], receipt["transactionHash"], receipt["chainId"])
+                if key in set_cids:
+                    receipt["setCid"] = set_cids[key]
+
         return cs_receipts
 
