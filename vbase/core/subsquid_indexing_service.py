@@ -120,7 +120,7 @@ class SubsquidIndexingService(IndexingService):
             event = session.exec(statement).first()
             if event:
                 return {
-                    "chainId": event.chain_id,
+                    "chainId": int(event.chain_id),
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "setCid": event.set_cid,
@@ -138,7 +138,7 @@ class SubsquidIndexingService(IndexingService):
             events = session.exec(statement).all()
             cs_receipts = [
                 {
-                    "chainId": event.chain_id,
+                    "chainId": int(event.chain_id),
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "objectCid": event.object_cid,
