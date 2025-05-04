@@ -3,37 +3,37 @@
 from typing import List, Union
 from vbase. core.indexing_service import IndexingService
 from sqlmodel import Field, SQLModel, Session, create_engine, select
-
+import pandas as pd
 
 class event_add_object(SQLModel, table=True):
     __tablename__ = "event_add_object"
     id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=True)
-    transaction_hash: str = Field(index=True)
-    chain_id: str = Field(index=True)
-    object_cid: str = Field(index=True)
-    timestamp: float = Field(index=True)
+    user: str = Field(index=False)
+    transaction_hash: str = Field(index=False)
+    chain_id: int = Field(index=False)
+    object_cid: str = Field(index=False)
+    timestamp: int = Field(index=False)
 
 
 class event_add_set_object(SQLModel, table=True):
     __tablename__ = "event_add_set_object"
     id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=True)
-    set_cid: str = Field(index=True)
-    object_cid: str = Field(index=True)
-    chain_id: str = Field(index=True)
-    transaction_hash: str = Field(index=True)
-    timestamp: float = Field(index=True)
+    user: str = Field(index=False)
+    set_cid: str = Field(index=False)
+    object_cid: str = Field(index=False)
+    chain_id: int = Field(index=False)
+    transaction_hash: str = Field(index=False)
+    timestamp: int = Field(index=False)
 
 
 class event_add_set(SQLModel, table=True):
     __tablename__ = "event_add_set"
     id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=True)
-    set_cid: str = Field(index=True)
-    chain_id: str = Field(index=True)
-    transaction_hash: str = Field(index=True)
-    timestamp: float = Field(index=True)
+    user: str = Field(index=False)
+    set_cid: str = Field(index=False)
+    chain_id: int = Field(index=False)
+    transaction_hash: str = Field(index=False)
+    timestamp: int = Field(index=False)
 
 
 class SubsquidIndexingService(IndexingService):
@@ -53,11 +53,11 @@ class SubsquidIndexingService(IndexingService):
             events = session.exec(statement).all()
             cs_receipts = [
                 {
-                    "chainId": event.chain_id,
+                    "chainId": int(event.chain_id),
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "setCid": event.set_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }
                 for event in events
             ]
@@ -73,11 +73,11 @@ class SubsquidIndexingService(IndexingService):
             events = session.exec(statement).all()
             cs_receipts = [
                 {
-                    "chainId": event.chain_id,
+                    "chainId": int(event.chain_id),
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "objectCid": event.object_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }
                 for event in events
             ]
@@ -97,12 +97,12 @@ class SubsquidIndexingService(IndexingService):
             events = session.exec(statement).all()
             cs_receipts = [
                 {
-                    "chainId": event.chain_id,
+                    "chainId": int(event.chain_id),
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "setCid": event.set_cid,
                     "objectCid": event.object_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }
                 for event in events
             ]
@@ -125,7 +125,7 @@ class SubsquidIndexingService(IndexingService):
                     "user": event.user,
                     "setCid": event.set_cid,
                     "objectCid": event.object_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }
         return None
     
@@ -142,7 +142,7 @@ class SubsquidIndexingService(IndexingService):
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "objectCid": event.object_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }
                 for event in events
             ]
@@ -169,7 +169,7 @@ class SubsquidIndexingService(IndexingService):
                     "transactionHash": event.transaction_hash,
                     "user": event.user,
                     "objectCid": event.object_cid,
-                    "timestamp": event.timestamp
+                    "timestamp": self._format_timestamp(event.timestamp)
                 }]
 
         if return_set_cid:
@@ -178,6 +178,9 @@ class SubsquidIndexingService(IndexingService):
                 return cs_receipts[0]
             else:
                 return None
+
+    def _format_timestamp(self, timestamp) -> str:
+        return str(pd.Timestamp(int(timestamp), unit="ms", tz="UTC"))
 
     def _assign_set_cid(self, cs_receipts: List[dict[str, any]]) -> List[dict[str, any]]:
         """
