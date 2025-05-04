@@ -49,6 +49,10 @@ class SubsquidIndexingService(IndexingService):
         Find all sets for a user.
         """
         cs_receipts = []
+
+        # lowercase the user to match the db
+        user = user.lower()
+
         with Session(self.db_engine) as session:
             statement = select(event_add_set).where(event_add_set.user == user).order_by(event_add_set.timestamp)
             events = session.exec(statement).all()
@@ -68,6 +72,9 @@ class SubsquidIndexingService(IndexingService):
         """
         find all event_add_object for a user.
         """
+
+        # lowercase the user to match the db
+        user = user.lower()
 
         cs_receipts = []
         with Session(self.db_engine) as session:
@@ -91,6 +98,11 @@ class SubsquidIndexingService(IndexingService):
         """
         Find all objects for a user and set cid.
         """
+
+        # lowercase to match the db
+        user = user.lower()
+        set_cid = set_cid.lower()
+
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_set_object).where(
@@ -115,6 +127,11 @@ class SubsquidIndexingService(IndexingService):
         """
         Find the last object for a user and set cid.
         """
+
+        # lowercase to match the db
+        user = user.lower()
+        set_cid = set_cid.lower()
+
         with Session(self.db_engine) as session:
             statement = select(event_add_set_object).where(
                 event_add_set_object.user == user,
@@ -136,6 +153,10 @@ class SubsquidIndexingService(IndexingService):
         """
         Find all objects for a list of object cids.
         """
+        
+        # lowercase the object cids to match the db
+        object_cids = [cid.lower() for cid in object_cids]
+        
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_object).where(event_add_object.object_cid.in_(object_cids)).order_by(event_add_object.timestamp)
@@ -164,6 +185,8 @@ class SubsquidIndexingService(IndexingService):
         """
         Find the last object for a list of object cids.
         """
+        
+        object_cid = object_cid.lower()
 
         cs_receipts = []
 
