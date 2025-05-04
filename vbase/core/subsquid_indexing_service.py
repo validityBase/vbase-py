@@ -48,6 +48,7 @@ class SubsquidIndexingService(IndexingService):
         """
         Find all sets for a user.
         """
+        cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_set).where(event_add_set.user == user).order_by(event_add_set.timestamp)
             events = session.exec(statement).all()
@@ -68,6 +69,7 @@ class SubsquidIndexingService(IndexingService):
         find all event_add_object for a user.
         """
 
+        cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_object).where(event_add_object.user == user).order_by(event_add_object.timestamp)
             events = session.exec(statement).all()
@@ -81,7 +83,7 @@ class SubsquidIndexingService(IndexingService):
                 }
                 for event in events
             ]
-        if return_set_cids:
+        if return_set_cids and len(cs_receipts) > 0:
             cs_receipts = self._assign_set_cid(cs_receipts)
         return cs_receipts
 
@@ -89,6 +91,7 @@ class SubsquidIndexingService(IndexingService):
         """
         Find all objects for a user and set cid.
         """
+        cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_set_object).where(
                 event_add_set_object.user == user,
@@ -133,6 +136,7 @@ class SubsquidIndexingService(IndexingService):
         """
         Find all objects for a list of object cids.
         """
+        cs_receipts = []
         with Session(self.db_engine) as session:
             statement = select(event_add_object).where(event_add_object.object_cid.in_(object_cids)).order_by(event_add_object.timestamp)
             events = session.exec(statement).all()
@@ -146,7 +150,7 @@ class SubsquidIndexingService(IndexingService):
                 }
                 for event in events
             ]
-        if return_set_cids:
+        if return_set_cids and len(cs_receipts) > 0:
             cs_receipts = self._assign_set_cid(cs_receipts)
         return cs_receipts
 
@@ -160,6 +164,9 @@ class SubsquidIndexingService(IndexingService):
         """
         Find the last object for a list of object cids.
         """
+
+        cs_receipts = []
+
         with Session(self.db_engine) as session:
             statement = select(event_add_object).where(event_add_object.object_cid == object_cid).order_by(event_add_object.timestamp.desc())
             event = session.exec(statement).first()
@@ -172,12 +179,13 @@ class SubsquidIndexingService(IndexingService):
                     "timestamp": self._format_timestamp(event.timestamp)
                 }]
 
-        if return_set_cid:
+        if return_set_cid and len(cs_receipts) > 0:
             cs_receipts = self._assign_set_cid(cs_receipts)
-            if cs_receipts:
-                return cs_receipts[0]
-            else:
-                return None
+
+        if len(cs_receipts) > 0:
+            return cs_receipts[0]
+        else:
+            return None
 
     def _format_timestamp(self, timestamp) -> str:
         return str(pd.Timestamp(int(timestamp), unit="ms", tz="UTC"))
