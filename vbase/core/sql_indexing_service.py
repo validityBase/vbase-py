@@ -1,7 +1,7 @@
 # flake8: noqa
 
 from typing import List, Union
-from vbase. core.indexing_service import IndexingService
+from vbase.core.indexing_service import IndexingService
 from sqlmodel import Field, SQLModel, Session, create_engine, select
 import pandas as pd
 
@@ -36,9 +36,9 @@ class event_add_set(SQLModel, table=True):
     timestamp: int = Field(index=False)
 
 
-class SubsquidIndexingService(IndexingService):
+class SQLIndexingService(IndexingService):
     """
-    Indexing service based on chain indexing data collected by Subsquid.
+    Indexing service based on chain indexing data from sql db.
     """
     def __init__(self, db_url: str):
         # open connection to db
