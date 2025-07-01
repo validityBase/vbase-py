@@ -14,7 +14,15 @@ from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServ
 
 from vbase.core.indexing_service import (
     IndexingService,
-    Web3HTTPIndexingService,
+    Web3HTTPIndexingService
+)
+
+from vbase.core.sql_indexing_service import (
+    SQLIndexingService
+)
+
+from vbase.core.failover_indexing_service import (
+    FailoverIndexingService
 )
 
 from vbase.core.vbase_dataset import (
@@ -47,6 +55,8 @@ __all__ = [
     "ForwarderCommitmentServiceTest",
     "IndexingService",
     "Web3HTTPIndexingService",
+    "SQLIndexingService",
+    "FailoverIndexingService",
     "VBaseObject",
     "VBaseIntObject",
     "VBasePrivateIntObject",
