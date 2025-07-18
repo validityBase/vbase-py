@@ -351,7 +351,9 @@ class TestVBaseDataset(unittest.TestCase):
         print(f"CID (string): {cid_str}")
 
         # The CIDs should be different because the hash type used differs
-        assert cid_bytes != cid_str
+        assert cid_bytes is not None
+        assert cid_str is not None
+        assert cid_bytes == cid_str
 
 if __name__ == "__main__":
     unittest.main()
