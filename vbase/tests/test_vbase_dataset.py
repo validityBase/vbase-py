@@ -361,7 +361,7 @@ class TestVBaseDataset(unittest.TestCase):
         """
         Verify CID for image file is deterministic and matches manual SHA3-256.
         """
-        image_path = Path("tests/assets/image_sample.png")
+        image_path = Path("./assets/image_sample.png")
         image_bytes = image_path.read_bytes()
 
         def sha3_256_hex(data: bytes) -> str:
