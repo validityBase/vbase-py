@@ -18,6 +18,7 @@ from vbase.core.vbase_object import (
     VBasePrivateFloatObject,
     VBaseJsonObject,
     VBasePortfolioObject,
+    VBaseBytesObject
 )
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_dataset import VBaseDataset
@@ -318,6 +319,39 @@ class TestVBaseDataset(unittest.TestCase):
             "Invalid record: Failed to find timestamp for object"
         )
 
+    def test_bytes_object_cid(self):
+        """
+        Test CID generation for binary data using VBaseBytesObject
+        and compare it with VBaseStringObject.
+        """
+        # Original string
+        text = "This is some binary content from a string."
+
+        # Convert to bytes
+        data_bytes = text.encode("utf-8")
+
+        # Generate CID from bytes
+        vbo_bytes = VBaseBytesObject(init_data=data_bytes)
+        cid_bytes = vbo_bytes.get_cid()
+
+        # Generate CID from string
+        vbo_str = VBaseStringObject(init_data=text)
+        cid_str = vbo_str.get_cid()
+
+        # Validate formats
+        assert isinstance(cid_bytes, str)
+        assert cid_bytes.startswith("0x")
+        assert len(cid_bytes) == 66
+
+        assert isinstance(cid_str, str)
+        assert cid_str.startswith("0x")
+        assert len(cid_str) == 66
+
+        print(f"CID (bytes):  {cid_bytes}")
+        print(f"CID (string): {cid_str}")
+
+        # The CIDs should be different because the hash type used differs
+        assert cid_bytes != cid_str
 
 if __name__ == "__main__":
     unittest.main()
