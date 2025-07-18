@@ -3,6 +3,8 @@ Tests of the vbase_dataset module
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
+import hashlib
 import logging
 import time
 import unittest
@@ -354,6 +356,25 @@ class TestVBaseDataset(unittest.TestCase):
         assert cid_bytes is not None
         assert cid_str is not None
         assert cid_bytes == cid_str
+
+    def test_image_cid_consistency(self):
+        """
+        Verify CID for image file is deterministic and matches manual SHA3-256.
+        """
+        image_path = Path("tests/assets/image_sample.png")
+        image_bytes = image_path.read_bytes()
+
+        def sha3_256_hex(data: bytes) -> str:
+            return "0x" + hashlib.sha3_256(data).hexdigest()
+
+        expected_cid = sha3_256_hex(image_bytes)
+        vbo = VBaseBytesObject(init_data=image_bytes)
+        cid = vbo.get_cid()
+
+        assert cid == expected_cid
+        hardcoded_cid = "0xd6c2b307477a2685842dd3a365c4edeb5af80961b035e19bf2c9203d87d6f6b3"
+        assert cid == hardcoded_cid, f"Expected {hardcoded_cid}, got {cid}"
+        print(f"✅ CID verified for {image_path.name}: {cid}")
 
 if __name__ == "__main__":
     unittest.main()
