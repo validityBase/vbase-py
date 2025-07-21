@@ -4,12 +4,14 @@ Tests of the vbase_dataset module
 
 from datetime import datetime, timedelta
 from pathlib import Path
-import hashlib
+from PIL import Image
+from io import BytesIO
 import logging
 import time
 import unittest
 import pandas as pd
 
+from vbase.tests.test_crypto_utils import sha3_256_hash_bytes
 from vbase.utils.crypto_utils import add_uint256_uint256
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_object import (
@@ -35,6 +37,31 @@ from vbase.tests.utils import (
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
+def create_test_image(save_file: bool = False) -> bytes:
+    """
+    Create a simple 100x100 blue PNG image in memory.
+    
+    Args:
+        save_file (bool): If True, saves the image as 'image_sample.png' next to the script.
+    
+    Returns:
+        bytes: The image content in bytes.
+    """
+    # Create an image
+    img = Image.new("RGB", (100, 100), color="blue")
+    # Save to buffer
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    image_bytes = buf.getvalue()
+
+    # Optionally save to disk
+    if save_file:
+        image_path = Path(__file__).parent / "image_sample.png"
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
+
+    return image_bytes
 
 class TestVBaseDataset(unittest.TestCase):
     """
@@ -361,20 +388,11 @@ class TestVBaseDataset(unittest.TestCase):
         """
         Verify CID for image file is deterministic and matches manual SHA3-256.
         """
-        image_path = Path(__file__).parent / "assets" / "image_sample.png"
-        image_bytes = image_path.read_bytes()
-
-        def sha3_256_hex(data: bytes) -> str:
-            return "0x" + hashlib.sha3_256(data).hexdigest()
-
-        expected_cid = sha3_256_hex(image_bytes)
+        image_bytes = create_test_image()
+        expected_cid = sha3_256_hash_bytes(image_bytes)
         vbo = VBaseBytesObject(init_data=image_bytes)
         cid = vbo.get_cid()
-
-        assert cid == expected_cid
-        hardcoded_cid = "0xd6c2b307477a2685842dd3a365c4edeb5af80961b035e19bf2c9203d87d6f6b3"
-        assert cid == hardcoded_cid, f"Expected {hardcoded_cid}, got {cid}"
-        print(f"✅ CID verified for {image_path.name}: {cid}")
+        assert cid == expected_cid, f"Expected {expected_cid}, got {cid}"
 
 if __name__ == "__main__":
     unittest.main()
