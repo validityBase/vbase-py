@@ -36,8 +36,8 @@ class FailoverIndexingService(IndexingService):
     def find_user_sets(self, user: str) -> list[dict]:
         return self._execute_with_failover('find_user_sets', user)
 
-    def find_user_objects(self, user: str) -> list[dict]:
-        return self._execute_with_failover('find_user_objects', user)
+    def find_user_objects(self,  user: str, return_set_cids=False) -> list[dict]:
+        return self._execute_with_failover('find_user_objects', user, return_set_cids)
 
     def find_user_set_objects(self, user: str, set_cid: str) -> dict:
         return self._execute_with_failover('find_user_set_objects', user, set_cid)
