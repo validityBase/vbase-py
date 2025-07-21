@@ -4,8 +4,9 @@ Tests of the vbase_dataset module
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from PIL import Image
+import numpy as np
 from io import BytesIO
+import imageio
 import logging
 import time
 import unittest
@@ -37,6 +38,12 @@ from vbase.tests.utils import (
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
+def create_png_bytes_from_array(array: np.ndarray) -> bytes:
+    """Create a PNG image from a NumPy array and return it as bytes."""
+    buf = BytesIO()
+    imageio.imwrite(buf, array, format='png')
+    return buf.getvalue()
+
 def create_test_image(save_file: bool = False) -> bytes:
     """
     Create a simple 100x100 blue PNG image in memory.
@@ -47,13 +54,8 @@ def create_test_image(save_file: bool = False) -> bytes:
     Returns:
         bytes: The image content in bytes.
     """
-    # Create an image
-    img = Image.new("RGB", (100, 100), color="blue")
-    # Save to buffer
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    image_bytes = buf.getvalue()
+    img = np.zeros((200, 200, 3), dtype=np.uint8)
+    image_bytes = create_png_bytes_from_array(img)
 
     # Optionally save to disk
     if save_file:

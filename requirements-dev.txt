@@ -3,4 +3,3 @@ black>=24.8.0
 pre-commit>=3.8.0
 PyYAML>=6.0.2
 pylint>=3.2.7
-pillow==11.3.0
