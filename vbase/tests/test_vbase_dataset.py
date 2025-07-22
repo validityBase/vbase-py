@@ -46,7 +46,7 @@ def create_png_bytes_from_array(array: np.ndarray) -> bytes:
 
 def create_test_image(save_file: bool = False) -> bytes:
     """
-    Create a simple 100x100 blue PNG image in memory.
+    Create a simple 200x200 black PNG image in memory.
     
     Args:
         save_file (bool): If True, saves the image as 'image_sample.png' next to the script.
@@ -55,7 +55,6 @@ def create_test_image(save_file: bool = False) -> bytes:
         bytes: The image content in bytes.
     """
     img = np.zeros((200, 200, 3), dtype=np.uint8)
-    img[:, :] = [0, 0, 255]
     image_bytes = create_png_bytes_from_array(img)
     # Optionally save to disk
     if save_file:
