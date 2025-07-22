@@ -55,7 +55,9 @@ def create_test_image(save_file: bool = False) -> bytes:
         bytes: The image content in bytes.
     """
     img = np.zeros((200, 200, 3), dtype=np.uint8)
+    img[:, :] = [0, 0, 255]
     image_bytes = create_png_bytes_from_array(img)
+    
 
     # Optionally save to disk
     if save_file:
