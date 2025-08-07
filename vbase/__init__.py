@@ -42,6 +42,7 @@ from vbase.core.vbase_object import (
     VBaseStringObject,
     VBaseJsonObject,
     VBasePortfolioObject,
+    VBaseBytesObject,
 )
 
 from vbase.utils.log import get_default_logger
@@ -65,6 +66,7 @@ __all__ = [
     "VBaseStringObject",
     "VBaseJsonObject",
     "VBasePortfolioObject",
+    "VBaseBytesObject",
     "VBaseDataset",
     "VBaseDatasetAsync",
     "get_default_logger",
