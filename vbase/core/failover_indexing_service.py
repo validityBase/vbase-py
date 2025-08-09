@@ -7,7 +7,7 @@ _LOG.setLevel(logging.INFO)
 
 class FailoverIndexingService(IndexingService):
     """
-    This indexing service aggregates a set of indexing services
+    This indexing service calls a set of indexing services one after another
     and provides a failover mechanism to ensure that if one service fails,
     another service can be used to retrieve the data.
 
@@ -36,8 +36,8 @@ class FailoverIndexingService(IndexingService):
     def find_user_sets(self, user: str) -> list[dict]:
         return self._execute_with_failover('find_user_sets', user)
 
-    def find_user_objects(self, user: str) -> list[dict]:
-        return self._execute_with_failover('find_user_objects', user)
+    def find_user_objects(self, user: str, return_set_cids=False) -> list[dict]:
+        return self._execute_with_failover('find_user_objects', user, return_set_cids=return_set_cids)
 
     def find_user_set_objects(self, user: str, set_cid: str) -> dict:
         return self._execute_with_failover('find_user_set_objects', user, set_cid)
@@ -51,6 +51,6 @@ class FailoverIndexingService(IndexingService):
     def find_object(self, object_cid: str, return_set_cids=False) -> dict:
         return self._execute_with_failover('find_object', object_cid, return_set_cids=return_set_cids)
     
-    def find_last_object(self, object_cid: str, return_set_cids=False) -> dict:
-        return self._execute_with_failover('find_last_object', object_cid, return_set_cids=return_set_cids)
+    def find_last_object(self, object_cid: str, return_set_cid=False) -> dict:
+        return self._execute_with_failover('find_last_object', object_cid, return_set_cid=return_set_cid)
     
