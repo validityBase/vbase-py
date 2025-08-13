@@ -3,11 +3,16 @@ Tests of the vbase_dataset module
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
+import numpy as np
+from io import BytesIO
+import imageio
 import logging
 import time
 import unittest
 import pandas as pd
 
+from vbase.tests.test_crypto_utils import sha3_256_hash_bytes
 from vbase.utils.crypto_utils import add_uint256_uint256
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_object import (
@@ -18,6 +23,7 @@ from vbase.core.vbase_object import (
     VBasePrivateFloatObject,
     VBaseJsonObject,
     VBasePortfolioObject,
+    VBaseBytesObject
 )
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_dataset import VBaseDataset
@@ -32,6 +38,31 @@ from vbase.tests.utils import (
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
+def create_png_bytes_from_array(array: np.ndarray) -> bytes:
+    """Create a PNG image from a NumPy array and return it as bytes."""
+    buf = BytesIO()
+    imageio.imwrite(buf, array, format='png')
+    return buf.getvalue()
+
+def create_test_image(save_file: bool = False) -> bytes:
+    """
+    Create a simple 200x200 black PNG image in memory.
+    
+    Args:
+        save_file (bool): If True, saves the image as 'image_sample.png' next to the script.
+    
+    Returns:
+        bytes: The image content in bytes.
+    """
+    img = np.zeros((200, 200, 3), dtype=np.uint8)
+    image_bytes = create_png_bytes_from_array(img)
+    # Optionally save to disk
+    if save_file:
+        image_path = Path(__file__).parent / "image_sample.png"
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
+
+    return image_bytes
 
 class TestVBaseDataset(unittest.TestCase):
     """
@@ -318,6 +349,51 @@ class TestVBaseDataset(unittest.TestCase):
             "Invalid record: Failed to find timestamp for object"
         )
 
+    def test_bytes_object_cid(self):
+        """
+        Test CID generation for binary data using VBaseBytesObject
+        and compare it with VBaseStringObject.
+        """
+        # Original string
+        text = "This is some binary content from a string."
+
+        # Convert to bytes
+        data_bytes = text.encode("utf-8")
+
+        # Generate CID from bytes
+        vbo_bytes = VBaseBytesObject(init_data=data_bytes)
+        cid_bytes = vbo_bytes.get_cid()
+
+        # Generate CID from string
+        vbo_str = VBaseStringObject(init_data=text)
+        cid_str = vbo_str.get_cid()
+
+        # Validate formats
+        assert isinstance(cid_bytes, str)
+        assert cid_bytes.startswith("0x")
+        assert len(cid_bytes) == 66
+
+        assert isinstance(cid_str, str)
+        assert cid_str.startswith("0x")
+        assert len(cid_str) == 66
+
+        print(f"CID (bytes):  {cid_bytes}")
+        print(f"CID (string): {cid_str}")
+
+        # The CIDs should be equals
+        assert cid_bytes is not None
+        assert cid_str is not None
+        assert cid_bytes == cid_str
+
+    def test_image_cid_consistency(self):
+        """
+        Verify CID for image file is deterministic and matches manual SHA3-256.
+        """
+        image_bytes = create_test_image()
+        expected_cid = sha3_256_hash_bytes(image_bytes)
+        vbo = VBaseBytesObject(init_data=image_bytes)
+        cid = vbo.get_cid()
+        assert cid == expected_cid, f"Expected {expected_cid}, got {cid}"
 
 if __name__ == "__main__":
     unittest.main()

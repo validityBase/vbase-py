@@ -202,6 +202,7 @@ class Web3HTTPIndexingService(IndexingService):
 
     def __init__(self, commitment_services: List[Web3HTTPCommitmentService]):
         self.commitment_services = commitment_services
+        self.n_last_blocks = None
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
@@ -278,6 +279,13 @@ class Web3HTTPIndexingService(IndexingService):
         ]
         return cs_receipts
 
+    def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
+        # get block number for 'fromBlock' filter
+        if self.n_last_blocks is None:
+            return 0
+        block_number = commitment_service.w3.eth.block_number
+        return block_number - self.n_last_blocks
+
     def find_user_sets(self, user: str) -> List[dict]:
         # Find events across all commitment services.
         receipts = []
@@ -285,8 +293,8 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
-            events = cast(ContractEvent, cs.csc.events.AddSet).create_filter(
-                fromBlock=0,
+            event_filter = cs.csc.events.AddSet.create_filter(
+                fromBlock=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -373,7 +381,7 @@ class Web3HTTPIndexingService(IndexingService):
                     break
 
         return receipts
-
+    
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         # The operation is similar to find_user_sets and find_objects.
 
@@ -382,7 +390,7 @@ class Web3HTTPIndexingService(IndexingService):
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
             events = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=0,
+                fromBlock=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -396,7 +404,7 @@ class Web3HTTPIndexingService(IndexingService):
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
                 events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
-                    fromBlock=0,
+                    fromBlock=self._get_from_block(cs),
                     argument_filters={
                         "user": user,
                     },
@@ -415,7 +423,7 @@ class Web3HTTPIndexingService(IndexingService):
         receipts = []
         for cs in self.commitment_services:
             events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
-                fromBlock=0,
+                fromBlock=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                     "setCid": hex_str_to_bytes(set_cid),
@@ -447,7 +455,7 @@ class Web3HTTPIndexingService(IndexingService):
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
             events = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=0,
+                fromBlock=self._get_from_block(cs),
                 argument_filters={
                     "objectCid": [
                         hex_str_to_bytes(object_cid) for object_cid in object_cids
@@ -463,7 +471,7 @@ class Web3HTTPIndexingService(IndexingService):
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
                 events = cast(ContractEvent, cs.csc.events.AddSetObject).create_filter(
-                    fromBlock=0,
+                    fromBlock=self._get_from_block(cs),
                     argument_filters={
                         "objectCid": [
                             hex_str_to_bytes(object_cid) for object_cid in object_cids

@@ -7,6 +7,7 @@ comprise one or more records (objects) belonging to a set.
 """
 
 from abc import ABC, abstractmethod
+import hashlib
 import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -305,6 +306,25 @@ class VBasePortfolioObject(VBaseObject):
             ids + vals,
         )
 
+class VBaseBytesObject(VBaseObject):
+    """
+    A binary (bytes) object for opaque binary data (e.g., PDFs, images).
+    """
+
+    def __init__(
+        self,
+        init_data: Optional[bytes] = None,
+        init_dict: Optional[Dict[str, str]] = None,
+        init_json: Optional[str] = None,
+    ):
+        super().__init__(init_data, init_dict, init_json)
+
+    def _init_from_dict(self, init_dict: Dict[str, str]):
+        raise NotImplementedError("Deserialization from dict not supported for raw bytes.")
+
+    @staticmethod
+    def get_cid_for_data(record_data: bytes) -> str:
+        return "0x" + hashlib.sha3_256(record_data).hexdigest()
 
 VBASE_OBJECT_TYPES = {
     "VBaseIntObject": VBaseIntObject,
@@ -314,4 +334,5 @@ VBASE_OBJECT_TYPES = {
     "VBaseStringObject": VBaseStringObject,
     "VBaseJsonObject": VBaseJsonObject,
     "VBasePortfolioObject": VBasePortfolioObject,
+    "VBaseBytesObject": VBaseBytesObject,
 }
