@@ -25,6 +25,10 @@ from vbase.core.failover_indexing_service import (
     FailoverIndexingService
 )
 
+from vbase.core.aggregate_indexing_service import (
+    AggregateIndexingService
+)
+
 from vbase.core.vbase_dataset import (
     VBaseDataset,
 )
@@ -58,6 +62,7 @@ __all__ = [
     "Web3HTTPIndexingService",
     "SQLIndexingService",
     "FailoverIndexingService",
+    "AggregateIndexingService",
     "VBaseObject",
     "VBaseIntObject",
     "VBasePrivateIntObject",
