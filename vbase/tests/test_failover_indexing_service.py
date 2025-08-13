@@ -36,7 +36,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.service1.find_user_objects.return_value = [{"obj": "a"}]
         result = self.failover_service.find_user_objects("userX")
         self.assertEqual(result, [{"obj": "a"}])
-        self.service1.find_user_objects.assert_called_once_with("userX")
+        self.service1.find_user_objects.assert_called_once_with("userX", False)
 
     def test_find_user_set_objects(self):
         self.service1.find_user_set_objects.return_value = {"set": "abc"}
