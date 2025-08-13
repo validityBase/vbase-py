@@ -1,4 +1,5 @@
 import logging
+import concurrent.futures
 from vbase.core.indexing_service import IndexingService
 from vbase.utils.log import get_default_logger
 
@@ -22,11 +23,20 @@ class AggregateIndexingService(IndexingService):
         """
         Execute a method on all services and aggregate the results.
         """
+        
         results = []
-        for service in self.services:
-            result = getattr(service, method_name)(*args, **kwargs)
-            results.append(result)
-        return results
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [
+            executor.submit(getattr(service, method_name), *args, **kwargs)
+            for service in self.services
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                results.append(future.result())
+        # Preserve order of services
+        results_sorted = [None] * len(self.services)
+        for idx, future in enumerate(futures):
+            results_sorted[idx] = future.result()
+        return results_sorted
 
     def _aggregate_by_transaction_hash(self, all_results: list[list[dict]]) -> list[dict]:
         """
