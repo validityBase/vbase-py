@@ -1,5 +1,4 @@
-"""
-Tests of the vbase_dataset_async module
+"""Tests of the vbase_dataset_async module
 """
 
 import asyncio
@@ -28,14 +27,10 @@ _NON_BLOCKING_INTERVAL = 0.01
 
 
 class TestVBaseDatasetAsync(unittest.TestCase):
-    """
-    Test base vBase dataset async functionality.
-    """
+    """Test base vBase dataset async functionality."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         self.vbc = VBaseClientTest.create_instance_from_env()
 
     async def _add_record_worker_async(
@@ -68,9 +63,7 @@ class TestVBaseDatasetAsync(unittest.TestCase):
         return cl, cl["timestamp"]
 
     async def dataset_creation_async(self):
-        """
-        Test simple dataset creation async worker
-        """
+        """Test simple dataset creation async worker"""
         dataset_name = "TestDataset"
         self.vbc.clear_sets()
         self.vbc.clear_named_set_objects(dataset_name)
@@ -99,18 +92,14 @@ class TestVBaseDatasetAsync(unittest.TestCase):
         return dsw
 
     def test_dataset_creation_async(self):
-        """
-        Test simple dataset creation
-        """
+        """Test simple dataset creation"""
         # In the unittest framework, test methods are expected to be synchronous functions.
         # unittest doesn't natively support async test methods.
         # Define a synchronous test method and call asyncio.run to run the asynchronous code.
         asyncio.run(self.dataset_creation_async())
 
     async def dataset_1d_int_ts_wr_async(self):
-        """
-        Test a simple int 1-dimension timeseries write and read async worker
-        """
+        """Test a simple int 1-dimension timeseries write and read async worker"""
         dsw = await self.dataset_creation_async()
         t_prev = 0
         for i in range(1, 5):
@@ -123,9 +112,7 @@ class TestVBaseDatasetAsync(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_dataset_1d_int_ts_wr_async(self):
-        """
-        Test a simple int 1-dimension timeseries write and read
-        """
+        """Test a simple int 1-dimension timeseries write and read"""
         asyncio.run(self.dataset_1d_int_ts_wr_async())
 
 

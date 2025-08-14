@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module captures the common operations
+"""The vbase commitment service module captures the common operations
 of the various commitment services provided by blockchain-based smart contracts
 and the Web3 interface.
 Particular implementations may access the blockchain directly
@@ -28,8 +27,7 @@ _LOG.setLevel(logging.INFO)
 
 
 class Web3CommitmentService(CommitmentService, ABC):
-    """
-    Commitment service accessible using Web3 library
+    """Commitment service accessible using Web3 library
     either directly or via a forwarder.
     """
 
@@ -43,8 +41,7 @@ class Web3CommitmentService(CommitmentService, ABC):
     def get_commitment_service_json_file(
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
     ) -> TextIOWrapper:
-        """
-        Return the file object for the JSON commitment service ABI.
+        """Return the file object for the JSON commitment service ABI.
 
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
@@ -97,8 +94,7 @@ class Web3CommitmentService(CommitmentService, ABC):
             raise RuntimeError(msg)
 
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
-        """
-        Process results of a addSect transaction.
+        """Process results of a addSect transaction.
 
         :param set_cid: The CID (hash) identifying the set to add.
         :param receipt: The transaction receipt.
@@ -146,8 +142,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         return cl
 
     def _add_object_worker(self, receipt: TxReceipt) -> dict:
-        """
-        Process results of a addObject transaction.
+        """Process results of a addObject transaction.
 
         :param receipt: The transaction receipt.
         :return: The commitment log containing commitment receipt info.
@@ -173,8 +168,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         return cl
 
     def _add_set_object_worker(self, receipt: TxReceipt) -> dict:
-        """
-        Process addSetObject transaction results.
+        """Process addSetObject transaction results.
 
         :param receipt: Transaction receipt returned by AddSetObject.
         :return: The commitment log containing commitment receipt info.
@@ -204,8 +198,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         return cl
 
     def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
-        """
-        Process addSetObjectWithTimestampBatch transaction results.
+        """Process addSetObjectWithTimestampBatch transaction results.
 
         :param receipt: Transaction receipt returned by AddSetsObjectsBatch.
         :return: The list of commitment log containing commitment receipts.

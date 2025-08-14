@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 This implementation uses Web3.HTTPProvider.
 """
@@ -36,15 +35,13 @@ _W3_CONNECTION_BACKOFF = 1
 
 
 class Web3HTTPCommitmentService(Web3CommitmentService):
-    """
-    Commitment service accessible using Web3.HTTPProvider.
+    """Commitment service accessible using Web3.HTTPProvider.
     Without private key support, this class will only support operations on a test node.
     """
 
     @staticmethod
     def _get_bool_env_var(var_name, default=False):
-        """
-        Worker function to get a bool environment variable.
+        """Worker function to get a bool environment variable.
 
         :param var_name: The environment variable name.
         :param default: The default value to return.
@@ -64,8 +61,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
         inject_geth_poa_middleware: bool = False,
     ):
-        """
-        Initialize the service object.
+        """Initialize the service object.
 
         :param node_rpc_url: Node RPC URL.
         :param commitment_service_address: The commitment smart contract address.

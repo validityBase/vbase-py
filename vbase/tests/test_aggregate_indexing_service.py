@@ -1,18 +1,28 @@
 import unittest
 from unittest.mock import create_autospec
+
 from vbase.core.aggregate_indexing_service import AggregateIndexingService
 from vbase.core.indexing_service import IndexingService
+
 
 class TestAggregateIndexingService(unittest.TestCase):
     def setUp(self):
         self.service1 = create_autospec(IndexingService)
         self.service2 = create_autospec(IndexingService)
-        self.aggregate_service = AggregateIndexingService([self.service1, self.service2])
+        self.aggregate_service = AggregateIndexingService(
+            [self.service1, self.service2]
+        )
 
     def test_find_user_sets_aggregates_and_deduplicates(self):
         user = "alice"
-        result1 = [{"transactionHash": "tx1", "data": 1}, {"transactionHash": "tx2", "data": 2}]
-        result2 = [{"transactionHash": "tx2", "data": 2}, {"transactionHash": "tx3", "data": 3}]
+        result1 = [
+            {"transactionHash": "tx1", "data": 1},
+            {"transactionHash": "tx2", "data": 2},
+        ]
+        result2 = [
+            {"transactionHash": "tx2", "data": 2},
+            {"transactionHash": "tx3", "data": 3},
+        ]
         self.service1.find_user_sets.return_value = result1
         self.service2.find_user_sets.return_value = result2
 
@@ -24,7 +34,10 @@ class TestAggregateIndexingService(unittest.TestCase):
     def test_find_user_objects_aggregates_and_deduplicates(self):
         user = "bob"
         self.service1.find_user_objects.return_value = [{"transactionHash": "a"}]
-        self.service2.find_user_objects.return_value = [{"transactionHash": "b"}, {"transactionHash": "a"}]
+        self.service2.find_user_objects.return_value = [
+            {"transactionHash": "b"},
+            {"transactionHash": "a"},
+        ]
         result = self.aggregate_service.find_user_objects(user)
         hashes = {r["transactionHash"] for r in result}
         self.assertEqual(hashes, {"a", "b"})
@@ -34,7 +47,10 @@ class TestAggregateIndexingService(unittest.TestCase):
         user = "bob"
         set_cid = "set1"
         self.service1.find_user_set_objects.return_value = [{"transactionHash": "x"}]
-        self.service2.find_user_set_objects.return_value = [{"transactionHash": "y"}, {"transactionHash": "x"}]
+        self.service2.find_user_set_objects.return_value = [
+            {"transactionHash": "y"},
+            {"transactionHash": "x"},
+        ]
         result = self.aggregate_service.find_user_set_objects(user, set_cid)
         hashes = {r["transactionHash"] for r in result}
         self.assertEqual(hashes, {"x", "y"})
@@ -52,8 +68,14 @@ class TestAggregateIndexingService(unittest.TestCase):
 
     def test_find_objects_aggregates_and_deduplicates(self):
         cids = ["cid1", "cid2"]
-        self.service1.find_objects.return_value = [{"transactionHash": "h1"}, {"transactionHash": "h2"}]
-        self.service2.find_objects.return_value = [{"transactionHash": "h2"}, {"transactionHash": "h3"}]
+        self.service1.find_objects.return_value = [
+            {"transactionHash": "h1"},
+            {"transactionHash": "h2"},
+        ]
+        self.service2.find_objects.return_value = [
+            {"transactionHash": "h2"},
+            {"transactionHash": "h3"},
+        ]
         result = self.aggregate_service.find_objects(cids)
         hashes = {r["transactionHash"] for r in result}
         self.assertEqual(hashes, {"h1", "h2", "h3"})
@@ -88,6 +110,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.service2.find_last_object.return_value = None
         result = self.aggregate_service.find_last_object(cid)
         self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main()

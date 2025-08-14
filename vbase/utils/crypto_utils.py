@@ -1,5 +1,4 @@
-"""
-Common cryptographic utility functions
+"""Common cryptographic utility functions
 """
 
 import hashlib
@@ -24,8 +23,7 @@ DECIMALS_BASE = int(1e9)
 
 
 def solidity_hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
-    """
-    Calculates a keccak256 hash exactly as Solidity does.
+    """Calculates a keccak256 hash exactly as Solidity does.
 
     :param abi_types: A list of Solidity ABI types.
     :param values: A list of values to hash.
@@ -39,8 +37,7 @@ def solidity_hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
 
 
 def convert_typed_values_to_bytes(abi_types: List[str], values: List[Any]) -> bytes:
-    """
-    Marshalls ABI types as Solidity does.
+    """Marshalls ABI types as Solidity does.
     Based on the marshalling in solidity_keccak.
     We use this function to factor out Web3/Solidity marshalling
     and unit-test it to ensure compatibility with Solidity.
@@ -69,8 +66,7 @@ def convert_typed_values_to_bytes(abi_types: List[str], values: List[Any]) -> by
 
 
 def hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
-    """
-    Calculates a sha3-256 hash on ABI types marshalled as Solidity does.
+    """Calculates a sha3-256 hash on ABI types marshalled as Solidity does.
     Based on the marshalling in solidity_keccak.
 
     :param abi_types: A list of Solidity ABI types.
@@ -84,8 +80,7 @@ def hash_typed_values(abi_types: List[str], values: List[Any]) -> str:
 
 
 def bytes_to_hex_str(byte_arr: bytes) -> str:
-    """
-    Convert a byte array to a hex string.
+    """Convert a byte array to a hex string.
 
     :param byte_arr: The byte array to convert.
     :return: The resulting hex string.
@@ -94,8 +89,7 @@ def bytes_to_hex_str(byte_arr: bytes) -> str:
 
 
 def bytes_to_hex_str_auto(byte_arr: Union[bytes, str]) -> str:
-    """
-    Convert a byte array to a hex string
+    """Convert a byte array to a hex string
     with intelligent conversion of bytes and string representations.
     Some APIs may return byte array as bytes, HexBytes, or a string,
     depending on the nodes and paths they use.
@@ -113,8 +107,7 @@ def bytes_to_hex_str_auto(byte_arr: Union[bytes, str]) -> str:
 
 
 def hex_str_to_bytes(hex_str: str) -> bytes:
-    """
-    Convert a hex string to a byte array.
+    """Convert a hex string to a byte array.
 
     :param hex_str: The hex string to convert.
     :return: The resulting byte array.
@@ -123,8 +116,7 @@ def hex_str_to_bytes(hex_str: str) -> bytes:
 
 
 def hex_str_to_int(hex_str: str) -> int:
-    """
-    Convert a hex string to an integer.
+    """Convert a hex string to an integer.
 
     :param hex_str: The hex string to convert.
     :return: The resulting integer.
@@ -133,8 +125,7 @@ def hex_str_to_int(hex_str: str) -> int:
 
 
 def add_int_uint256(n1: int, n2_hex_str: str) -> int:
-    """
-    Add int and uint256 with overflow and wrap-around.
+    """Add int and uint256 with overflow and wrap-around.
     This replicates the following sol code:
     unchecked {
         userSetObjectCidSums[userSetCid] += uint256(objectCid);
@@ -148,8 +139,7 @@ def add_int_uint256(n1: int, n2_hex_str: str) -> int:
 
 
 def add_uint256_uint256(n1_hex_str: str, n2_hex_str: str) -> str:
-    """
-    Add int and uint256 with overflow and wrap-around.
+    """Add int and uint256 with overflow and wrap-around.
     This replicates the following sol code:
     unchecked {
         userSetObjectCidSums[userSetCid] += uint256(objectCid);
@@ -163,8 +153,7 @@ def add_uint256_uint256(n1_hex_str: str, n2_hex_str: str) -> str:
 
 
 def string_to_u64_id(s: str) -> int:
-    """
-    Convert a string to an u64 id used in commitments.
+    """Convert a string to an u64 id used in commitments.
 
     :param s: The string to convert.
     :returns: The u64 integer used in commitments.
@@ -173,8 +162,7 @@ def string_to_u64_id(s: str) -> int:
 
 
 def float_to_field(x: float) -> int:
-    """
-    Convert a float to a field int used in commitments.
+    """Convert a float to a field int used in commitments.
 
     :param x: The float to convert.
     :return: The field integer used in commitments.
@@ -191,8 +179,7 @@ def float_to_field(x: float) -> int:
 
 
 def field_to_float(x: int) -> float:
-    """
-    Convert a field integer used in commitments to a float.
+    """Convert a field integer used in commitments to a float.
 
     :param x: The field integer used in commitments.
     :return: The resulting float.

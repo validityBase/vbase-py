@@ -1,5 +1,4 @@
-"""
-vBase Test utils
+"""vBase Test utils
 """
 
 import json
@@ -22,8 +21,7 @@ _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
 
 
 def int_to_hash(n: int) -> str:
-    """
-    Convert an integer to a hash string.
+    """Convert an integer to a hash string.
 
     :param n: The integer.
     :return: The resulting hash string.
@@ -41,8 +39,7 @@ def create_dataset_worker(
     record_type: Type[VBaseObject],
     dataset_name: str = "TestDataset",
 ) -> VBaseDataset:
-    """
-    Common test code for test and dataset init.
+    """Common test code for test and dataset init.
 
     :param vbc: The vBase client object.
     :param record_type: The dataset record type.
@@ -64,8 +61,7 @@ def create_dataset_worker(
 def dataset_add_record_checks(
     vbc: VBaseClient, dsw: VBaseDataset, cl: dict, t_prev: str
 ):
-    """
-    Common test code for dataset record checks.
+    """Common test code for dataset record checks.
 
     :param vbc: The vBase client object.
     :param dsw: The vBase dataset object.
@@ -85,8 +81,7 @@ def dataset_add_record_checks(
 
 
 def dataset_from_json_checks(vbc: VBaseClient, dsw: VBaseDataset, verbose: bool = True):
-    """
-    Common test code for dataset init from JSON.
+    """Common test code for dataset init from JSON.
 
     :param vbc: The vBase client object.
     :param dsw: The source dataset used to initialize the new dataset.
@@ -110,8 +105,7 @@ def dataset_from_json_checks(vbc: VBaseClient, dsw: VBaseDataset, verbose: bool 
 
 
 def compare_dict_subset(superset_dict: dict, subset_dict: dict):
-    """
-    Compare a dictionary to a subset.
+    """Compare a dictionary to a subset.
 
     :param superset_dict: The superset dictionary.
     :param subset_dict: The subset dictionary.

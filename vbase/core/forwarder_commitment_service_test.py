@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 This implementation uses a forwarder to execute meta-transactions on a user's behalf
 against a test smart contract.
@@ -17,9 +16,7 @@ _LOG.setLevel(logging.INFO)
 
 
 class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServiceTest):
-    """
-    Test commitment service accessible using a forwarder API endpoint.
-    """
+    """Test commitment service accessible using a forwarder API endpoint."""
 
     # pylint: disable-msg=too-many-arguments
     def __init__(

@@ -1,5 +1,4 @@
-"""
-Tests of the indexing service for the vbase package
+"""Tests of the indexing service for the vbase package
 """
 
 import secrets
@@ -11,14 +10,10 @@ from vbase.tests.utils import TEST_HASH1, TEST_HASH2, compare_dict_subset, int_t
 
 
 class TestIndexingService(unittest.TestCase):
-    """
-    Test base vBase indexing functionality.
-    """
+    """Test base vBase indexing functionality."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         # Subclasses may initialize vbase client objects themselves,
         # for instance when testing on a public testnet.
         if not hasattr(self, "vbc"):
@@ -39,9 +34,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_indexing(self):
-        """
-        Test a simple set commitment.
-        """
+        """Test a simple set commitment."""
         # Use a random set CID to avoid collisions with other tests.
         set_cid = "0x" + secrets.token_bytes(32).hex()
         cl = self.vbc.add_set(set_cid=set_cid)
@@ -63,9 +56,7 @@ class TestIndexingService(unittest.TestCase):
         )
 
     def test_add_sets_indexing(self):
-        """
-        Test a list of set commitments.
-        """
+        """Test a list of set commitments."""
         # Use a random set CID to avoid collisions with other tests.
         set_cids = ["0x" + secrets.token_bytes(32).hex() for i in range(5)]
         cls = []
@@ -94,9 +85,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_object_indexing(self):
-        """
-        Test a simple set object commitment.
-        """
+        """Test a simple set object commitment."""
         cl = self.vbc.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH2)
         user = cl["user"]
         expected_receipt = {
@@ -149,9 +138,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_add_set_objects_indexing(self):
-        """
-        Test a series of simple set object commitments.
-        """
+        """Test a series of simple set object commitments."""
         # Use a random set CID to avoid collisions with other tests.
         set_cid = "0x" + secrets.token_bytes(32).hex()
         self.vbc.add_set(set_cid=set_cid)
@@ -217,8 +204,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_find_last_user_set_object(self):
-        """
-        Test a series of simple set object commitments
+        """Test a series of simple set object commitments
         followed by find_last_user_set_object().
         """
         # Use a random set CID to avoid collisions with other tests.
@@ -257,9 +243,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_add_object_find_object(self):
-        """
-        Test a simple object commitment following by find_object().
-        """
+        """Test a simple object commitment following by find_object()."""
         cl = self.vbc.add_object(object_cid=TEST_HASH2)
         user = cl["user"]
         commitment_receipts = self.indexing_service.find_object(object_cid=TEST_HASH2)
@@ -280,9 +264,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_add_objects_find_objects(self):
-        """
-        Test add and find for multiple objects.
-        """
+        """Test add and find for multiple objects."""
         cls = [self.vbc.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
         user = cls[0]["user"]
         cl_inds = [1, 2]
@@ -307,9 +289,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_add_objects_find_user_objects(self):
-        """
-        Test add and find for multiple user objects.
-        """
+        """Test add and find for multiple user objects."""
         for i in range(5):
             self.vbc.add_set(set_cid=int_to_hash(i + 1))
         cls = [self.vbc.add_object(object_cid=int_to_hash(i + 1)) for i in range(5)] + [
@@ -357,9 +337,7 @@ class TestIndexingService(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_find_last_object(self):
-        """
-        Test a simple object commitment following by find_last_object().
-        """
+        """Test a simple object commitment following by find_last_object()."""
         cl = self.vbc.add_object(object_cid=TEST_HASH2)
         user = cl["user"]
         commitment_receipt = self.indexing_service.find_last_object(

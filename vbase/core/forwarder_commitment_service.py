@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 This implementation uses a forwarder to execute meta-transactions on a user's behalf.
 """
@@ -40,18 +39,14 @@ _REQUEST_TIMEOUT = 60.0
 
 
 class RequestType(Enum):
-    """
-    Encodes the request type with type safety.
-    """
+    """Encodes the request type with type safety."""
 
     GET = "GET"
     POST = "POST"
 
 
 class ForwarderCommitmentService(Web3CommitmentService):
-    """
-    Commitment service accessible using a forwarder API endpoint.
-    """
+    """Commitment service accessible using a forwarder API endpoint."""
 
     # pylint: disable-msg=too-many-arguments
     def __init__(
@@ -61,8 +56,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         private_key: Optional[str] = None,
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
     ):
-        """
-        Initialize the service object.
+        """Initialize the service object.
 
         :param forwarder_url: The forwarder URL.
         :param api_key: The API key used to authenticate to the forwarder.
@@ -95,7 +89,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # and will use the account to sign the payload.
         # In cases where no commitments are made,
         # private_key may not be specified.
-        if not private_key is None:
+        if private_key is not None:
             acct = w3.eth.account.from_key(private_key)
             w3.eth.default_account = acct.address
 
@@ -142,8 +136,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         params: Union[dict, None] = None,
         data: Union[dict, None] = None,
     ) -> Union[dict, str, None]:
-        """
-        Call a forwarded web API and return the response.
+        """Call a forwarded web API and return the response.
 
         :param api: The forwarder api.
         :param request_type: The request type.
@@ -193,8 +186,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def _parse_object_pairs(obj: any) -> any:
-        """
-        Custom iterator to parse transaction receipts.
+        """Custom iterator to parse transaction receipts.
 
         :param obj: The object to parse.
         :return: The parsed object.
@@ -207,8 +199,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def _convert_string_numbers(data: any) -> any:
-        """
-        Recursively convert the object
+        """Recursively convert the object
         replacing numbers stored as strings terminating with "n" to numbers.
 
         :param data: The object to convert.
@@ -236,8 +227,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def _convert_receipt_logs(receipt: dict) -> dict:
-        """
-        Convert receipt logs.
+        """Convert receipt logs.
 
         :param receipt: Transaction receipt returned by _post_execute().
         :return: The converted receipt data.
@@ -251,8 +241,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         return receipt
 
     def _post_execute(self, fn_name: str, args: []):
-        """
-        Call a forwarded web API and return the response.
+        """Call a forwarded web API and return the response.
 
         :param fn_name: The smart contract function name to call.
         :param args: The arguments to the smart contract function.
@@ -353,8 +342,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         return receipt
 
     def get_commitment_service_data(self) -> dict:
-        """
-        Get commitment service data from the API server.
+        """Get commitment service data from the API server.
         This returns the node_rpc_url and the commitment_service_address
         for the web3 commitment service abstracted by the forwarder.
 
