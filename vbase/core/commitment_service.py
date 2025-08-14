@@ -1,29 +1,25 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 """
 
 import logging
-from typing import List, Union
 from abc import ABC, abstractmethod
+from typing import List, Union
 
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class CommitmentService(ABC):
-    """
-    Interface for base commitment operations    
+    """Interface for base commitment operations
     """
 
     @staticmethod
     @abstractmethod
     def get_init_args_from_env(dotenv_path: Union[str, None] = None) -> dict:
-        """
-        Worker function to load the environment variables.
+        """Worker function to load the environment variables.
 
         :param dotenv_path: The .env file path, if any.
         :return: The dictionary of construction arguments.
@@ -34,8 +30,7 @@ class CommitmentService(ABC):
     def create_instance_from_env(
         dotenv_path: Union[str, None] = None
     ) -> "CommitmentService":
-        """
-        Creates an instance initialized from environment variables.
+        """Creates an instance initialized from environment variables.
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
@@ -49,8 +44,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def get_default_user(self) -> str:
-        """
-        Return the default user address used in vBase transactions.
+        """Return the default user address used in vBase transactions.
 
         :return: The default user address used in vBase transactions.
         """
@@ -58,8 +52,7 @@ class CommitmentService(ABC):
     @staticmethod
     @abstractmethod
     def convert_timestamp_str_to_chain(ts: str) -> int:
-        """
-        Convert a string representation of a Pandas timestamp
+        """Convert a string representation of a Pandas timestamp
         to a chain timestamp returned by smart contract calls.
 
         :param ts: The pandas timestamp in string representation.
@@ -69,8 +62,7 @@ class CommitmentService(ABC):
     @staticmethod
     @abstractmethod
     def convert_timestamp_chain_to_str(ts: int) -> str:
-        """
-        Convert a chain timestamp returned by smart contract calls to a Pandas timestamp.
+        """Convert a chain timestamp returned by smart contract calls to a Pandas timestamp.
 
         :param ts: The chain timestamp returned by smart contract calls.
         :return: The pandas timestamp in string representation.
@@ -78,8 +70,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def get_named_set_cid(self, name: str) -> str:
-        """
-        Returns a hash corresponding to a set name.
+        """Returns a hash corresponding to a set name.
         Abstracts the hashing implementation from the upper layers
 
         :param name: The name of the set
@@ -88,8 +79,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def add_set(self, set_cid: str) -> dict:
-        """
-        Records a set commitment.
+        """Records a set commitment.
         This is a low-level function that operates on set CIDs.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -100,8 +90,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def user_set_exists(self, user: str, set_cid: str) -> bool:
-        """
-        Checks whether a given set exists for a user.
+        """Checks whether a given set exists for a user.
 
         :param user: The address for the user who recorded the commitment.
         :param set_cid: The CID identifying the set.
@@ -110,8 +99,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def verify_user_sets(self, user: str, user_set_cid_sum: str) -> bool:
-        """
-        Verifies all set commitments previously recorded by the user.
+        """Verifies all set commitments previously recorded by the user.
         This verifies all set commitments for completeness.
         The sum of all set CIDs for the user encodes the collection of all sets.
         This is a low-level function that operates on object hashes.
@@ -124,8 +112,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def add_object(self, object_cid: str) -> dict:
-        """
-        Record an object commitment.
+        """Record an object commitment.
         This is a low-level function that operates on object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -136,8 +123,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
-        """
-        Verifies an object commitment previously recorded.
+        """Verifies an object commitment previously recorded.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
@@ -149,8 +135,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def add_set_object(self, set_cid: str, object_cid: str) -> dict:
-        """
-        Records a commitment for an object belonging to a set of objects.
+        """Records a commitment for an object belonging to a set of objects.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -164,8 +149,7 @@ class CommitmentService(ABC):
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
-        """
-        Records a batch of commitments for objects belonging to sets.
+        """Records a batch of commitments for objects belonging to sets.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -177,8 +161,7 @@ class CommitmentService(ABC):
 
     @abstractmethod
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
-        """
-        Records a batch of commitments for objects belonging to a set.
+        """Records a batch of commitments for objects belonging to a set.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -192,8 +175,7 @@ class CommitmentService(ABC):
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_object_cid_sum: str
     ) -> bool:
-        """
-        Verifies an object commitment previously recorded.
+        """Verifies an object commitment previously recorded.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.

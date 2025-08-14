@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 This implementation uses Web3.HTTPProvider to access a test commitment service.
 """
@@ -11,15 +10,12 @@ from vbase.core.commitment_service_test import CommitmentServiceTest
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.log import get_default_logger
 
-
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentServiceTest):
-    """
-    Test commitment service accessible using Web3.HTTPProvider.
-    """
+    """Test commitment service accessible using Web3.HTTPProvider."""
 
     # pylint: disable-msg=too-many-arguments
     def __init__(

@@ -1,5 +1,4 @@
-"""
-Tests of the indexing service for the vbase package
+"""Tests of the indexing service for the vbase package
 using two commitment services for two local smart contracts.
 Tests multichain and app compat scenarios for multiple commitment services.
 """
@@ -12,14 +11,7 @@ import unittest
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-
-from vbase.tests.utils import (
-    int_to_hash,
-    TEST_HASH1,
-    TEST_HASH2,
-    compare_dict_subset,
-)
-
+from vbase.tests.utils import TEST_HASH1, TEST_HASH2, compare_dict_subset, int_to_hash
 
 # Test RPC endpoint.
 _LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
@@ -30,15 +22,12 @@ _COMMITMENT_SERVICE_ADDR_2 = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 
 
 class TestIndexingServiceDual(unittest.TestCase):
-    """
-    Test base vBase indexing functionality with two commitment services
+    """Test base vBase indexing functionality with two commitment services
     using a local test node.
     """
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         # Create an indexing service using the above commitment service info.
         # Define the indexing service using JSON environment variable
         # to test service start-up path.
@@ -81,9 +70,7 @@ class TestIndexingServiceDual(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_indexing(self):
-        """
-        Test a simple set commitment.
-        """
+        """Test a simple set commitment."""
         # Use a random set CID to avoid collisions with other tests.
         set_cid1 = "0x" + secrets.token_bytes(32).hex()
         cl1 = self.vbc1.add_set(set_cid=set_cid1)
@@ -117,9 +104,7 @@ class TestIndexingServiceDual(unittest.TestCase):
         )
 
     def test_add_sets_indexing(self):
-        """
-        Test a list of set commitments.
-        """
+        """Test a list of set commitments."""
         cls = []
         # Use a random set CID to avoid collisions with other tests.
         set_cids = ["0x" + secrets.token_bytes(32).hex() for i in range(5)]
@@ -151,9 +136,7 @@ class TestIndexingServiceDual(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicate tests.
     # pylint: disable=R0801
     def test_add_set_object_indexing(self):
-        """
-        Test a simple set object commitment.
-        """
+        """Test a simple set object commitment."""
         cls = [
             self.vbc1.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH1),
             self.vbc2.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH2),
@@ -216,9 +199,7 @@ class TestIndexingServiceDual(unittest.TestCase):
             )
 
     def test_add_object_find_object(self):
-        """
-        Test a simple object commitment followed by find_object().
-        """
+        """Test a simple object commitment followed by find_object()."""
         self.vbc1.add_object(object_cid=TEST_HASH2)
         cl2 = self.vbc2.add_object(object_cid=TEST_HASH2)
         user = cl2["user"]
@@ -240,9 +221,7 @@ class TestIndexingServiceDual(unittest.TestCase):
     # Disable R0801: Similar lines in 2 files for duplicative tests.
     # pylint: disable=R0801
     def test_add_objects_find_objects(self):
-        """
-        Test add and find for multiple objects.
-        """
+        """Test add and find for multiple objects."""
         cls1 = [self.vbc1.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
         cls2 = [self.vbc1.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
         user = cls1[0]["user"]

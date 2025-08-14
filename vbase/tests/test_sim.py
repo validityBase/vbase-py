@@ -1,25 +1,20 @@
-"""
-Test Point-in-time (PIT) simulations
+"""Test Point-in-time (PIT) simulations
 Such simulations allow calculations to run in a simulated PIT environment
 accessing committed data precisely as it existed historically.
 """
 
 import logging
-
 import time
 import unittest
+
 import numpy as np
 import pandas as pd
 
 import vbase.core.vbase_client
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseIntObject
+from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
 from vbase.utils.log import get_default_logger
-from vbase.tests.utils import (
-    create_dataset_worker,
-    dataset_from_json_checks,
-)
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -31,21 +26,14 @@ vbase.core.vbase_client.LOG.setLevel(logging.DEBUG)
 
 
 class TestSim(unittest.TestCase):
-    """
-    Test vBase simulator APIs.
-    """
+    """Test vBase simulator APIs."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         self.vbc = VBaseClientTest.create_instance_from_env()
 
     def test_5t_sim(self):
-        """
-        Test a simple simulation over 5 timestamps.
-        """
-
+        """Test a simple simulation over 5 timestamps."""
         # Record 5 int commitments.
         # This creates the following test dataset:
         #        t    data
@@ -74,9 +62,7 @@ class TestSim(unittest.TestCase):
 
         # Run a simulation invoking a PIT calculation on the latest record for each sim t.
         def callback() -> int:
-            """
-            Sim callback
-            """
+            """Sim callback"""
             record_data = dsw.get_last_record_data()
             _LOG.info("callback(): record_data = %s", record_data)
             assert isinstance(record_data, int)

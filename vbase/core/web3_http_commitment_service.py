@@ -1,5 +1,4 @@
-"""
-The vbase commitment service module provides access to various commitment services
+"""The vbase commitment service module provides access to various commitment services
 such as blockchain-based smart contracts.
 This implementation uses Web3.HTTPProvider.
 """
@@ -10,6 +9,7 @@ import os
 import pprint
 import time
 from typing import List, Optional, Union
+
 from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import (
@@ -18,11 +18,10 @@ from web3.middleware import (
     geth_poa_middleware,
 )
 
-from vbase.utils.log import get_default_logger
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-
+from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -36,15 +35,13 @@ _W3_CONNECTION_BACKOFF = 1
 
 
 class Web3HTTPCommitmentService(Web3CommitmentService):
-    """
-    Commitment service accessible using Web3.HTTPProvider.
+    """Commitment service accessible using Web3.HTTPProvider.
     Without private key support, this class will only support operations on a test node.
     """
 
     @staticmethod
     def _get_bool_env_var(var_name, default=False):
-        """
-        Worker function to get a bool environment variable.
+        """Worker function to get a bool environment variable.
 
         :param var_name: The environment variable name.
         :param default: The default value to return.
@@ -64,8 +61,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         commitment_service_json_file_name: Optional[str] = "CommitmentService.json",
         inject_geth_poa_middleware: bool = False,
     ):
-        """
-        Initialize the service object.
+        """Initialize the service object.
 
         :param node_rpc_url: Node RPC URL.
         :param commitment_service_address: The commitment smart contract address.
@@ -120,7 +116,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # This method is supported by test nodes.
         # If the private key is specified, transactions will be signed and sent
         # using eth_sendRawTransaction.
-        if private_key is not None:
+        if private_key:
             acct = w3.eth.account.from_key(private_key)
             w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
             w3.eth.default_account = acct.address

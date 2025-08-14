@@ -1,11 +1,9 @@
-"""
-Common error and validation utility functions
+"""Common error and validation utility functions
 """
 
 
 def check_for_missing_env_vars(env_vars: dict):
-    """
-    Checks whether any required environment values are undefined.
+    """Checks whether any required environment values are undefined.
 
     :param env_vars: The dictionary of environment variables.
     """

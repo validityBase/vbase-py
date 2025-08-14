@@ -1,17 +1,16 @@
-"""
-Test crypto utilities
+"""Test crypto utilities
 """
 
 import hashlib
 import unittest
+
 from web3 import Web3
 
 from vbase.utils.crypto_utils import (
-    solidity_hash_typed_values,
     convert_typed_values_to_bytes,
     hash_typed_values,
+    solidity_hash_typed_values,
 )
-
 
 _STR_TEST = "Hello, world!"
 _INT_TEST1 = 42
@@ -19,9 +18,7 @@ _INT_TEST2 = 43
 
 
 def sha3_256_hash_bytes(data: bytes) -> str:
-    """
-    Compute a SHA3-256 hash of a byte array.
-    """
+    """Compute a SHA3-256 hash of a byte array."""
     hash_obj = hashlib.sha3_256()
     hash_obj.update(data)
     sha3_hash = "0x" + hash_obj.digest().hex()
@@ -29,14 +26,10 @@ def sha3_256_hash_bytes(data: bytes) -> str:
 
 
 class TestCryptoUtils(unittest.TestCase):
-    """
-    Test vBase crypto utilities
-    """
+    """Test vBase crypto utilities"""
 
     def test_str_hash(self):
-        """
-        Test hash of a string against reference values.
-        """
+        """Test hash of a string against reference values."""
         # Verify (keccak-256) solidity_hash_typed_values for a string.
         sol_hash = solidity_hash_typed_values(["string"], [_STR_TEST])
         keccak_hash = Web3.keccak(text=_STR_TEST).hex()
@@ -52,9 +45,7 @@ class TestCryptoUtils(unittest.TestCase):
         self.assertEqual(vbase_hash, sha3_hash)
 
     def test_int_hash(self):
-        """
-        Test hash of an integer against reference values.
-        """
+        """Test hash of an integer against reference values."""
         sol_hash = solidity_hash_typed_values(["uint256"], [_INT_TEST1])
         keccak_hash = Web3.keccak(_INT_TEST1.to_bytes(32, byteorder="big")).hex()
         self.assertEqual(sol_hash, keccak_hash)
@@ -67,9 +58,7 @@ class TestCryptoUtils(unittest.TestCase):
         self.assertEqual(vbase_hash, sha3_hash)
 
     def test_2ints_hash(self):
-        """
-        Test hash of two integers against reference values.
-        """
+        """Test hash of two integers against reference values."""
         sol_hash = solidity_hash_typed_values(
             ["uint256", "uint256"], [_INT_TEST1, _INT_TEST2]
         )
@@ -92,9 +81,7 @@ class TestCryptoUtils(unittest.TestCase):
         self.assertEqual(vbase_hash, sha3_hash)
 
     def test_str_int_hash(self):
-        """
-        Test hash of a string followed by an integer against reference values.
-        """
+        """Test hash of a string followed by an integer against reference values."""
         sol_hash = solidity_hash_typed_values(
             ["string", "uint256"], [_STR_TEST, _INT_TEST2]
         )

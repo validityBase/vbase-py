@@ -1,9 +1,7 @@
-"""
-Default logging interface
+"""Default logging interface
 """
 
 import logging
-
 
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
@@ -11,13 +9,11 @@ _LOG_FORMATTER = logging.Formatter(
 
 
 def get_default_logger(name: str) -> logging.Logger:
-    """
-    Get default logger for a given name.
+    """Get default logger for a given name.
 
     :param name: The logger name.
     :return: The logger object.
     """
-
     # Set Null log handler to avoid "No handlers could be found for logger XXX".
     # This is important for library code, which may contain code to log events
     # if a user of the library does not configure logging.

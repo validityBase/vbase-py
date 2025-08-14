@@ -1,5 +1,4 @@
-"""
-Tests of the large dataset bootstrap for the vbase module
+"""Tests of the large dataset bootstrap for the vbase module
 """
 
 import time
@@ -7,27 +6,18 @@ import unittest
 
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBasePortfolioObject
-from vbase.tests.utils import (
-    create_dataset_worker,
-    dataset_from_json_checks,
-)
+from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
 
 
 class TestVBaseDatasetBootstrap(unittest.TestCase):
-    """
-    Test base vBase dataset bootstrap functionality.
-    """
+    """Test base vBase dataset bootstrap functionality."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         self.vbc = VBaseClientTest.create_instance_from_env()
 
     def test_port_wr(self):
-        """
-        Test timeseries of portfolio records write and read.
-        """
+        """Test timeseries of portfolio records write and read."""
         dsw = create_dataset_worker(self.vbc, VBasePortfolioObject)
 
         # Record 5 commitments over 5 blocks.
@@ -54,9 +44,7 @@ class TestVBaseDatasetBootstrap(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_port_wr_batch(self):
-        """
-        Test timeseries of portfolio records write and read using a batch commitment.
-        """
+        """Test timeseries of portfolio records write and read using a batch commitment."""
         dsw = create_dataset_worker(self.vbc, VBasePortfolioObject)
 
         # Record 5 commitments over 5 blocks.
