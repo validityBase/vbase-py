@@ -14,7 +14,8 @@ _LOG.setLevel(logging.INFO)
 
 
 class CommitmentServiceTest(CommitmentService):
-    """Interface for base commitment operations"""
+    """Interface for base commitment operations
+    """
 
     @abstractmethod
     def clear_sets(self):
