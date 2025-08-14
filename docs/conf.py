@@ -1,8 +1,7 @@
-"""Configuration file for the Sphinx documentation builder.
-
-For the full list of built-in configuration values, see the documentation:
-https://www.sphinx-doc.org/en/master/usage/configuration.html
-"""
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
 import sys
@@ -13,9 +12,8 @@ sys.path.insert(0, os.path.abspath(".."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "vbase-py"
-# Disable A001 Variable is shadowing a Python builtin
-# since the variable is needed for Sphinx build.
-copyright = "2023-2024, PIT Labs, Inc."  # noqa: A001
+# Drop the trailing period since Sphinx adds it.
+copyright = "2023-2024, PIT Labs, Inc."
 author = "PIT Labs, Inc."
 
 # -- General configuration ---------------------------------------------------
