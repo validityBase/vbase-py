@@ -116,7 +116,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # This method is supported by test nodes.
         # If the private key is specified, transactions will be signed and sent
         # using eth_sendRawTransaction.
-        if private_key is not None and private_key != "":
+        if private_key:
             acct = w3.eth.account.from_key(private_key)
             w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
             w3.eth.default_account = acct.address
