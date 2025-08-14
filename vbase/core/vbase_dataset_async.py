@@ -1,5 +1,4 @@
-"""
-Asynchronous dataset support for the validityBase (vBase) platform.
+"""Asynchronous dataset support for the validityBase (vBase) platform.
 A vBase dataset comprises one or more records (objects) belonging to a set.
 Asynchronous dataset wraps synchronous dataset object to support
 async operations using asyncio.
@@ -8,27 +7,25 @@ async operations using asyncio.
 import asyncio
 import logging
 from typing import List, Union
+
 import pandas as pd
 
 from vbase.core.vbase_dataset import VBaseDataset
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class VBaseDatasetAsync(VBaseDataset):
-    """
-    Provides Python vBase dataset async access.
+    """Provides Python vBase dataset async access.
     Asynchronous dataset wraps synchronous dataset object to support
     async operations using asyncio.
     """
 
     @classmethod
     async def create(cls, *args, **kwargs) -> "VBaseDatasetAsync":
-        """
-        Creates a vBase dataset object asynchronously.
+        """Creates a vBase dataset object asynchronously.
         A static async factory method that delegates to the synchronous constructor.
         Offloads VBaseDataset constructor execution to the default event loop's executor.
 
@@ -45,8 +42,7 @@ class VBaseDatasetAsync(VBaseDataset):
         return dataset
 
     async def add_record_async(self, record_data: any) -> dict:
-        """
-        Add a record to a VBase dataset object asynchronously.
+        """Add a record to a VBase dataset object asynchronously.
         Offloads add_record execution to the default event loop's executor.
 
         :param record_data: The record datum.
@@ -57,8 +53,7 @@ class VBaseDatasetAsync(VBaseDataset):
         return cl
 
     async def add_records_batch_async(self, record_data_list: List[any]) -> List[dict]:
-        """
-        Add a record to a VBase dataset object asynchronously.
+        """Add a record to a VBase dataset object asynchronously.
         Offloads add_record execution to the default event loop's executor.
 
         :param record_data_list: The list of records' data.
@@ -71,8 +66,7 @@ class VBaseDatasetAsync(VBaseDataset):
     async def add_record_with_timestamp_async(
         self, record_data: any, timestamp: Union[pd.Timestamp, str]
     ) -> dict:
-        """
-        Test shim to add a record to a VBaseDataset object
+        """Test shim to add a record to a VBaseDataset object
         with a given timestamp asynchronously.
         Only supported by test contracts.
         Offloads add_record_with_timestamp execution
@@ -93,8 +87,7 @@ class VBaseDatasetAsync(VBaseDataset):
         record_data_list: List[any],
         timestamps: List[Union[pd.Timestamp, str]],
     ) -> List[dict]:
-        """
-        Test shim to add a batch of records with timestamps
+        """Test shim to add a batch of records with timestamps
         to a VBaseDataset object asynchronously.
         Only supported by test contracts.
         Offloads add_records_with_timestamps_batch execution
@@ -111,8 +104,7 @@ class VBaseDatasetAsync(VBaseDataset):
         return cls
 
     async def verify_commitments_async(self) -> (bool, List[str]):
-        """
-        Verify commitments for all dataset records asynchronously.
+        """Verify commitments for all dataset records asynchronously.
         Offloads verify_commitments execution
         to the default event loop's executor.
 

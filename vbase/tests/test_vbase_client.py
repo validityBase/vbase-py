@@ -1,29 +1,20 @@
-"""
-Tests of the vbase_client module
+"""Tests of the vbase_client module
 """
 
-from typing import List
 import unittest
+from typing import List
+
 import pandas as pd
 
 from vbase.core.vbase_client_test import VBaseClientTest
-
-from vbase.tests.utils import (
-    int_to_hash,
-    TEST_HASH1,
-    TEST_HASH2,
-)
+from vbase.tests.utils import TEST_HASH1, TEST_HASH2, int_to_hash
 
 
 class TestVBaseClient(unittest.TestCase):
-    """
-    Test base vBase client functionality.
-    """
+    """Test base vBase client functionality."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         self.vbc = VBaseClientTest.create_instance_from_env()
         self.vbc.clear_set_objects(TEST_HASH1)
         self.vbc.clear_sets()
@@ -31,9 +22,7 @@ class TestVBaseClient(unittest.TestCase):
         assert cl["setCid"] == TEST_HASH1
 
     def test_add_set(self):
-        """
-        Test a simple set commitment.
-        """
+        """Test a simple set commitment."""
         self.vbc.clear_sets()
         cl = self.vbc.add_set(TEST_HASH1)
         assert self.vbc.user_set_exists(cl["user"], TEST_HASH1)
@@ -43,9 +32,7 @@ class TestVBaseClient(unittest.TestCase):
         assert not self.vbc.verify_user_sets(cl["user"], TEST_HASH2)
 
     def test_add_named_set(self):
-        """
-        Test a simple named set commitment.
-        """
+        """Test a simple named set commitment."""
         self.vbc.clear_sets()
         cl = self.vbc.add_named_set("Test Set")
         assert self.vbc.user_named_set_exists(cl["user"], "Test Set")
@@ -56,9 +43,7 @@ class TestVBaseClient(unittest.TestCase):
         assert not self.vbc.verify_user_sets(cl["user"], TEST_HASH2)
 
     def test_add_object(self):
-        """
-        Test a simple object commitment.
-        """
+        """Test a simple object commitment."""
         cl = self.vbc.add_object(TEST_HASH1)
         assert self.vbc.verify_user_object(cl["user"], cl["objectCid"], cl["timestamp"])
         # Check bogus timestamp.
@@ -71,9 +56,7 @@ class TestVBaseClient(unittest.TestCase):
         assert not self.vbc.verify_user_object(cl["user"], TEST_HASH2, cl["timestamp"])
 
     def test_add_set_object(self):
-        """
-        Test a simple set object commitment.
-        """
+        """Test a simple set object commitment."""
         cl = self.vbc.add_set_object(TEST_HASH1, TEST_HASH2)
         assert self.vbc.verify_user_object(cl["user"], cl["objectCid"], cl["timestamp"])
         assert self.vbc.verify_user_set_objects(cl["user"], TEST_HASH1, TEST_HASH2)
@@ -82,9 +65,7 @@ class TestVBaseClient(unittest.TestCase):
         assert not self.vbc.verify_user_set_objects(cl["user"], TEST_HASH2, TEST_HASH1)
 
     def test_add_sets_objects_batch(self):
-        """
-        Test a batch set object commitment.
-        """
+        """Test a batch set object commitment."""
         object_hashes = [int_to_hash(i) for i in range(1, 5)]
         cl = self.vbc.add_sets_objects_batch([TEST_HASH1] * 4, object_hashes)
         assert len(cl) == 4
@@ -108,9 +89,7 @@ class TestVBaseClient(unittest.TestCase):
             )
 
     def test_add_set_object_with_timestamp(self):
-        """
-        Test a simple set object commitment with timestamp.
-        """
+        """Test a simple set object commitment with timestamp."""
         cl = self.vbc.add_set_object_with_timestamp(
             TEST_HASH1, TEST_HASH2, pd.Timestamp("2023-01-01")
         )
@@ -148,9 +127,7 @@ class TestVBaseClient(unittest.TestCase):
             )
 
     def test_add_sets_objects_with_timestamps_batch(self):
-        """
-        Test a batch sets objects commitment with timestamps.
-        """
+        """Test a batch sets objects commitment with timestamps."""
         # Use an internal function to quickly build timestamps.
         # noinspection PyUnresolvedReferences
         timestamps = [
@@ -164,9 +141,7 @@ class TestVBaseClient(unittest.TestCase):
         self._verify_sets_objects_batch(cl, object_hashes, timestamps)
 
     def test_add_set_objects_with_timestamps_batch(self):
-        """
-        Test a batch set objects commitment with timestamps.
-        """
+        """Test a batch set objects commitment with timestamps."""
         # Use an internal function to quickly build timestamps.
         # noinspection PyUnresolvedReferences
         timestamps = [

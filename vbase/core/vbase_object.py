@@ -1,32 +1,25 @@
-"""
-Objects supported by the validityBase (vBase) platform.
+"""Objects supported by the validityBase (vBase) platform.
 A vBase objects are the basic digital objects
 for which commitments and operations are supported.
 Higher-order abstractions, such as datasets
 comprise one or more records (objects) belonging to a set.
 """
 
-from abc import ABC, abstractmethod
 import hashlib
 import json
 import logging
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from vbase.utils.crypto_utils import (
-    hash_typed_values,
-    string_to_u64_id,
-    float_to_field,
-)
+from vbase.utils.crypto_utils import float_to_field, hash_typed_values, string_to_u64_id
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class VBaseObject(ABC):
-    """
-    Provides basic Python vBase object features.
+    """Provides basic Python vBase object features.
     Implements base functionality shared across various objects and dataset records.
     Children implement object-specific logic.
     """
@@ -40,8 +33,7 @@ class VBaseObject(ABC):
         init_dict: Optional[Dict] = None,
         init_json: Optional[str] = None,
     ):
-        """
-        Create an object.
+        """Create an object.
         Can crate objects using a variety of inputs.
         Exactly one init argument below should be provided.
 
@@ -68,15 +60,13 @@ class VBaseObject(ABC):
 
     @abstractmethod
     def _init_from_dict(self, init_dict: dict):
-        """
-        Initialize an object using a dictionary.
+        """Initialize an object using a dictionary.
 
         :param init_dict: Object dictionary representation.
         """
 
     def _init_from_json(self, init_json: str):
-        """
-        Initialize an object using a JSON string.
+        """Initialize an object using a JSON string.
 
         :param init_json: Object JSON representation
         """
@@ -85,8 +75,7 @@ class VBaseObject(ABC):
     @staticmethod
     @abstractmethod
     def get_cid_for_data(record_data: Any) -> str:
-        """
-        Generate a content identifier (CID) for an object with given data.
+        """Generate a content identifier (CID) for an object with given data.
         The method may be called to post commitments without instantiating an object.
         The encapsulation of different digital objects and
         their CID calculation is a primary job of an object.
@@ -97,8 +86,7 @@ class VBaseObject(ABC):
         """
 
     def get_cid(self) -> str:
-        """
-        Return the content identifier (CID) for the object.
+        """Return the content identifier (CID) for the object.
         Calculates the CID if necessary and caches it for subsequent queries.
 
         :return: The CID generated.
@@ -108,8 +96,7 @@ class VBaseObject(ABC):
         return self.cid
 
     def get_dict(self) -> dict:
-        """
-        Return the dictionary representation of the object's data.
+        """Return the dictionary representation of the object's data.
         This is a basic implementation that most objects should override
         with more intelligent object-specific implementations.
         Converting objects to dictionaries is useful as a step in converting
@@ -121,9 +108,7 @@ class VBaseObject(ABC):
 
 
 class VBaseIntObject(VBaseObject):
-    """
-    An integer object
-    """
+    """An integer object"""
 
     def __init__(
         self,
@@ -142,8 +127,7 @@ class VBaseIntObject(VBaseObject):
 
 
 class VBasePrivateIntObject(VBaseObject):
-    """
-    An integer object that preserves object privacy
+    """An integer object that preserves object privacy
     Each object comprises an integer value and a string salt.
     The user-specified random salt preserves privacy of the data with low entropy.
     To verify the object, users must specify the preimage with salts.
@@ -174,8 +158,7 @@ class VBasePrivateIntObject(VBaseObject):
 
 
 class VBaseFloatObject(VBaseObject):
-    """
-    A float object
+    """A float object
     Floats are committed as fixed-point integers to support ZKPs.
     """
 
@@ -196,8 +179,7 @@ class VBaseFloatObject(VBaseObject):
 
 
 class VBasePrivateFloatObject(VBaseObject):
-    """
-    A float object that preserves object privacy
+    """A float object that preserves object privacy
     Each object comprises a float value and a string salt.
     """
 
@@ -226,9 +208,7 @@ class VBasePrivateFloatObject(VBaseObject):
 
 
 class VBaseStringObject(VBaseObject):
-    """
-    A string object
-    """
+    """A string object"""
 
     def __init__(
         self,
@@ -247,9 +227,7 @@ class VBaseStringObject(VBaseObject):
 
 
 class VBaseJsonObject(VBaseObject):
-    """
-    A JSON string object
-    """
+    """A JSON string object"""
 
     def __init__(
         self,
@@ -273,8 +251,7 @@ class VBaseJsonObject(VBaseObject):
 
 
 class VBasePortfolioObject(VBaseObject):
-    """
-    A portfolio object
+    """A portfolio object
     Each portfolio is a dictionary with
     symbol/id keys and weight values.
     """
@@ -306,10 +283,9 @@ class VBasePortfolioObject(VBaseObject):
             ids + vals,
         )
 
+
 class VBaseBytesObject(VBaseObject):
-    """
-    A binary (bytes) object for opaque binary data (e.g., PDFs, images).
-    """
+    """A binary (bytes) object for opaque binary data (e.g., PDFs, images)."""
 
     def __init__(
         self,
@@ -320,11 +296,14 @@ class VBaseBytesObject(VBaseObject):
         super().__init__(init_data, init_dict, init_json)
 
     def _init_from_dict(self, init_dict: Dict[str, str]):
-        raise NotImplementedError("Deserialization from dict not supported for raw bytes.")
+        raise NotImplementedError(
+            "Deserialization from dict not supported for raw bytes."
+        )
 
     @staticmethod
     def get_cid_for_data(record_data: bytes) -> str:
         return "0x" + hashlib.sha3_256(record_data).hexdigest()
+
 
 VBASE_OBJECT_TYPES = {
     "VBaseIntObject": VBaseIntObject,

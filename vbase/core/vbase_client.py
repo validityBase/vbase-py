@@ -1,21 +1,20 @@
-"""
-The vbase module provides access to base validityBase (vBase) commitments.
+"""The vbase module provides access to base validityBase (vBase) commitments.
 """
 
 import logging
 import os
 from typing import Callable, List, Union
-from dotenv import load_dotenv
-import pandas as pd
 
-from vbase.utils.log import get_default_logger
+import pandas as pd
+from dotenv import load_dotenv
+
 from vbase.core.commitment_service import CommitmentService
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import add_uint256_uint256
-
+from vbase.utils.log import get_default_logger
 
 LOG = get_default_logger(__name__)
 LOG.setLevel(logging.INFO)
@@ -30,9 +29,7 @@ VBASE_COMMITMENT_SERVICE_TYPES = {
 
 
 class VBaseClient:
-    """
-    Provides Python validityBase (vBase) access.
-    """
+    """Provides Python validityBase (vBase) access."""
 
     # The class is the entry point to vBase operations.
     # It has lots of public methods by design.
@@ -40,8 +37,7 @@ class VBaseClient:
     # pylint: disable=R0904
 
     def __init__(self, commitment_service: CommitmentService):
-        """
-        Initialize a vBase object.
+        """Initialize a vBase object.
 
         :param commitment_service: The service for managing commitments.
             The service typically comprises a set of blockchains and smart contracts
@@ -59,8 +55,7 @@ class VBaseClient:
 
     @staticmethod
     def create_instance_from_env(dotenv_path: Union[str, None] = None) -> "VBaseClient":
-        """
-        Creates an instance initialized from environment variables.
+        """Creates an instance initialized from environment variables.
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
@@ -96,8 +91,7 @@ class VBaseClient:
         return VBaseClient(commitment_service_class.create_instance_from_env(None))
 
     def get_default_user(self) -> str:
-        """
-        Return the default user address used in vBase transactions.
+        """Return the default user address used in vBase transactions.
 
         :return: The default user address used in vBase transactions.
         """
@@ -108,8 +102,7 @@ class VBaseClient:
     #################
 
     def add_set(self, set_cid: str) -> dict:
-        """
-        Records a set commitment.
+        """Records a set commitment.
         This is a low-level function that operates on set CIDs.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -120,8 +113,7 @@ class VBaseClient:
         return self.commitment_service.add_set(set_cid)
 
     def user_set_exists(self, user: str, set_cid: str) -> bool:
-        """
-        Checks whether a given set exists for the calling user.
+        """Checks whether a given set exists for the calling user.
         This function abstracts the low-level commitment of named set creation.
 
         :param user: The address for the user who recorded the commitment.
@@ -132,8 +124,7 @@ class VBaseClient:
         return self.commitment_service.user_set_exists(user, set_cid)
 
     def get_named_set_cid(self, name: str) -> str:
-        """
-        Converts a set name to a hash.
+        """Converts a set name to a hash.
         Abstracts the hashing implementation from the upper layers.
 
         :param name: The name of the set.
@@ -142,8 +133,7 @@ class VBaseClient:
         return self.commitment_service.get_named_set_cid(name)
 
     def add_named_set(self, name: str) -> dict:
-        """
-        Creates a commitment for a set with a given name.
+        """Creates a commitment for a set with a given name.
         This function abstracts the low-level commitment of set creation.
 
         :param name: The name of the set.
@@ -152,8 +142,7 @@ class VBaseClient:
         return self.add_set(self.get_named_set_cid(name))
 
     def user_named_set_exists(self, user: str, name: str) -> bool:
-        """
-        Checks whether a set with a given name exists for the calling user.
+        """Checks whether a set with a given name exists for the calling user.
         This function abstracts the low-level commitment of named set creation.
 
         :param user: The address for the user who recorded the commitment.
@@ -164,8 +153,7 @@ class VBaseClient:
         return self.user_set_exists(user, self.get_named_set_cid(name))
 
     def verify_user_sets(self, user: str, user_sets_cid_sum: str) -> bool:
-        """
-        Verifies set commitments previously recorded by the user.
+        """Verifies set commitments previously recorded by the user.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
@@ -176,8 +164,7 @@ class VBaseClient:
         return self.commitment_service.verify_user_sets(user, user_sets_cid_sum)
 
     def verify_user_named_sets(self, user: str, names: List[str]) -> bool:
-        """
-        Verifies the completeness of a list of named sets.
+        """Verifies the completeness of a list of named sets.
 
         :param user: Address for the user who recorded the commitment.
         :param names: Names of user sets.
@@ -202,8 +189,7 @@ class VBaseClient:
     ####################
 
     def add_object(self, object_cid: str) -> dict:
-        """
-        Record an object commitment.
+        """Record an object commitment.
         This is a low-level function that operates on object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -216,8 +202,7 @@ class VBaseClient:
     def verify_user_object(
         self, user: str, object_cid: str, timestamp: Union[pd.Timestamp, str]
     ) -> bool:
-        """
-        Verifies an object commitment previously recorded.
+        """Verifies an object commitment previously recorded.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
@@ -229,8 +214,7 @@ class VBaseClient:
         return self.commitment_service.verify_user_object(user, object_cid, timestamp)
 
     def add_set_object(self, set_cid: str, object_cid: str) -> dict:
-        """
-        Records a commitment for an object belonging to a set of objects.
+        """Records a commitment for an object belonging to a set of objects.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -244,8 +228,7 @@ class VBaseClient:
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
-        """
-        Records a batch of commitments for objects belonging to sets.
+        """Records a batch of commitments for objects belonging to sets.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -257,8 +240,7 @@ class VBaseClient:
         return self.commitment_service.add_sets_objects_batch(set_cids, object_cids)
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
-        """
-        Records a batch of commitments for objects belonging to a set.
+        """Records a batch of commitments for objects belonging to a set.
         This is a low-level function that operates on set and object hashes.
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
@@ -272,8 +254,7 @@ class VBaseClient:
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_objects_cid_sum: str
     ) -> bool:
-        """
-        Verifies an object commitment previously recorded.
+        """Verifies an object commitment previously recorded.
         This is a low-level function that operates on object hashes.
 
         :param user: The address for the user who recorded the commitment.
@@ -291,16 +272,14 @@ class VBaseClient:
     ###########################################
 
     def in_sim(self) -> bool:
-        """
-        Get the simulation state.
+        """Get the simulation state.
 
         :return: True if vBase is in a simulation; False otherwise.
         """
         return self._in_sim
 
     def get_sim_t(self) -> Union[pd.Timestamp, None]:
-        """
-        Get the simulation timestamp.
+        """Get the simulation timestamp.
 
         :return: If in simulation, the sim timestamp; None otherwise.
         """
@@ -311,8 +290,7 @@ class VBaseClient:
         ts: pd.DatetimeIndex,
         callback: Callable[[], Union[int, float, dict, pd.DataFrame]],
     ) -> Union[pd.Series, pd.DataFrame]:
-        """
-        Runs a point-in-time (PIT) simulation.
+        """Runs a point-in-time (PIT) simulation.
         PIT simulation executes callback for each t specified
         letting the callback see world state as it existed at that t.
 

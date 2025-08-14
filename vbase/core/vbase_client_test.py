@@ -1,28 +1,26 @@
-"""
-The vbase module provides access to base validityBase (vBase) commitments.
+"""The vbase module provides access to base validityBase (vBase) commitments.
 The test class provides additional test API hooks.
 """
 
 import logging
 import os
 from typing import List, Union
-from dotenv import load_dotenv
-import pandas as pd
 
-from vbase.utils.log import get_default_logger
+import pandas as pd
+from dotenv import load_dotenv
+
 from vbase.core.commitment_service_test import CommitmentServiceTest
+from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
-from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-
+from vbase.utils.log import get_default_logger
 
 LOG = get_default_logger(__name__)
 LOG.setLevel(logging.INFO)
 
 
 class VBaseClientTest(VBaseClient):
-    """
-    Provides Python validityBase (vBase) access with test methods.
+    """Provides Python validityBase (vBase) access with test methods.
     Test methods allow clearing state and bootstrapping objects with pre-defined timestamps.
     """
 
@@ -67,8 +65,7 @@ class VBaseClientTest(VBaseClient):
 
     @staticmethod
     def normalize_pd_timestamp(timestamp: Union[pd.Timestamp, str]):
-        """
-        Normalize Pandas timestamp converting it to a string representation
+        """Normalize Pandas timestamp converting it to a string representation
         that is serializable.
 
         :param timestamp: A representation of a pd.Timestamp object.
@@ -81,8 +78,7 @@ class VBaseClientTest(VBaseClient):
     def add_object_with_timestamp(
         self, object_cid: str, timestamp: Union[pd.Timestamp, str]
     ) -> dict:
-        """
-        Test method to record an object commitment with a given timestamp.
+        """Test method to record an object commitment with a given timestamp.
         Only supported by test contracts.
 
         :param object_cid: The CID identifying the object.
@@ -96,8 +92,7 @@ class VBaseClientTest(VBaseClient):
     def add_set_object_with_timestamp(
         self, set_cid: str, object_cid: str, timestamp: Union[pd.Timestamp, str]
     ) -> dict:
-        """
-        Test method to record an object commitment with a given timestamp.
+        """Test method to record an object commitment with a given timestamp.
         Only supported by test contracts.
 
         :param set_cid: The CID of the set containing the object.
@@ -115,8 +110,7 @@ class VBaseClientTest(VBaseClient):
         object_cids: List[str],
         timestamps: List[pd.Timestamp],
     ) -> List[dict]:
-        """
-        Test method to record a batch of object commitment with a timestamps.
+        """Test method to record a batch of object commitment with a timestamps.
         Only supported by test contracts.
 
         :param set_cids: The hashes of the sets containing the objects.
@@ -136,8 +130,7 @@ class VBaseClientTest(VBaseClient):
         object_cids: List[str],
         timestamps: List[pd.Timestamp],
     ) -> List[dict]:
-        """
-        Test method to record a batch of object commitment with a timestamps.
+        """Test method to record a batch of object commitment with a timestamps.
         Only supported by test contracts.
 
         :param set_cid: The CID of the set containing the objects.
@@ -156,16 +149,14 @@ class VBaseClientTest(VBaseClient):
     ###################################
 
     def clear_sets(self):
-        """
-        Clear all sets for the user.
+        """Clear all sets for the user.
         Used to clear state when testing.
         Only supported by test contracts.
         """
         self.commitment_service.clear_sets()
 
     def clear_set_objects(self, set_cid: str):
-        """
-        Clear all records (objects) for a user's set.
+        """Clear all records (objects) for a user's set.
         Used to clear state when testing.
         Only supported by test contracts.
 
@@ -174,8 +165,7 @@ class VBaseClientTest(VBaseClient):
         self.commitment_service.clear_set_objects(set_cid)
 
     def clear_named_set_objects(self, name: str):
-        """
-        Clear all records (objects) for a user's named set.
+        """Clear all records (objects) for a user's named set.
 
         :param name: Name of the set to clear.
         """

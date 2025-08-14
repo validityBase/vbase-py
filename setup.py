@@ -1,5 +1,4 @@
-"""
-A Python library for interacting with the validityBase (vBase) platform
+"""A Python library for interacting with the validityBase (vBase) platform
 """
 
 from setuptools import find_packages, setup

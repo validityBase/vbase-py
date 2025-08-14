@@ -1,34 +1,29 @@
-"""
-Dataset support for the validityBase (vBase) platform.
+"""Dataset support for the validityBase (vBase) platform.
 A vBase dataset comprises one or more records (objects) belonging to a set.
 """
 
-from abc import ABC
-from enum import Enum
 import json
 import logging
+from abc import ABC
+from enum import Enum
 from typing import Any, List, Type, Union
+
 import numpy as np
 import pandas as pd
 
+from vbase.core.indexing_service import IndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.core.vbase_object import VBaseObject, VBASE_OBJECT_TYPES
-from vbase.core.indexing_service import IndexingService
-from vbase.utils.crypto_utils import (
-    add_int_uint256,
-    hash_typed_values,
-)
+from vbase.core.vbase_object import VBASE_OBJECT_TYPES, VBaseObject
+from vbase.utils.crypto_utils import add_int_uint256, hash_typed_values
 from vbase.utils.log import get_default_logger
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
 class _Access(Enum):
-    """
-    Encodes the type of dataset access.
+    """Encodes the type of dataset access.
     Dataset access has similar categories as FS file access.
     New datasets are created and opened with Write access and can be modified.
     Existing datasets that a user owns can also be opened with Write access.
@@ -45,8 +40,7 @@ class _Access(Enum):
 
 
 class VBaseDataset(ABC):
-    """
-    Provides Python vBase dataset access.
+    """Provides Python vBase dataset access.
     Implements base functionality shared across datasets regardless of record type.
     Record-specific logic is implemented in the record class.
     """
@@ -61,8 +55,7 @@ class VBaseDataset(ABC):
         name: str,
         record_type: Type[VBaseObject],
     ):
-        """
-        Create a new VBaseDataset object with a given name, if necessary.
+        """Create a new VBaseDataset object with a given name, if necessary.
         Most vBase workflows append records to a dataset with a given name.
         They need a dataset created if one does not exist yet.
 
@@ -82,8 +75,7 @@ class VBaseDataset(ABC):
             assert cl["user"] == self.owner and cl["setCid"] == self.cid
 
     def _init_from_dict(self, init_dict: dict):
-        """
-        Initialize a new VBaseDataset object using a dict.
+        """Initialize a new VBaseDataset object using a dict.
 
         :param init_dict: VBaseDataset dictionary representation.
         """
@@ -108,8 +100,7 @@ class VBaseDataset(ABC):
             self.timestamps = init_dict["timestamps"]
 
     def _init_from_json(self, init_json: str):
-        """
-        Initialize a new VBaseDataset object using JSON.
+        """Initialize a new VBaseDataset object using JSON.
 
         :param init_json: VBaseDataset JSON representation.
         """
@@ -127,8 +118,7 @@ class VBaseDataset(ABC):
         init_dict: Union[dict, None] = None,
         init_json: Union[str, None] = None,
     ):
-        """
-        Create a VBaseDataset handle.
+        """Create a VBaseDataset handle.
         The handle references a vBase dataset.
         The handle creates and opens a new dataset or
         accesses an existing dataset.
@@ -186,16 +176,14 @@ class VBaseDataset(ABC):
             self._init_from_json(init_json)
 
     def get_timestamps(self) -> pd.DatetimeIndex:
-        """
-        Get all record timestamps.
+        """Get all record timestamps.
 
         :return: The timestamps for all dataset records.
         """
         return pd.DatetimeIndex([pd.Timestamp(t) for t in self.timestamps])
 
     def to_dict(self) -> dict:
-        """
-        Return dictionary representation of the dataset.
+        """Return dictionary representation of the dataset.
 
         :return: The dictionary representation of the dataset.
         """
@@ -213,8 +201,7 @@ class VBaseDataset(ABC):
         }
 
     def to_json(self) -> str:
-        """
-        Return JSON representation of the dataset.
+        """Return JSON representation of the dataset.
 
         :return: The JSON representation of the dataset.
         """
@@ -222,8 +209,7 @@ class VBaseDataset(ABC):
 
     @staticmethod
     def get_set_cid_for_dataset(dataset_name: str) -> str:
-        """
-        Generate set CID for a named dataset.
+        """Generate set CID for a named dataset.
         May be called to post commitments without instantiating a dataset object.
 
         :param dataset_name: The dataset name.
@@ -234,8 +220,7 @@ class VBaseDataset(ABC):
     def _add_record_worker(
         self, record: VBaseObject, object_cid: str, timestamp: pd.Timestamp
     ):
-        """
-        Common code to add record to a VBaseDataset object.
+        """Common code to add record to a VBaseDataset object.
 
         :param record: The dataset record.
         :param object_cid: The CID of the record.
@@ -252,8 +237,7 @@ class VBaseDataset(ABC):
         self.timestamps.append(str(timestamp))
 
     def add_record(self, record_data: any) -> dict:
-        """
-        Add a record to a VBaseDataset object.
+        """Add a record to a VBaseDataset object.
 
         :param record_data: The record datum.
         :return: The commitment log containing commitment receipt info.
@@ -266,8 +250,7 @@ class VBaseDataset(ABC):
         return cl
 
     def add_records_batch(self, record_data_list: List[any]) -> List[dict]:
-        """
-        Add a list of records to a VBaseDataset object.
+        """Add a list of records to a VBaseDataset object.
         This function will typically be called to backfill a dataset history:
         - Producer creates records for 1/1, 1/2, 1/3.
         - On 1/4 methodology changes.
@@ -289,8 +272,7 @@ class VBaseDataset(ABC):
     def add_record_with_timestamp(
         self, record_data: any, timestamp: Union[pd.Timestamp, str]
     ) -> dict:
-        """
-        Test shim to add a record to a VBaseDataset object with a given timestamp.
+        """Test shim to add a record to a VBaseDataset object with a given timestamp.
         Only supported by test contracts.
 
         :param record_data: The record datum.
@@ -311,8 +293,7 @@ class VBaseDataset(ABC):
         record_data_list: List[any],
         timestamps: List[Union[pd.Timestamp, str]],
     ) -> List[dict]:
-        """
-        Test shim to add a batch of records with timestamps to a VBaseDataset object.
+        """Test shim to add a batch of records with timestamps to a VBaseDataset object.
         Only supported by test contracts.
 
         :param record_data_list: The list of records' data.
@@ -335,8 +316,7 @@ class VBaseDataset(ABC):
         return cls
 
     def get_records(self) -> Union[List[any], None]:
-        """
-        Get all records for the dataset.
+        """Get all records for the dataset.
 
         :return: All record up to the current time:
             - If not in a simulation, returns all records.
@@ -355,8 +335,7 @@ class VBaseDataset(ABC):
         return [self.records[i] for i in inds_match]
 
     def get_last_record(self) -> Union[Any, None]:
-        """
-        Get the last/latest record for the dataset.
+        """Get the last/latest record for the dataset.
 
         :return: The last/latest record prior to the current time:
             - If not in a simulation, this is the last known record.
@@ -376,8 +355,7 @@ class VBaseDataset(ABC):
         return self.records[-1]
 
     def get_last_record_data(self) -> Union[Any, None]:
-        """
-        Get the last/latest record's data for the dataset.
+        """Get the last/latest record's data for the dataset.
 
         :return: The last/latest record data prior to the current time
             using get_last_record() semantics.
@@ -386,8 +364,7 @@ class VBaseDataset(ABC):
         return record.data
 
     def verify_commitments(self) -> (bool, List[str]):
-        """
-        Verify commitments for all dataset records.
+        """Verify commitments for all dataset records.
 
         :return: A tuple containing success and log:
             - success: True if all record commitments have been verified; False otherwise.
@@ -430,8 +407,7 @@ class VBaseDataset(ABC):
         return success, l_log
 
     def get_commitment_receipts(self) -> List[dict]:
-        """
-        Get commitment receipts for dataset records.
+        """Get commitment receipts for dataset records.
 
         :return: Commitment receipts for dataset records.
         """
@@ -452,8 +428,7 @@ class VBaseDataset(ABC):
         return commitment_receipts
 
     def try_restore_timestamps_from_index(self) -> (bool, List[str]):
-        """
-        Try to restore timestamps for dataset records using the index service.
+        """Try to restore timestamps for dataset records using the index service.
 
         The function should always attempt to do the right thing by default,
         but long-term options can get complex. The following work remains:
@@ -500,8 +475,7 @@ class VBaseDataset(ABC):
         return success, l_log
 
     def get_pd_data_frame(self) -> Union[pd.DataFrame, None]:
-        """
-        Get a Pandas DataFrame representation of the dataset's records.
+        """Get a Pandas DataFrame representation of the dataset's records.
         This default method works for most datasets.
         Datasets that need special handling will override this method.
 

@@ -1,29 +1,29 @@
-"""
-The vbase indexing service module provides access to various indexing services
+"""The vbase indexing service module provides access to various indexing services
 for previously submitted commitments.
 Such services enable queries of past commitments.
 """
 
-from abc import ABC
 import json
 import logging
 import os
 import pprint
-from typing import List, Union
-from dotenv import load_dotenv
+from abc import ABC
+from typing import List, Union, cast
 
+from dotenv import load_dotenv
+from web3.contract.contract import ContractEvent
+
+from vbase.core.commitment_service import CommitmentService
+from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import (
     bytes_to_hex_str,
     bytes_to_hex_str_auto,
     hex_str_to_bytes,
 )
 from vbase.utils.log import get_default_logger
-from vbase.core.commitment_service import CommitmentService
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
-from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
-from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -33,15 +33,13 @@ _LOG.setLevel(logging.INFO)
 # but currently has few methods.
 # pylint: disable=too-few-public-methods
 class IndexingService(ABC):
-    """
-    Base indexing operations.
+    """Base indexing operations.
     Various indexing services may provide a subset of the below operations that they support.
     """
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "IndexingService":
-        """
-        Creates an instance initialized from a JSON descriptor.
+        """Creates an instance initialized from a JSON descriptor.
         This method is especially useful for constructing complex
         indexers using multiple commitment service defined using complex JSON.
 
@@ -54,8 +52,7 @@ class IndexingService(ABC):
     def create_instance_from_env_json_descriptor(
         dotenv_path: Union[str, None] = None
     ) -> "IndexingService":
-        """
-        Creates an instance initialized from an environment variable containing a JSON descriptor.
+        """Creates an instance initialized from an environment variable containing a JSON descriptor.
         Syntactic sugar for initializing a new indexing service object using settings
         stored in a .env file or in environment variables.
         This method is especially useful for constructing complex
@@ -71,8 +68,7 @@ class IndexingService(ABC):
     def create_instance_from_commitment_service(
         commitment_service: CommitmentService,
     ) -> "IndexingService":
-        """
-        Creates an instance initialized from a commitment service.
+        """Creates an instance initialized from a commitment service.
         Handles the complexities of initializing an IndexingService
         using a forwarded commitment service.
         We need to query this service for the information needed to connect to a commitment
@@ -107,8 +103,7 @@ class IndexingService(ABC):
         )
 
     def find_user_sets(self, user: str) -> List[dict]:
-        """
-        Returns the list of receipts for user set commitments
+        """Returns the list of receipts for user set commitments
         for a given user.
 
         :param user: The address for the user who made the commitments.
@@ -117,8 +112,7 @@ class IndexingService(ABC):
         raise NotImplementedError()
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
-        """
-        Returns the list of receipts for user object commitments
+        """Returns the list of receipts for user object commitments
         for a given user.
         Finds and returns individual object commitments irrespective of the set
         they may have been committed to.
@@ -130,8 +124,7 @@ class IndexingService(ABC):
         raise NotImplementedError()
 
     def find_user_set_objects(self, user: str, set_cid: str) -> List[dict]:
-        """
-        Returns the list of receipts for user set object commitments
+        """Returns the list of receipts for user set object commitments
         for a given user and set CID.
 
         :param user: The address for the user who made the commitments.
@@ -141,8 +134,7 @@ class IndexingService(ABC):
         raise NotImplementedError()
 
     def find_last_user_set_object(self, user: str, set_cid: str) -> Union[dict, None]:
-        """
-        Returns the last/latest receipt, if any, for user set object commitments
+        """Returns the last/latest receipt, if any, for user set object commitments
         for a given user and set CID.
 
         :param user: The address for the user who made the commitment.
@@ -152,8 +144,7 @@ class IndexingService(ABC):
         raise NotImplementedError()
 
     def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
-        """
-        Returns the list of receipts for object commitments
+        """Returns the list of receipts for object commitments
         for a list of object CIDs.
         Finds and returns individual object commitments irrespective of the set
         they may have been committed to.
@@ -165,8 +156,7 @@ class IndexingService(ABC):
         raise NotImplementedError()
 
     def find_object(self, object_cid: str, return_set_cids=False) -> List[dict]:
-        """
-        Returns the list of receipts for object commitments
+        """Returns the list of receipts for object commitments
         for a single object CID.
         Finds and returns individual object commitments irrespective of the set
         they may have been committed to.
@@ -180,8 +170,7 @@ class IndexingService(ABC):
     def find_last_object(
         self, object_cid: str, return_set_cid=False
     ) -> Union[dict, None]:
-        """
-        Returns the last/latest receipt, if any, for object commitments.
+        """Returns the last/latest receipt, if any, for object commitments.
         Finds and returns individual object commitment irrespective of the set
         it may have been committed to.
 
@@ -194,8 +183,7 @@ class IndexingService(ABC):
 
 # pylint: disable=too-few-public-methods
 class Web3HTTPIndexingService(IndexingService):
-    """
-    Indexing service accessible using Web3.HTTPProvider.
+    """Indexing service accessible using Web3.HTTPProvider.
     Wraps RPC node event indexing to support commitment indexing operations.
     """
 
@@ -252,9 +240,7 @@ class Web3HTTPIndexingService(IndexingService):
     def _process_add_set_events(
         cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
-        """
-        A worker function to get AddSet receipts from events.
-        """
+        """A worker function to get AddSet receipts from events."""
         # Return chain_id with each receipt.
         # We may have multiple commitment services
         # connected to different chains and clients may not be able to uniquely
@@ -292,14 +278,16 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cs.csc.events.AddSet.create_filter(
-                fromBlock=self._get_from_block(cs),
-                argument_filters={
-                    "user": user,
-                },
+            events = (
+                cast(ContractEvent, cs.csc.events.AddSet)
+                .create_filter(
+                    fromBlock=self._get_from_block(cs),
+                    argument_filters={
+                        "user": user,
+                    },
+                )
+                .get_all_entries()
             )
-            # Retrieve and parse the events into commitment receipts.
-            events = event_filter.get_all_entries()
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
@@ -315,9 +303,7 @@ class Web3HTTPIndexingService(IndexingService):
     def _process_add_object_events(
         cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
-        """
-        A worker function to get AddObject receipts from events.
-        """
+        """A worker function to get AddObject receipts from events."""
         chain_id = cs.w3.eth.chain_id
         cs_receipts = [
             {
@@ -337,9 +323,7 @@ class Web3HTTPIndexingService(IndexingService):
     def _process_add_set_object_events(
         cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
-        """
-        A worker function to get AddSetObject receipts from events.
-        """
+        """A worker function to get AddSetObject receipts from events."""
         chain_id = cs.w3.eth.chain_id
         cs_receipts = [
             {
@@ -382,7 +366,7 @@ class Web3HTTPIndexingService(IndexingService):
                     break
 
         return receipts
-    
+
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         # The operation is similar to find_user_sets and find_objects.
 
@@ -390,13 +374,16 @@ class Web3HTTPIndexingService(IndexingService):
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
-            event_filter = cs.csc.events.AddObject.create_filter(
-                fromBlock=self._get_from_block(cs),
-                argument_filters={
-                    "user": user,
-                },
+            events = (
+                cast(ContractEvent, cs.csc.events.AddObject)
+                .create_filter(
+                    fromBlock=self._get_from_block(cs),
+                    argument_filters={
+                        "user": user,
+                    },
+                )
+                .get_all_entries()
             )
-            events = event_filter.get_all_entries()
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -405,13 +392,16 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cs.csc.events.AddSetObject.create_filter(
-                    fromBlock=self._get_from_block(cs),
-                    argument_filters={
-                        "user": user,
-                    },
+                events = (
+                    cast(ContractEvent, cs.csc.events.AddSetObject)
+                    .create_filter(
+                        fromBlock=self._get_from_block(cs),
+                        argument_filters={
+                            "user": user,
+                        },
+                    )
+                    .get_all_entries()
                 )
-                events = event_filter.get_all_entries()
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
@@ -425,14 +415,17 @@ class Web3HTTPIndexingService(IndexingService):
 
         receipts = []
         for cs in self.commitment_services:
-            event_filter = cs.csc.events.AddSetObject.create_filter(
-                fromBlock=self._get_from_block(cs),
-                argument_filters={
-                    "user": user,
-                    "setCid": hex_str_to_bytes(set_cid),
-                },
+            events = (
+                cast(ContractEvent, cs.csc.events.AddSetObject)
+                .create_filter(
+                    fromBlock=self._get_from_block(cs),
+                    argument_filters={
+                        "user": user,
+                        "setCid": hex_str_to_bytes(set_cid),
+                    },
+                )
+                .get_all_entries()
             )
-            events = event_filter.get_all_entries()
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
 
@@ -458,15 +451,18 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cs.csc.events.AddObject.create_filter(
-                fromBlock=self._get_from_block(cs),
-                argument_filters={
-                    "objectCid": [
-                        hex_str_to_bytes(object_cid) for object_cid in object_cids
-                    ],
-                },
+            events = (
+                cast(ContractEvent, cs.csc.events.AddObject)
+                .create_filter(
+                    fromBlock=self._get_from_block(cs),
+                    argument_filters={
+                        "objectCid": [
+                            hex_str_to_bytes(object_cid) for object_cid in object_cids
+                        ],
+                    },
+                )
+                .get_all_entries()
             )
-            events = event_filter.get_all_entries()
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -475,15 +471,19 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cs.csc.events.AddSetObject.create_filter(
-                    fromBlock=self._get_from_block(cs),
-                    argument_filters={
-                        "objectCid": [
-                            hex_str_to_bytes(object_cid) for object_cid in object_cids
-                        ],
-                    },
+                events = (
+                    cast(ContractEvent, cs.csc.events.AddSetObject)
+                    .create_filter(
+                        fromBlock=self._get_from_block(cs),
+                        argument_filters={
+                            "objectCid": [
+                                hex_str_to_bytes(object_cid)
+                                for object_cid in object_cids
+                            ],
+                        },
+                    )
+                    .get_all_entries()
                 )
-                events = event_filter.get_all_entries()
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
 

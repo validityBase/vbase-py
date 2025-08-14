@@ -1,58 +1,59 @@
-"""
-Tests of the vbase_dataset module
+"""Tests of the vbase_dataset module
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
-import numpy as np
-from io import BytesIO
-import imageio
 import logging
 import time
 import unittest
+from datetime import datetime, timedelta
+from io import BytesIO
+from pathlib import Path
+
+import imageio
+import numpy as np
 import pandas as pd
 
-from vbase.tests.test_crypto_utils import sha3_256_hash_bytes
-from vbase.utils.crypto_utils import add_uint256_uint256
 from vbase.core.vbase_client import VBaseClient
-from vbase.core.vbase_object import (
-    VBaseIntObject,
-    VBasePrivateIntObject,
-    VBaseStringObject,
-    VBaseFloatObject,
-    VBasePrivateFloatObject,
-    VBaseJsonObject,
-    VBasePortfolioObject,
-    VBaseBytesObject
-)
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_dataset import VBaseDataset
-from vbase.utils.log import get_default_logger
+from vbase.core.vbase_object import (
+    VBaseBytesObject,
+    VBaseFloatObject,
+    VBaseIntObject,
+    VBaseJsonObject,
+    VBasePortfolioObject,
+    VBasePrivateFloatObject,
+    VBasePrivateIntObject,
+    VBaseStringObject,
+)
+from vbase.tests.test_crypto_utils import sha3_256_hash_bytes
 from vbase.tests.utils import (
     create_dataset_worker,
     dataset_add_record_checks,
     dataset_from_json_checks,
 )
-
+from vbase.utils.crypto_utils import add_uint256_uint256
+from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
+
 def create_png_bytes_from_array(array: np.ndarray) -> bytes:
     """Create a PNG image from a NumPy array and return it as bytes."""
     buf = BytesIO()
-    imageio.imwrite(buf, array, format='png')
+    imageio.imwrite(buf, array, format="png")
     return buf.getvalue()
 
+
 def create_test_image(save_file: bool = False) -> bytes:
-    """
-    Create a simple 200x200 black PNG image in memory.
-    
+    """Create a simple 200x200 black PNG image in memory.
+
     Args:
         save_file (bool): If True, saves the image as 'image_sample.png' next to the script.
-    
+
     Returns:
         bytes: The image content in bytes.
+
     """
     img = np.zeros((200, 200, 3), dtype=np.uint8)
     image_bytes = create_png_bytes_from_array(img)
@@ -64,15 +65,12 @@ def create_test_image(save_file: bool = False) -> bytes:
 
     return image_bytes
 
+
 class TestVBaseDataset(unittest.TestCase):
-    """
-    Test base vBase dataset functionality.
-    """
+    """Test base vBase dataset functionality."""
 
     def setUp(self):
-        """
-        Set up the tests.
-        """
+        """Set up the tests."""
         self.vbc = VBaseClientTest.create_instance_from_env()
 
     @staticmethod
@@ -84,9 +82,7 @@ class TestVBaseDataset(unittest.TestCase):
         return cl, cl["timestamp"]
 
     def test_1d_int_ts_wr(self):
-        """
-        Test a simple int 1-dimension timeseries write and read.
-        """
+        """Test a simple int 1-dimension timeseries write and read."""
         dsw = create_dataset_worker(self.vbc, VBaseIntObject)
         # Record 4 commitments over 4 blocks.
         # We should get a new block with each commitment due to automine.
@@ -105,9 +101,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_1d_int_ts_batch_wr(self):
-        """
-        Test a simple int 1-dimension timeseries batch write and read.
-        """
+        """Test a simple int 1-dimension timeseries batch write and read."""
         dsw = create_dataset_worker(self.vbc, VBaseIntObject)
         record_data_list = list(range(1, 5))
         cls = dsw.add_records_batch(record_data_list)
@@ -128,9 +122,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_pri_1d_int_ts_batch_wr(self):
-        """
-        Test a private int 1-dimension timeseries batch write and read.
-        """
+        """Test a private int 1-dimension timeseries batch write and read."""
         dsw = create_dataset_worker(self.vbc, VBasePrivateIntObject)
         record_data_list = [(i, str(i)) for i in range(1, 5)]
         cls = dsw.add_records_batch(record_data_list)
@@ -151,9 +143,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_1d_float_ts_wr(self):
-        """
-        Test a simple float 1-dimension timeseries write and read.
-        """
+        """Test a simple float 1-dimension timeseries write and read."""
         dsw = create_dataset_worker(self.vbc, VBaseFloatObject)
         t_prev = self.vbc.commitment_service.convert_timestamp_chain_to_str(0)
         for i in range(1, 5):
@@ -166,9 +156,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_pri_1d_float_ts_wr(self):
-        """
-        Test a private float 1-dimension timeseries write and read.
-        """
+        """Test a private float 1-dimension timeseries write and read."""
         dsw = create_dataset_worker(self.vbc, VBasePrivateFloatObject)
         # Use an internal function to quickly build timestamps.
         # noinspection PyUnresolvedReferences
@@ -185,9 +173,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_2d_json_ts_wr(self):
-        """
-        Test 2-dimension timeseries of Json records write and read.
-        """
+        """Test 2-dimension timeseries of Json records write and read."""
         dsw = create_dataset_worker(self.vbc, VBaseJsonObject)
         t_prev = 0
         for i in range(1, 5):
@@ -203,9 +189,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_port_wr(self):
-        """
-        Test timeseries of portfolio records write and read.
-        """
+        """Test timeseries of portfolio records write and read."""
         dsw = create_dataset_worker(self.vbc, VBasePortfolioObject)
         t_prev = 0
         for i in range(1, 5):
@@ -219,10 +203,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_port_pub_ret(self):
-        """
-        Test 1-day returns of a portfolio.
-        """
-
+        """Test 1-day returns of a portfolio."""
         # Create the portfolio dataset.
         dsw_port = create_dataset_worker(self.vbc, VBasePortfolioObject, "TestPort")
         self.vbc.clear_named_set_objects("TestPort")
@@ -254,9 +235,7 @@ class TestVBaseDataset(unittest.TestCase):
         )
 
     def test_str_ts_wr(self):
-        """
-        Test timeseries of string records write and read.
-        """
+        """Test timeseries of string records write and read."""
         dsw = create_dataset_worker(self.vbc, VBaseStringObject)
         t_prev = 0
         for i in range(1, 5):
@@ -270,9 +249,7 @@ class TestVBaseDataset(unittest.TestCase):
         dataset_from_json_checks(self.vbc, dsw)
 
     def test_large_str_ts_wr(self):
-        """
-        Test timeseries of large string records writes and reads.
-        """
+        """Test timeseries of large string records writes and reads."""
         dsw = create_dataset_worker(self.vbc, VBaseStringObject)
         t_prev = 0
         for i in range(1, 5):
@@ -292,9 +269,7 @@ class TestVBaseDataset(unittest.TestCase):
         _LOG.info("ds_from_json_checks() took %.6f seconds", total_time)
 
     def test_try_restore_timestamps_from_index_success(self):
-        """
-        Test try_restore_timestamps_from_index success case.
-        """
+        """Test try_restore_timestamps_from_index success case."""
         dsw = create_dataset_worker(self.vbc, VBaseIntObject)
         # Record 4 commitments over 4 blocks.
         t_prev = 0
@@ -321,9 +296,7 @@ class TestVBaseDataset(unittest.TestCase):
         assert success
 
     def test_try_restore_timestamps_from_index_bad_record(self):
-        """
-        Test try_restore_timestamps_from_index success case.
-        """
+        """Test try_restore_timestamps_from_index success case."""
         dsw = create_dataset_worker(self.vbc, VBaseIntObject)
         # Record 4 commitments over 4 blocks.
         t_prev = 0
@@ -350,8 +323,7 @@ class TestVBaseDataset(unittest.TestCase):
         )
 
     def test_bytes_object_cid(self):
-        """
-        Test CID generation for binary data using VBaseBytesObject
+        """Test CID generation for binary data using VBaseBytesObject
         and compare it with VBaseStringObject.
         """
         # Original string
@@ -386,14 +358,13 @@ class TestVBaseDataset(unittest.TestCase):
         assert cid_bytes == cid_str
 
     def test_image_cid_consistency(self):
-        """
-        Verify CID for image file is deterministic and matches manual SHA3-256.
-        """
+        """Verify CID for image file is deterministic and matches manual SHA3-256."""
         image_bytes = create_test_image()
         expected_cid = sha3_256_hash_bytes(image_bytes)
         vbo = VBaseBytesObject(init_data=image_bytes)
         cid = vbo.get_cid()
         assert cid == expected_cid, f"Expected {expected_cid}, got {cid}"
+
 
 if __name__ == "__main__":
     unittest.main()

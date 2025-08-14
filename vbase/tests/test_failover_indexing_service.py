@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, create_autospec
+from unittest.mock import create_autospec
+
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.indexing_service import IndexingService
+
 
 class TestFailoverIndexingService(unittest.TestCase):
     def setUp(self):
@@ -48,7 +50,9 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.service1.find_last_user_set_object.return_value = {"last": "obj"}
         result = self.failover_service.find_last_user_set_object("userZ", "set456")
         self.assertEqual(result, {"last": "obj"})
-        self.service1.find_last_user_set_object.assert_called_once_with("userZ", "set456")
+        self.service1.find_last_user_set_object.assert_called_once_with(
+            "userZ", "set456"
+        )
 
     def test_find_object_failover(self):
         self.service1.find_object.side_effect = Exception("fail")
@@ -57,6 +61,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.assertEqual(result, {"cid": "c2"})
         self.service1.find_object.assert_called_once_with("c2", return_set_cids=False)
         self.service2.find_object.assert_called_once_with("c2", return_set_cids=False)
+
 
 if __name__ == "__main__":
     unittest.main()
