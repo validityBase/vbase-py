@@ -89,7 +89,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # and will use the account to sign the payload.
         # In cases where no commitments are made,
         # private_key may not be specified.
-        if private_key is not None and private_key != "":
+        if private_key:
             acct = w3.eth.account.from_key(private_key)
             w3.eth.default_account = acct.address
 
