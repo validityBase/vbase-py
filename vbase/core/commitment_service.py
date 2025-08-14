@@ -13,7 +13,8 @@ _LOG.setLevel(logging.INFO)
 
 
 class CommitmentService(ABC):
-    """Interface for base commitment operations"""
+    """Interface for base commitment operations
+    """
 
     @staticmethod
     @abstractmethod
