@@ -9,8 +9,10 @@ import logging
 import os
 import pprint
 import time
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from dotenv import load_dotenv
+import requests
+from requests.adapters import HTTPAdapter
 from web3 import Web3
 from web3.middleware import (
     buffered_gas_estimate_middleware,
@@ -34,12 +36,20 @@ _W3_CONNECTION_MAX_RETRIES = 5
 # Linear backoff in seconds.
 _W3_CONNECTION_BACKOFF = 1
 
+# per-request timeout
+_W3_CONNECT_TIMEOUT_S = 5
+# HTTP connection pool settings.
+_HTTP_POOL_CONNECTIONS = 50
+_HTTP_POOL_MAXSIZE = 50
+
 
 class Web3HTTPCommitmentService(Web3CommitmentService):
     """
     Commitment service accessible using Web3.HTTPProvider.
     Without private key support, this class will only support operations on a test node.
     """
+
+    _SESSION_CACHE: Dict[str, requests.Session] = {}
 
     @staticmethod
     def _get_bool_env_var(var_name, default=False):
@@ -54,6 +64,26 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         if val is None:
             return default
         return val.lower() in ["true", "1", "t", "y", "yes"]
+
+    @classmethod
+    def _get_or_create_session(cls, node_rpc_url: str) -> requests.Session:
+        sess = cls._SESSION_CACHE.get(node_rpc_url)
+        if sess is not None:
+            return sess
+
+        # Create and tune a new Session
+        sess = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=_HTTP_POOL_CONNECTIONS,
+            pool_maxsize=_HTTP_POOL_MAXSIZE,
+            max_retries=0,  # retries handled by our own loop/backoff
+        )
+        sess.mount("https://", adapter)
+        sess.mount("http://", adapter)
+
+        # Optionally: headers, auth, etc. (sess.headers.update({...}))
+        cls._SESSION_CACHE[node_rpc_url] = sess
+        return sess
 
     # pylint: disable-msg=too-many-arguments
     def __init__(
@@ -83,15 +113,26 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         self.node_rpc_url = node_rpc_url
         self.commitment_service_address = commitment_service_address
 
+        session = self._get_or_create_session(self.node_rpc_url)
         # Connect to the node with retries and backoff.
         retry_count = 0
         backoff = 0
+        w3 = None
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
-                w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
+                # w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
+                w3 = Web3(
+                    Web3.HTTPProvider(
+                        self.node_rpc_url,
+                        session=session,  # <-- pooled connection reuse
+                        request_kwargs={"timeout": _W3_CONNECT_TIMEOUT_S},
+                    )
+                )
                 if w3.is_connected():
                     break
-                raise ConnectionError(f"is_connected() returned False for {self.node_rpc_url}")
+                raise ConnectionError(
+                    f"is_connected() returned False for {self.node_rpc_url}"
+                )
             except ConnectionError as e:
                 if retry_count >= _W3_CONNECTION_MAX_RETRIES - 1:
                     _LOG.error(
@@ -169,7 +210,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "Web3HTTPCommitmentService":
         return Web3HTTPCommitmentService(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)
