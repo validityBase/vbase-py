@@ -90,7 +90,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             try:
                 w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
                 if w3.is_connected():
-                    return w3
+                    self.w3 = w3
+                    break
                 raise ConnectionError(f"is_connected() returned False for {self.node_rpc_url}")
             except ConnectionError as e:
                 if retry_count >= _W3_CONNECTION_MAX_RETRIES - 1:
