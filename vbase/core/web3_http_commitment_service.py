@@ -86,6 +86,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # Connect to the node with retries and backoff.
         retry_count = 0
         backoff = 0
+        self.w3 = None
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
                 w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
@@ -105,13 +106,13 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 backoff += _W3_CONNECTION_BACKOFF
                 time.sleep(backoff)
 
-        if not w3.is_connected():
+        if self.w3 is None or not self.w3.is_connected():
             raise ConnectionError(
                 f"Failed to connect to {self.node_rpc_url} after {retry_count} retries"
             )
 
         if inject_geth_poa_middleware:
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         # Initialize the account, if necessary.
         # If the account is not initialized, transaction will be sent using eth_sendTransaction.
@@ -119,9 +120,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # If the private key is specified, transactions will be signed and sent
         # using eth_sendRawTransaction.
         if private_key is not None:
-            acct = w3.eth.account.from_key(private_key)
-            w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
-            w3.eth.default_account = acct.address
+            acct = self.w3.eth.account.from_key(private_key)
+            self.w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
+            self.w3.eth.default_account = acct.address
 
         # Add gas buffer middleware to ensure txs do not run out of gas
         # due to a missed estimate.
@@ -129,7 +130,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # Gas estimate middleware needs to run before signing.
         # Currently, Web3 has a number of bugs in middleware paths.
         # We work around them by adding middleware after signing.
-        w3.middleware_onion.add(buffered_gas_estimate_middleware)
+        self.w3.middleware_onion.add(buffered_gas_estimate_middleware)
 
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.
@@ -137,12 +138,12 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         with self.get_commitment_service_json_file(
             commitment_service_json_file_name
         ) as f:
-            commitment_service_contract = w3.eth.contract(
-                address=w3.to_checksum_address(self.commitment_service_address),
+            commitment_service_contract = self.w3.eth.contract(
+                address=self.w3.to_checksum_address(self.commitment_service_address),
                 abi=json.load(f)["abi"],
             )
 
-        super().__init__(w3, commitment_service_contract)
+        super().__init__(self.w3, commitment_service_contract)
 
     @staticmethod
     def get_init_args_from_env(dotenv_path: Union[str, None] = None) -> dict:
