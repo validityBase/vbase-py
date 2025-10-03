@@ -271,9 +271,11 @@ class Web3HTTPIndexingService(IndexingService):
         return cs_receipts
 
     def _get_all_entries(self, event_filter):
+        """Wrapper to get all entries from an event filter with retries."""
         return event_filter.get_all_entries()
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
+        """Get the 'fromBlock' filter for event queries."""
         # get block number for 'fromBlock' filter
         if self.n_last_blocks is None:
             return 0
