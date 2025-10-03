@@ -287,7 +287,6 @@ class Web3HTTPIndexingService(IndexingService):
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
         """Get the 'fromBlock' filter for event queries."""
-        # get block number for 'fromBlock' filter
         if self.n_last_blocks is None:
             return 0
         block_number = commitment_service.w3.eth.block_number
