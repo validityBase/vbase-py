@@ -290,9 +290,7 @@ class Web3HTTPIndexingService(IndexingService):
             )
             events = with_retries(
                 lambda ef=event_filter: ef.get_all_entries(),
-                _LOG,
-                max_attempts=5,
-                delay=2
+                _LOG
             )
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
@@ -391,9 +389,7 @@ class Web3HTTPIndexingService(IndexingService):
             )
             events = with_retries(
                 lambda ef=event_filter: ef.get_all_entries(),
-                _LOG,
-                max_attempts=5,
-                delay=2
+                _LOG
             )
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
@@ -414,9 +410,7 @@ class Web3HTTPIndexingService(IndexingService):
                 )
                 events = with_retries(
                     lambda ef=event_filter: ef.get_all_entries(),
-                    _LOG,
-                    max_attempts=5,
-                    delay=2
+                    _LOG
                 )
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
@@ -443,9 +437,7 @@ class Web3HTTPIndexingService(IndexingService):
             )
             events = with_retries(
                 lambda ef=event_filter: ef.get_all_entries(),
-                _LOG,
-                max_attempts=5,
-                delay=2
+                _LOG
             )
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
@@ -485,9 +477,7 @@ class Web3HTTPIndexingService(IndexingService):
             )
             events = with_retries(
                 lambda ef=event_filter: ef.get_all_entries(),
-                _LOG,
-                max_attempts=5,
-                delay=2
+                _LOG
             )
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
@@ -511,9 +501,7 @@ class Web3HTTPIndexingService(IndexingService):
                 )
                 events = with_retries(
                     lambda ef=event_filter: ef.get_all_entries(),
-                    _LOG,
-                    max_attempts=5,
-                    delay=2
+                    _LOG
                 )
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
