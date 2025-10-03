@@ -271,7 +271,7 @@ class Web3HTTPIndexingService(IndexingService):
         return cs_receipts
 
     def _get_all_entries(self, event_filter):
-        """Wrapper to get all entries from an event filter with retries."""
+        """Wrapper to get all entries from an event filter."""
         return event_filter.get_all_entries()
 
     def _retry_get_all_entries(self, event_filter):
