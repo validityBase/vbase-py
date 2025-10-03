@@ -274,6 +274,17 @@ class Web3HTTPIndexingService(IndexingService):
         """Wrapper to get all entries from an event filter with retries."""
         return event_filter.get_all_entries()
 
+    def _retry_get_all_entries(self, event_filter):
+        """Get all entries from an event filter with retry logic."""
+        return retry_call(
+            self._get_all_entries,
+            fargs=[event_filter],
+            tries=self.RETRY_TRIES,
+            delay=self.RETRY_DELAY,
+            backoff=self.RETRY_BACKOFF,
+            logger=_LOG
+        )
+
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
         """Get the 'fromBlock' filter for event queries."""
         # get block number for 'fromBlock' filter
@@ -298,7 +309,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+            events = self._retry_get_all_entries(event_filter)
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
@@ -394,7 +405,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+            events = self._retry_get_all_entries(event_filter)
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -412,7 +423,7 @@ class Web3HTTPIndexingService(IndexingService):
                         },
                     )
                 )
-                events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+                events = self._retry_get_all_entries(event_filter)
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
@@ -436,7 +447,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+            events = self._retry_get_all_entries(event_filter)
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
 
@@ -473,7 +484,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+            events = self._retry_get_all_entries(event_filter)
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -494,7 +505,7 @@ class Web3HTTPIndexingService(IndexingService):
                         },
                     )
                 )
-                events = retry_call(self._get_all_entries, fargs=[event_filter], tries=self.RETRY_TRIES, delay=self.RETRY_DELAY, backoff=self.RETRY_BACKOFF, logger=_LOG)
+                events = self._retry_get_all_entries(event_filter)
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
 
