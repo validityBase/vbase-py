@@ -9,6 +9,7 @@ import os
 import pprint
 from abc import ABC
 from typing import List, Union, cast
+from retry.api import retry_call
 
 from dotenv import load_dotenv
 from web3.contract.contract import ContractEvent
@@ -24,7 +25,6 @@ from vbase.utils.crypto_utils import (
     hex_str_to_bytes,
 )
 from vbase.utils.log import get_default_logger
-from vbase.utils.retries import with_retries
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -265,6 +265,9 @@ class Web3HTTPIndexingService(IndexingService):
         ]
         return cs_receipts
 
+    def _get_all_entries(self, event_filter):
+        return event_filter.get_all_entries()
+
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
         # get block number for 'fromBlock' filter
         if self.n_last_blocks is None:
@@ -288,10 +291,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = with_retries(
-                lambda ef=event_filter: ef.get_all_entries(),
-                _LOG
-            )
+            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
@@ -387,10 +387,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = with_retries(
-                lambda ef=event_filter: ef.get_all_entries(),
-                _LOG
-            )
+            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -408,10 +405,7 @@ class Web3HTTPIndexingService(IndexingService):
                         },
                     )
                 )
-                events = with_retries(
-                    lambda ef=event_filter: ef.get_all_entries(),
-                    _LOG
-                )
+                events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
@@ -435,10 +429,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = with_retries(
-                lambda ef=event_filter: ef.get_all_entries(),
-                _LOG
-            )
+            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
 
@@ -475,10 +466,7 @@ class Web3HTTPIndexingService(IndexingService):
                     },
                 )
             )
-            events = with_retries(
-                lambda ef=event_filter: ef.get_all_entries(),
-                _LOG
-            )
+            events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
             cs_receipts = self._process_add_object_events(cs, events)
             receipts += cs_receipts
 
@@ -499,10 +487,7 @@ class Web3HTTPIndexingService(IndexingService):
                         },
                     )
                 )
-                events = with_retries(
-                    lambda ef=event_filter: ef.get_all_entries(),
-                    _LOG
-                )
+                events = retry_call(self._get_all_entries, fargs=[event_filter], tries=5, delay=2, backoff=2, logger=_LOG)
                 cs_receipts = self._process_add_set_object_events(cs, events)
                 set_receipts += cs_receipts
 
