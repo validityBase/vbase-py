@@ -2,7 +2,7 @@
 vBase API Models
 
 Data models for vBase API request and response objects.
-Generated from OpenAPI specification at https://dev.app.vbase.com/swagger/?format=openapi
+See https://vbase.com/swagger for API documentation.
 """
 
 from dataclasses import dataclass
