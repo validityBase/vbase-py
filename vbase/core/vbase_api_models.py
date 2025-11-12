@@ -2,7 +2,7 @@
 vBase API Models
 
 Data models for vBase API request and response objects.
-See https://vbase.com/swagger for API documentation.
+See https://app.vbase.com/swagger for API documentation.
 """
 
 from dataclasses import dataclass
