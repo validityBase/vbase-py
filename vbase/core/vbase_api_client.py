@@ -5,7 +5,7 @@ This module provides a Python client for interacting with the vBase API.
 The client supports operations for collections, stamps, and users.
 
 API Documentation: https://docs.vbase.com/
-Swagger: https://dev.app.vbase.com/swagger/
+Swagger: https://app.vbase.com/swagger/
 """
 
 import json
