@@ -341,7 +341,7 @@ class VBaseAPIClient:
             >>> print(f"Uploaded: {result.file_object.file_name}")
         """
         form_data = {
-            'collectionName': collection_name
+            'collection_name': collection_name
         }
 
         files = {}
