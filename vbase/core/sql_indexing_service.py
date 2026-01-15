@@ -1,8 +1,11 @@
 # flake8: noqa
 
+from collections import Counter
+from dataclasses import dataclass
 from typing import List, Union
 
 import pandas as pd
+from sqlalchemy import func
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from vbase.core.indexing_service import IndexingService
@@ -332,3 +335,131 @@ class SQLIndexingService(IndexingService):
                     receipt["setCid"] = set_cids[key]
 
         return cs_receipts
+
+
+@dataclass(frozen=True)
+class CollectionMatch:
+    """
+    Collection match result structure.
+    """
+
+    score: float
+    created_at: int
+    set_cid: str
+    user: str
+
+
+class SqlCollectionMatchingService:
+    """
+    Finds best-matching collections for a given list of object CIDs
+    """
+
+    def __init__(self, engine):
+        self.engine = engine
+
+    def find_best_collections(self, object_cids: list[str]) -> list[CollectionMatch]:
+        """
+        Given a list of object_cids, find best-matching collections.
+
+        Algorithm:
+        1. Probe DB by object_cid to discover candidate set_cids
+        2. Count how many query objects matched each set
+        3. For candidate sets only, load total object count + metadata
+        4. Compute match score and rank results
+        """
+
+        object_cids = list(set(object_cids))
+
+        with Session(self.engine) as session:
+
+            # ------------------------------------------------------------
+            # PHASE 1: PROBE
+            #
+            # Discover candidate of collections by probing on object_cid.
+            # We only need set_cid
+            #
+            # Native SQL:
+            # SELECT set_cid
+            # FROM event_add_set_object
+            # WHERE object_cid IN (:object_cids);
+            # ------------------------------------------------------------
+            probe_stmt = select(event_add_set_object.set_cid).where(
+                event_add_set_object.object_cid.in_(object_cids)
+            )
+
+            probe_rows = session.exec(probe_stmt).all()
+
+            # If no collections share any objects with the query, exit early
+            if not probe_rows:
+                return []
+
+            # ------------------------------------------------------------
+            # PHASE 2: COUNT INTERSECTIONS
+            #
+            # Count how many query objects matched each set_cid.
+            # This is |query ∩ collection|.
+            #
+            # Example result:
+            # { "setA": 3, "setB": 1 }
+            # ------------------------------------------------------------
+            matched = Counter(probe_rows)
+
+            # ------------------------------------------------------------
+            # PHASE 3: AGGREGATE COLLECTION METADATA
+            #
+            # For candidate sets only:
+            # - total number of objects in the collection
+            # - earliest timestamp will be used just for ordering
+            # - user the user_address who created the collection
+            # Group by set_cid and user to handle same set_cid created by different users.
+            # other columns should appear in aggregate functions.(total, min)
+            # Native SQL:
+            # SELECT
+            #   set_cid,
+            #   COUNT(*) AS total,
+            #   MIN(timestamp) AS ts,
+            #   "user"
+            # FROM event_add_set_object
+            # WHERE set_cid IN (:candidate_set_cids)
+            # GROUP BY set_cid, "user";
+            # ------------------------------------------------------------
+            agg_stmt = (
+                select(
+                    event_add_set_object.set_cid,
+                    func.count().label("total"),
+                    func.min(event_add_set_object.timestamp).label("ts"),
+                    event_add_set_object.user,
+                )
+                .where(event_add_set_object.set_cid.in_(matched.keys()))
+                .group_by(
+                    event_add_set_object.set_cid,
+                    event_add_set_object.user,
+                )
+            )
+
+            rows = session.exec(agg_stmt).all()
+
+            # ------------------------------------------------------------
+            # PHASE 4: SCORE + SORT
+            #
+            # score = matched_objects / total_objects
+            #
+            # Sort order:
+            # 1. score DESC  (best match first)
+            # 2. timestamp ASC (earliest collection first)
+            # ------------------------------------------------------------
+            results: list[CollectionMatch] = []
+
+            for r in rows:
+                score = matched[r.set_cid] / r.total
+                results.append(
+                    CollectionMatch(
+                        set_cid=r.set_cid,
+                        user=r.user,
+                        score=score,
+                        created_at=r.ts,
+                    )
+                )
+
+            results.sort(key=lambda m: (-m.score, m.created_at))
+            return results
