@@ -338,9 +338,9 @@ class SQLIndexingService(IndexingService):
 
 
 @dataclass(frozen=True)
-class CollectionMatch:
+class SetMatch:
     """
-    Collection match result structure.
+    Set match result structure.
     """
 
     score: float
@@ -349,7 +349,7 @@ class CollectionMatch:
     user: str
 
 
-class SqlCollectionMatchingService:
+class SqlSetMatchingService:
     """
     Finds best-matching collections for a given list of object CIDs
     """
@@ -357,15 +357,15 @@ class SqlCollectionMatchingService:
     def __init__(self, engine):
         self.engine = engine
 
-    def find_best_collections(self, object_cids: list[str]) -> list[CollectionMatch]:
+    def find_best_candidate(self, object_cids: list[str]) -> list[SetMatch]:
         """
-        Given a list of object_cids, find best-matching collections.
+        Given a list of object_cids, find best-matching sets.
 
         Algorithm:
         1. Probe DB by object_cid to discover candidate set_cids
         2. Count how many query objects matched each set
         3. For candidate sets only, load total object count + metadata
-        4. Compute match score and rank results
+        4. Compute score and rank results
         """
 
         object_cids = list(set(object_cids))
@@ -448,12 +448,12 @@ class SqlCollectionMatchingService:
             # 1. score DESC  (best match first)
             # 2. timestamp ASC (earliest collection first)
             # ------------------------------------------------------------
-            results: list[CollectionMatch] = []
+            results: list[SetMatch] = []
 
             for r in rows:
                 score = matched[r.set_cid] / r.total
                 results.append(
-                    CollectionMatch(
+                    SetMatch(
                         set_cid=r.set_cid,
                         user=r.user,
                         score=score,
