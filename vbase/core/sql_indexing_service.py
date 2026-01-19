@@ -340,15 +340,19 @@ class SQLIndexingService(IndexingService):
 
 
 @dataclass(frozen=True)
-class QueryObject:
+class ObjectAtTime:
+    """
+    Object at time structure.
+    """
+
     object_cid: str
     timestamp: int
 
 
 @dataclass(frozen=True)
-class SetMatch:
+class SetCandidate:
     """
-    Set match result structure.
+    SetCandidate structure.
     """
 
     score: float
@@ -362,6 +366,8 @@ class SqlSetMatchingService:
     Finds best-matching collections for a given list of object CIDs
     """
 
+    DAY_HORIZONT = 24 * 60 * 60
+
     def __init__(self, db):
         if isinstance(db, Engine):
             self.engine = db
@@ -370,32 +376,33 @@ class SqlSetMatchingService:
 
     def find_best_candidate(
         self,
-        objects: list[QueryObject],
+        objects: list[ObjectAtTime],
         *,
         as_of: int | None = None,
-        max_timestamp_diff: int = 0,
-    ) -> list[SetMatch]:
+        max_timestamp_diff: int = DAY_HORIZONT,
+    ) -> list[SetCandidate]:
         """
         Matching semantics:
         - set_cid: exact
         - user: exact
         - object_cid: exact
-        - timestamp: abs diff <= max_timestamp_diff
+        - timestamp: abs(diff) <= max_timestamp_diff
         """
 
         if not objects:
             return []
 
-        # Deduplicate exact query objects
-        objects = list(set(objects))
+        # ------------------------------------------------------------
+        # PHASE 0: NORMALIZE INPUT
+        # ------------------------------------------------------------
+        objects = sorted(set(objects), key=lambda o: o.timestamp)
         query_len = len(objects)
         query_cids = {o.object_cid for o in objects}
 
         with Session(self.engine) as session:
 
             # ------------------------------------------------------------
-            # PHASE 1: PROBE
-            # Discover candidate of collections by probing on object_cid.
+            # PHASE 1: PROBE (discover candidate sets)
             # ------------------------------------------------------------
             probe_stmt = select(
                 event_add_set_object.set_cid,
@@ -405,34 +412,39 @@ class SqlSetMatchingService:
             if as_of is not None:
                 probe_stmt = probe_stmt.where(event_add_set_object.timestamp <= as_of)
 
-            probe_rows = session.exec(probe_stmt).all()
+            candidate_keys = {
+                (r.set_cid, r.user) for r in session.exec(probe_stmt).all()
+            }
 
-            if not probe_rows:
+            if not candidate_keys:
                 return []
-
-            candidate_keys = {(r.set_cid, r.user) for r in probe_rows}
 
             # ------------------------------------------------------------
             # PHASE 2: LOAD ALL CANDIDATE OBJECTS
             # ------------------------------------------------------------
-            load_stmt = select(
-                event_add_set_object.set_cid,
-                event_add_set_object.user,
-                event_add_set_object.object_cid,
-                event_add_set_object.timestamp,
-                func.min(event_add_set_object.timestamp)
-                .over(
-                    partition_by=(
-                        event_add_set_object.set_cid,
-                        event_add_set_object.user,
-                    )
-                )
-                .label("created_at"),
-            ).where(
-                tuple_(
+            load_stmt = (
+                select(
                     event_add_set_object.set_cid,
                     event_add_set_object.user,
-                ).in_(candidate_keys)
+                    event_add_set_object.object_cid,
+                    event_add_set_object.timestamp,
+                    func.min(event_add_set_object.timestamp)
+                    .over(
+                        partition_by=(
+                            event_add_set_object.set_cid,
+                            event_add_set_object.user,
+                        )
+                    )
+                    .label("created_at"),
+                )
+                .where(
+                    tuple_(
+                        event_add_set_object.set_cid,
+                        event_add_set_object.user,
+                    ).in_(candidate_keys)
+                )
+                .where(event_add_set_object.object_cid.in_(query_cids))
+                .order_by(event_add_set_object.timestamp)
             )
 
             if as_of is not None:
@@ -441,81 +453,58 @@ class SqlSetMatchingService:
             rows = session.exec(load_stmt).all()
 
         # ------------------------------------------------------------
-        # PHASE 3: BUILD TIMESTAMP INDEX (BUCKETED BY CID)
-        # For each candidate, we have many rows (set_cid, user, object_cid, timestamp)
-        # Create the index structure - index[(set_cid, user)][object_cid] → list of timestamps
-        # index[(set_cid, user)][object_cid] → list of timestamps
-        # key (set_cid, user) - groups rows belonging to the same set created by the same user
-        # object_cid - groups rows for the same object inside that set
-        # Value list[int] - all timestamps when that object appears in the set
-        # so we know For which set and which object, what timestamps exist.
+        # PHASE 3: BUILD BUCKETS (ordered timestamps)
         # ------------------------------------------------------------
-        # (set_cid, user) -> object_cid -> sorted list[timestamp]
-        index: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
+        buckets: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
             lambda: defaultdict(list)
         )
+
         created_at: dict[tuple[str, str], int] = {}
 
         for r in rows:
             key = (r.set_cid, r.user)
-            index[key][r.object_cid].append(r.timestamp)
+            buckets[key][r.object_cid].append(r.timestamp)
             created_at.setdefault(key, r.created_at)
 
-        # Sort timestamps once
-        for by_cid in index.values():
-            for ts_list in by_cid.values():
-                ts_list.sort()
-
         # ------------------------------------------------------------
-        # PHASE 4: THRESHOLD MATCHING + SCORING
+        # PHASE 4: ORDERED MATCHING
         # ------------------------------------------------------------
-        def has_close_timestamp(
-            sorted_ts: list[int],
-            t: int,
-            max_diff: int,
-        ) -> bool:
-            i = bisect_left(sorted_ts, t)
+        def has_match(ts_list: list[int], t: int) -> bool:
+            i = bisect_left(ts_list, t)
 
-            if i < len(sorted_ts) and abs(sorted_ts[i] - t) <= max_diff:
+            if i < len(ts_list) and abs(ts_list[i] - t) <= max_timestamp_diff:
                 return True
-            if i > 0 and abs(sorted_ts[i - 1] - t) <= max_diff:
+            if i > 0 and abs(ts_list[i - 1] - t) <= max_timestamp_diff:
                 return True
-
             return False
 
         matched_counts: dict[tuple[str, str], int] = defaultdict(int)
 
-        for key, by_cid in index.items():
+        for key, by_object in buckets.items():
             for q in objects:
-                ts_list = by_cid.get(q.object_cid)
-                if not ts_list:
-                    continue
-
-                if has_close_timestamp(
-                    ts_list,
-                    q.timestamp,
-                    max_timestamp_diff,
-                ):
+                ts_list = by_object.get(q.object_cid)
+                if ts_list and has_match(ts_list, q.timestamp):
                     matched_counts[key] += 1
 
         # ------------------------------------------------------------
-        # PHASE 5: BUILD RESULTS + SORT
+        # PHASE 5: BUILD RESULTS
         # ------------------------------------------------------------
-        results: list[SetMatch] = []
+        results: list[SetCandidate] = []
 
-        for (set_cid, user), matched in matched_counts.items():
+        for key, matched in matched_counts.items():
             score = matched / query_len
             if score == 0:
                 continue
 
+            set_cid, user = key
             results.append(
-                SetMatch(
+                SetCandidate(
                     set_cid=set_cid,
                     user=user,
                     score=score,
-                    created_at=created_at[(set_cid, user)],
+                    created_at=created_at[key],
                 )
             )
 
-        results.sort(key=lambda m: (-m.score, m.created_at))
+        results.sort(key=lambda r: (-r.score, r.created_at))
         return results

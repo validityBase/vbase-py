@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.sql_indexing_service import (
-    QueryObject,
+    ObjectAtTime,
     SqlSetMatchingService,
     event_add_set_object,
 )
@@ -99,7 +99,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
         )
@@ -130,7 +130,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp("2024-01-03 00:00:00+00:00"),
         )
@@ -155,8 +155,8 @@ class TestSqlSetMatchingService(unittest.TestCase):
 
         results = self.service.find_best_candidate(
             [
-                QueryObject("o1", to_unix_timestamp(T0)),
-                QueryObject("o2", to_unix_timestamp(T0)),
+                ObjectAtTime("o1", to_unix_timestamp(T0)),
+                ObjectAtTime("o2", to_unix_timestamp(T0)),
             ],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
@@ -188,7 +188,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
         )
@@ -219,7 +219,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
         )
@@ -264,7 +264,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
         )
@@ -295,7 +295,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp("2024-01-02 00:00:00+00:00"),
         )
@@ -319,7 +319,7 @@ class TestSqlSetMatchingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [QueryObject("o1", to_unix_timestamp(T0))],
+            [ObjectAtTime("o1", to_unix_timestamp(T0))],
             max_timestamp_diff=DAY,
             as_of=to_unix_timestamp(T0),
         )

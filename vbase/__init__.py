@@ -11,7 +11,8 @@ from vbase.core.indexing_service import IndexingService, Web3HTTPIndexingService
 from vbase.core.sql_indexing_service import (
     SQLIndexingService,
     SqlSetMatchingService,
-    SetMatch,
+    SetCandidate,
+    ObjectAtTime,
 )
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
@@ -46,7 +47,10 @@ __all__ = [
     "IndexingService",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
-    "SqlSetMatchingService" "FailoverIndexingService",
+    "SqlSetMatchingService",
+    "SetCandidate",
+    "ObjectAtTime",
+    "FailoverIndexingService",
     "AggregateIndexingService",
     "VBaseObject",
     "VBaseIntObject",
