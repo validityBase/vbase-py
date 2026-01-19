@@ -463,8 +463,9 @@ class SqlSetMatchingService:
 
         for r in rows:
             key = (r.set_cid, r.user)
-            buckets[key][r.object_cid].append(r.timestamp)
-            created_at.setdefault(key, r.created_at)
+            ts = self._normalize_ts(r.timestamp)
+            buckets[key][r.object_cid].append(ts)
+            created_at.setdefault(key, self._normalize_ts(r.created_at))
 
         # ------------------------------------------------------------
         # PHASE 4: ORDERED MATCHING
@@ -508,3 +509,7 @@ class SqlSetMatchingService:
 
         results.sort(key=lambda r: (-r.score, r.created_at))
         return results
+
+    def _normalize_ts(self, ts: int) -> int:
+        """"""
+        return ts // 1000 if ts > 10_000_000_000 else ts
