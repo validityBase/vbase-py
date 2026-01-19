@@ -1,237 +1,330 @@
-import time
+import datetime
 import unittest
+from typing import Union
 
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from vbase.core.sql_indexing_service import SqlSetMatchingService, event_add_set_object
+from vbase.core.sql_indexing_service import (
+    QueryObject,
+    SqlSetMatchingService,
+    event_add_set_object,
+)
+
+
+def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
+    """
+    Convert timestamp input to Unix timestamp (seconds, UTC).
+
+    Accepts:
+    - int: assumed already Unix seconds
+    - datetime.datetime: must be timezone-aware
+    - str: ISO-8601 string, e.g. '2024-01-01 12:00:00+00:00'
+    """
+    if isinstance(ts, int):
+        return ts
+
+    if isinstance(ts, datetime.datetime):
+        if ts.tzinfo is None:
+            raise ValueError("datetime must be timezone-aware")
+        return int(ts.astimezone(datetime.timezone.utc).timestamp())
+
+    if isinstance(ts, str):
+        s = ts.strip()
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+
+        try:
+            dt = datetime.datetime.fromisoformat(s)
+        except ValueError as e:
+            raise ValueError(f"Invalid timestamp string: {ts!r}") from e
+
+        if dt.tzinfo is None:
+            raise ValueError("timestamp string must include timezone info")
+
+        return int(dt.astimezone(datetime.timezone.utc).timestamp())
+
+    raise TypeError(f"Unsupported timestamp type: {type(ts)}")
+
+
+DAY = 24 * 60 * 60  # 24 hours in seconds
+T0 = "2024-01-01 12:00:00+00:00"
+
+
+def assert_matches(results, expected):
+    actual = {(r.user, r.set_cid) for r in results}
+    assert actual == expected
 
 
 class TestSqlSetMatchingService(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine("sqlite:///:memory:")
+        self.engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
         SQLModel.metadata.create_all(self.engine)
         self.service = SqlSetMatchingService(self.engine)
 
     def _insert_data(self, data):
         with Session(self.engine) as session:
             for item in data:
-                event = event_add_set_object(
-                    id=item["id"],
-                    user=item["user"],
-                    set_cid=item["set_cid"],
-                    object_cid=item["object_cid"],
-                    chain_id=item.get("chain_id", 1),
-                    transaction_hash=item.get("transaction_hash", "0x123"),
-                    timestamp=item["timestamp"],
+                session.add(
+                    event_add_set_object(
+                        id=item["id"],
+                        user=item["user"],
+                        set_cid=item["set_cid"],
+                        object_cid=item["object_cid"],
+                        timestamp=to_unix_timestamp(item["timestamp"]),
+                        chain_id=item.get("chain_id", 1),
+                        transaction_hash=item.get("transaction_hash", "0x123"),
+                    )
                 )
-                session.add(event)
             session.commit()
 
-    def test_happy_path(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-            {
-                "id": "2",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj2",
-                "timestamp": 1001,
-            },
-            {
-                "id": "3",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj3",
-                "timestamp": 1002,
-            },
-        ]
-        self._insert_data(data)
+    # ------------------------------------------------------------
+    # 1. Same number of records (N ↔ N)
+    # ------------------------------------------------------------
+    def test_same_number_of_records(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": T0,
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj1", "obj2"])
-        self.assertEqual(len(results), 1)
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
 
-        match = results[0]
-        self.assertAlmostEqual(match.score, 2 / 3)
-        self.assertEqual(match.set_cid, "set1")
-        self.assertEqual(match.user, "user1")
+        assert_matches(results, {("u1", "s1")})
 
-    def test_multiple_sets_multiple_users(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-            {
-                "id": "2",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj2",
-                "timestamp": 1001,
-            },
-            {
-                "id": "3",
-                "user": "user2",
-                "set_cid": "set2",
-                "object_cid": "obj2",
-                "timestamp": 1002,
-            },
-            {
-                "id": "4",
-                "user": "user2",
-                "set_cid": "set2",
-                "object_cid": "obj3",
-                "timestamp": 1003,
-            },
-            {
-                "id": "5",
-                "user": "user3",
-                "set_cid": "set3",
-                "object_cid": "obj1",
-                "timestamp": 1004,
-            },
-        ]
-        self._insert_data(data)
+    # ------------------------------------------------------------
+    # 2. One extra record (N ↔ N+1)
+    # ------------------------------------------------------------
+    def test_plus_one_record(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": T0,
+                },
+                {
+                    "id": "2",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o2",
+                    "timestamp": "2024-01-02 12:00:00+00:00",
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj1", "obj2"])
-        self.assertEqual(len(results), 3)
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp("2024-01-03 00:00:00+00:00"),
+        )
 
-        self.assertEqual(results[0].set_cid, "set1")  # score 1.0, ts 1000
-        self.assertEqual(results[1].set_cid, "set3")  # score 1.0, ts 1004
-        self.assertEqual(results[2].set_cid, "set2")  # score 0.5
+        assert_matches(results, {("u1", "s1")})
 
-    def test_multiple_sets_single_user(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-            {
-                "id": "2",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj2",
-                "timestamp": 1001,
-            },
-            {
-                "id": "3",
-                "user": "user1",
-                "set_cid": "set2",
-                "object_cid": "obj2",
-                "timestamp": 1002,
-            },
-            {
-                "id": "4",
-                "user": "user1",
-                "set_cid": "set2",
-                "object_cid": "obj3",
-                "timestamp": 1003,
-            },
-        ]
-        self._insert_data(data)
+    # ------------------------------------------------------------
+    # 3. One missing record (N ↔ N−1)
+    # ------------------------------------------------------------
+    def test_minus_one_record(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": T0,
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj1", "obj2"])
-        self.assertEqual(len(results), 2)
+        results = self.service.find_best_candidate(
+            [
+                QueryObject("o1", to_unix_timestamp(T0)),
+                QueryObject("o2", to_unix_timestamp(T0)),
+            ],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
 
-        self.assertEqual(results[0].set_cid, "set1")
-        self.assertEqual(results[1].set_cid, "set2")
+        assert_matches(results, {("u1", "s1")})
 
-    def test_duplicated_entities(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-            {
-                "id": "2",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1001,
-            },
-            {
-                "id": "3",
-                "user": "user1",
-                "set_cid": "set2",
-                "object_cid": "obj1",
-                "timestamp": 1002,
-            },
-        ]
-        self._insert_data(data)
+    # ------------------------------------------------------------
+    # 4. Single user, timestamp drift, multiple sets
+    # ------------------------------------------------------------
+    def test_single_user_timestamp_drift_multiple_sets(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": "2024-01-02 10:00:00+00:00",
+                },
+                {
+                    "id": "2",
+                    "user": "u1",
+                    "set_cid": "s2",
+                    "object_cid": "o1",
+                    "timestamp": "2023-12-31 14:00:00+00:00",
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj1"])
-        self.assertEqual(len(results), 2)
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
 
-        for match in results:
-            self.assertEqual(match.score, 1.0)
+        assert_matches(results, {("u1", "s2")})
 
-    def test_two_sets_equals(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-            {
-                "id": "2",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj2",
-                "timestamp": 1001,
-            },
-            {
-                "id": "3",
-                "user": "user2",
-                "set_cid": "set2",
-                "object_cid": "obj1",
-                "timestamp": 1002,
-            },
-            {
-                "id": "4",
-                "user": "user2",
-                "set_cid": "set2",
-                "object_cid": "obj2",
-                "timestamp": 1003,
-            },
-        ]
-        self._insert_data(data)
+    # ------------------------------------------------------------
+    # 5. Multiple users, timestamp drift, multiple sets
+    # ------------------------------------------------------------
+    def test_multiple_users_timestamp_drift_multiple_sets(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": "2024-01-02 10:00:00+00:00",
+                },
+                {
+                    "id": "2",
+                    "user": "u2",
+                    "set_cid": "s2",
+                    "object_cid": "o1",
+                    "timestamp": "2023-12-31 14:00:00+00:00",
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj1", "obj2"])
-        self.assertEqual(len(results), 2)
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
 
-        self.assertEqual(results[0].set_cid, "set1")
-        self.assertEqual(results[1].set_cid, "set2")
+        assert_matches(results, {("u2", "s2")})
 
+    # ------------------------------------------------------------
+    # 6. Multiple users, drift, multiple sets, different counts
+    # ------------------------------------------------------------
+    def test_multiple_users_multiple_sets_different_counts(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": "2024-01-02 10:00:00+00:00",
+                },
+                {
+                    "id": "2",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o2",
+                    "timestamp": "2024-01-05 12:00:00+00:00",
+                },
+                {
+                    "id": "3",
+                    "user": "u2",
+                    "set_cid": "s2",
+                    "object_cid": "o1",
+                    "timestamp": "2023-12-31 14:00:00+00:00",
+                },
+                {
+                    "id": "4",
+                    "user": "u2",
+                    "set_cid": "s2",
+                    "object_cid": "o3",
+                    "timestamp": "2024-01-10 12:00:00+00:00",
+                },
+            ]
+        )
+
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
+
+        assert_matches(results, {("u2", "s2")})
+
+    # ------------------------------------------------------------
+    # 7. as_of filters out future records
+    # ------------------------------------------------------------
+    def test_as_of_filters_future_records(self):
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o1",
+                    "timestamp": T0,
+                },
+                {
+                    "id": "2",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o2",
+                    "timestamp": "2024-01-10 12:00:00+00:00",
+                },
+            ]
+        )
+
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp("2024-01-02 00:00:00+00:00"),
+        )
+
+        assert_matches(results, {("u1", "s1")})
+
+    # ------------------------------------------------------------
+    # 8. Not found
+    # ------------------------------------------------------------
     def test_not_found(self):
-        data = [
-            {
-                "id": "1",
-                "user": "user1",
-                "set_cid": "set1",
-                "object_cid": "obj1",
-                "timestamp": 1000,
-            },
-        ]
-        self._insert_data(data)
+        self._insert_data(
+            [
+                {
+                    "id": "1",
+                    "user": "u1",
+                    "set_cid": "s1",
+                    "object_cid": "o2",
+                    "timestamp": T0,
+                },
+            ]
+        )
 
-        results = self.service.find_best_candidate(["obj2"])
-        self.assertEqual(results, [])
+        results = self.service.find_best_candidate(
+            [QueryObject("o1", to_unix_timestamp(T0))],
+            max_timestamp_diff=DAY,
+            as_of=to_unix_timestamp(T0),
+        )
+
+        assert results == []
 
 
 if __name__ == "__main__":

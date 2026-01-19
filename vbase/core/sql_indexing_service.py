@@ -1,11 +1,13 @@
 # flake8: noqa
 
-from collections import Counter
+from bisect import bisect_left
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import List, Union
 
 import pandas as pd
-from sqlalchemy import func
+from sqlalchemy import func, tuple_
+from sqlalchemy.engine import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from vbase.core.indexing_service import IndexingService
@@ -338,6 +340,12 @@ class SQLIndexingService(IndexingService):
 
 
 @dataclass(frozen=True)
+class QueryObject:
+    object_cid: str
+    timestamp: int
+
+
+@dataclass(frozen=True)
 class SetMatch:
     """
     Set match result structure.
@@ -354,112 +362,160 @@ class SqlSetMatchingService:
     Finds best-matching collections for a given list of object CIDs
     """
 
-    def __init__(self, engine):
-        self.engine = engine
+    def __init__(self, db):
+        if isinstance(db, Engine):
+            self.engine = db
+        else:
+            self.engine = create_engine(db)
 
-    def find_best_candidate(self, object_cids: list[str]) -> list[SetMatch]:
+    def find_best_candidate(
+        self,
+        objects: list[QueryObject],
+        *,
+        as_of: int | None = None,
+        max_timestamp_diff: int = 0,
+    ) -> list[SetMatch]:
         """
-        Given a list of object_cids, find best-matching sets.
-
-        Algorithm:
-        1. Probe DB by object_cid to discover candidate set_cids
-        2. Count how many query objects matched each set
-        3. For candidate sets only, load total object count + metadata
-        4. Compute score and rank results
+        Matching semantics:
+        - set_cid: exact
+        - user: exact
+        - object_cid: exact
+        - timestamp: abs diff <= max_timestamp_diff
         """
 
-        object_cids = list(set(object_cids))
+        if not objects:
+            return []
+
+        # Deduplicate exact query objects
+        objects = list(set(objects))
+        query_len = len(objects)
+        query_cids = {o.object_cid for o in objects}
 
         with Session(self.engine) as session:
 
             # ------------------------------------------------------------
             # PHASE 1: PROBE
-            #
             # Discover candidate of collections by probing on object_cid.
-            # We only need set_cid
-            #
-            # Native SQL:
-            # SELECT set_cid
-            # FROM event_add_set_object
-            # WHERE object_cid IN (:object_cids);
             # ------------------------------------------------------------
-            probe_stmt = select(event_add_set_object.set_cid).where(
-                event_add_set_object.object_cid.in_(object_cids)
-            )
+            probe_stmt = select(
+                event_add_set_object.set_cid,
+                event_add_set_object.user,
+            ).where(event_add_set_object.object_cid.in_(query_cids))
+
+            if as_of is not None:
+                probe_stmt = probe_stmt.where(event_add_set_object.timestamp <= as_of)
 
             probe_rows = session.exec(probe_stmt).all()
 
-            # If no collections share any objects with the query, exit early
             if not probe_rows:
                 return []
 
-            # ------------------------------------------------------------
-            # PHASE 2: COUNT INTERSECTIONS
-            #
-            # Count how many query objects matched each set_cid.
-            # This is |query ∩ collection|.
-            #
-            # Example result:
-            # { "setA": 3, "setB": 1 }
-            # ------------------------------------------------------------
-            matched = Counter(probe_rows)
+            candidate_keys = {(r.set_cid, r.user) for r in probe_rows}
 
             # ------------------------------------------------------------
-            # PHASE 3: AGGREGATE COLLECTION METADATA
-            #
-            # For candidate sets only:
-            # - total number of objects in the collection
-            # - earliest timestamp will be used just for ordering
-            # - user the user_address who created the collection
-            # Group by set_cid and user to handle same set_cid created by different users.
-            # other columns should appear in aggregate functions.(total, min)
-            # Native SQL:
-            # SELECT
-            #   set_cid,
-            #   COUNT(*) AS total,
-            #   MIN(timestamp) AS ts,
-            #   "user"
-            # FROM event_add_set_object
-            # WHERE set_cid IN (:candidate_set_cids)
-            # GROUP BY set_cid, "user";
+            # PHASE 2: LOAD ALL CANDIDATE OBJECTS
             # ------------------------------------------------------------
-            agg_stmt = (
-                select(
-                    event_add_set_object.set_cid,
-                    func.count().label("total"),
-                    func.min(event_add_set_object.timestamp).label("ts"),
-                    event_add_set_object.user,
+            load_stmt = select(
+                event_add_set_object.set_cid,
+                event_add_set_object.user,
+                event_add_set_object.object_cid,
+                event_add_set_object.timestamp,
+                func.min(event_add_set_object.timestamp)
+                .over(
+                    partition_by=(
+                        event_add_set_object.set_cid,
+                        event_add_set_object.user,
+                    )
                 )
-                .where(event_add_set_object.set_cid.in_(matched.keys()))
-                .group_by(
+                .label("created_at"),
+            ).where(
+                tuple_(
                     event_add_set_object.set_cid,
                     event_add_set_object.user,
+                ).in_(candidate_keys)
+            )
+
+            if as_of is not None:
+                load_stmt = load_stmt.where(event_add_set_object.timestamp <= as_of)
+
+            rows = session.exec(load_stmt).all()
+
+        # ------------------------------------------------------------
+        # PHASE 3: BUILD TIMESTAMP INDEX (BUCKETED BY CID)
+        # For each candidate, we have many rows (set_cid, user, object_cid, timestamp)
+        # Create the index structure - index[(set_cid, user)][object_cid] → list of timestamps
+        # index[(set_cid, user)][object_cid] → list of timestamps
+        # key (set_cid, user) - groups rows belonging to the same set created by the same user
+        # object_cid - groups rows for the same object inside that set
+        # Value list[int] - all timestamps when that object appears in the set
+        # so we know For which set and which object, what timestamps exist.
+        # ------------------------------------------------------------
+        # (set_cid, user) -> object_cid -> sorted list[timestamp]
+        index: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        created_at: dict[tuple[str, str], int] = {}
+
+        for r in rows:
+            key = (r.set_cid, r.user)
+            index[key][r.object_cid].append(r.timestamp)
+            created_at.setdefault(key, r.created_at)
+
+        # Sort timestamps once
+        for by_cid in index.values():
+            for ts_list in by_cid.values():
+                ts_list.sort()
+
+        # ------------------------------------------------------------
+        # PHASE 4: THRESHOLD MATCHING + SCORING
+        # ------------------------------------------------------------
+        def has_close_timestamp(
+            sorted_ts: list[int],
+            t: int,
+            max_diff: int,
+        ) -> bool:
+            i = bisect_left(sorted_ts, t)
+
+            if i < len(sorted_ts) and abs(sorted_ts[i] - t) <= max_diff:
+                return True
+            if i > 0 and abs(sorted_ts[i - 1] - t) <= max_diff:
+                return True
+
+            return False
+
+        matched_counts: dict[tuple[str, str], int] = defaultdict(int)
+
+        for key, by_cid in index.items():
+            for q in objects:
+                ts_list = by_cid.get(q.object_cid)
+                if not ts_list:
+                    continue
+
+                if has_close_timestamp(
+                    ts_list,
+                    q.timestamp,
+                    max_timestamp_diff,
+                ):
+                    matched_counts[key] += 1
+
+        # ------------------------------------------------------------
+        # PHASE 5: BUILD RESULTS + SORT
+        # ------------------------------------------------------------
+        results: list[SetMatch] = []
+
+        for (set_cid, user), matched in matched_counts.items():
+            score = matched / query_len
+            if score == 0:
+                continue
+
+            results.append(
+                SetMatch(
+                    set_cid=set_cid,
+                    user=user,
+                    score=score,
+                    created_at=created_at[(set_cid, user)],
                 )
             )
 
-            rows = session.exec(agg_stmt).all()
-
-            # ------------------------------------------------------------
-            # PHASE 4: SCORE + SORT
-            #
-            # score = matched_objects / total_objects
-            #
-            # Sort order:
-            # 1. score DESC  (best match first)
-            # 2. timestamp ASC (earliest collection first)
-            # ------------------------------------------------------------
-            results: list[SetMatch] = []
-
-            for r in rows:
-                score = matched[r.set_cid] / r.total
-                results.append(
-                    SetMatch(
-                        set_cid=r.set_cid,
-                        user=r.user,
-                        score=score,
-                        created_at=r.ts,
-                    )
-                )
-
-            results.sort(key=lambda m: (-m.score, m.created_at))
-            return results
+        results.sort(key=lambda m: (-m.score, m.created_at))
+        return results
