@@ -15,7 +15,8 @@ from vbase.core.indexing_service import IndexingService
 # If last update of the node transaction is older than this threshold, indexing is considered stale.
 # All operations of this indexer will fail.
 INDEXING_STALE_THRESHOLD_SECONDS = 30
-DAY_HORIZONT = 24 * 60 * 60
+DAY_HORIZON = 24 * 60 * 60
+DAY_HORIZONT = DAY_HORIZON  # Backwards-compatible alias; prefer DAY_HORIZON
 
 
 class event_add_object(SQLModel, table=True):
