@@ -7,7 +7,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.sql_indexing_service import (
     ObjectAtTime,
-    SqlSetMatchingService,
+    SQLIndexingService,
     event_add_set_object,
 )
 
@@ -56,15 +56,19 @@ def assert_matches(results, expected):
     assert actual == expected
 
 
-class TestSqlSetMatchingService(unittest.TestCase):
+class TestSQLIndexingService(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        db_url = "sqlite:///file::memory:?cache=shared"
+
+        engine_kwargs = {
+            "connect_args": {"check_same_thread": False, "uri": True},
+            "poolclass": StaticPool,
+        }
+
+        self.engine = create_engine(db_url, **engine_kwargs)
+        SQLModel.metadata.drop_all(self.engine)
         SQLModel.metadata.create_all(self.engine)
-        self.service = SqlSetMatchingService(self.engine)
+        self.service = SQLIndexingService(db_url, engine_kwargs=engine_kwargs)
 
     def _insert_data(self, data):
         with Session(self.engine) as session:

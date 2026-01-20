@@ -15,6 +15,7 @@ from vbase.core.indexing_service import IndexingService
 # If last update of the node transaction is older than this threshold, indexing is considered stale.
 # All operations of this indexer will fail.
 INDEXING_STALE_THRESHOLD_SECONDS = 30
+DAY_HORIZONT = 24 * 60 * 60
 
 
 class event_add_object(SQLModel, table=True):
@@ -54,14 +55,38 @@ class last_batch_processing_time(SQLModel, table=True):
     timestamp: int = Field(index=False)
 
 
+@dataclass(frozen=True)
+class ObjectAtTime:
+    """
+    Object at time structure.
+    """
+
+    object_cid: str
+    timestamp: int
+
+
+@dataclass(frozen=True)
+class SetCandidate:
+    """
+    SetCandidate structure.
+    """
+
+    score: float
+    created_at: int
+    set_cid: str
+    user: str
+
+
 class SQLIndexingService(IndexingService):
     """
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str):
-        # open connection to db
-        self.db_engine = create_engine(db_url)
+    def __init__(self, db_url: str, engine_kwargs: dict | None = None):
+        if engine_kwargs is None:
+            engine_kwargs = {}
+
+        self.db_engine = create_engine(db_url, **engine_kwargs)
 
     def find_user_sets(self, user: str) -> List[dict]:
         """
@@ -338,42 +363,6 @@ class SQLIndexingService(IndexingService):
 
         return cs_receipts
 
-
-@dataclass(frozen=True)
-class ObjectAtTime:
-    """
-    Object at time structure.
-    """
-
-    object_cid: str
-    timestamp: int
-
-
-@dataclass(frozen=True)
-class SetCandidate:
-    """
-    SetCandidate structure.
-    """
-
-    score: float
-    created_at: int
-    set_cid: str
-    user: str
-
-
-class SqlSetMatchingService:
-    """
-    Finds best-matching collections for a given list of object CIDs
-    """
-
-    DAY_HORIZONT = 24 * 60 * 60
-
-    def __init__(self, db):
-        if isinstance(db, Engine):
-            self.engine = db
-        else:
-            self.engine = create_engine(db)
-
     def find_best_candidate(
         self,
         objects: list[ObjectAtTime],
@@ -399,7 +388,7 @@ class SqlSetMatchingService:
         query_len = len(objects)
         query_cids = {o.object_cid for o in objects}
 
-        with Session(self.engine) as session:
+        with Session(self.db_engine) as session:
 
             # ------------------------------------------------------------
             # PHASE 1: PROBE (discover candidate sets)
