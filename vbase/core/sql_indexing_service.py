@@ -3,7 +3,7 @@
 from bisect import bisect_left
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Any, List, Optional, Union
 
 import pandas as pd
 from sqlalchemy import func, tuple_
@@ -83,7 +83,9 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str, engine_kwargs: dict | None = None):
+    def __init__(
+        self, db_url: str, engine_kwargs: Optional[dict[str, Any]] | None = None
+    ):
         if engine_kwargs is None:
             engine_kwargs = {}
 
