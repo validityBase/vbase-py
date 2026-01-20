@@ -501,5 +501,10 @@ class SQLIndexingService(IndexingService):
         return results
 
     def _normalize_ts(self, ts: int) -> int:
-        """"""
+        """Normalize a UNIX timestamp by converting millisecond values to seconds.
+
+        Timestamps greater than 10_000_000_000 are assumed to be in milliseconds
+        and are converted to seconds by integer division; smaller values are
+        treated as already being in seconds and returned unchanged.
+        """
         return ts // 1000 if ts > 10_000_000_000 else ts
