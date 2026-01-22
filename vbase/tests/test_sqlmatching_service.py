@@ -5,11 +5,8 @@ from typing import Union
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from vbase.core.sql_indexing_service import (
-    ObjectAtTime,
-    SQLIndexingService,
-    event_add_set_object,
-)
+from vbase.core.sql_indexing_service import ObjectAtTime, event_add_set_object
+from vbase.core.strategies import FindBestCandidateRequest, SQLMatchingStrategy
 
 
 def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
@@ -56,7 +53,7 @@ def assert_matches(results, expected):
     assert actual == expected
 
 
-class TestSQLIndexingService(unittest.TestCase):
+class TestSQLMatchingStrategy(unittest.TestCase):
     def setUp(self):
         db_url = "sqlite:///file::memory:?cache=shared"
 
@@ -68,7 +65,7 @@ class TestSQLIndexingService(unittest.TestCase):
         self.engine = create_engine(db_url, **engine_kwargs)
         SQLModel.metadata.drop_all(self.engine)
         SQLModel.metadata.create_all(self.engine)
-        self.service = SQLIndexingService(db_url, engine_kwargs=engine_kwargs)
+        self.service = SQLMatchingStrategy(self.engine)
 
     def _insert_data(self, data):
         with Session(self.engine) as session:
@@ -103,9 +100,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert_matches(results, {("u1", "s1")})
@@ -134,9 +133,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp("2024-01-03 00:00:00+00:00"),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp("2024-01-03 00:00:00+00:00"),
+            )
         )
 
         assert_matches(results, {("u1", "s1")})
@@ -158,12 +159,14 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [
-                ObjectAtTime("o1", to_unix_timestamp(T0)),
-                ObjectAtTime("o2", to_unix_timestamp(T0)),
-            ],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[
+                    ObjectAtTime("o1", to_unix_timestamp(T0)),
+                    ObjectAtTime("o2", to_unix_timestamp(T0)),
+                ],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert_matches(results, {("u1", "s1")})
@@ -192,9 +195,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert_matches(results, {("u1", "s2")})
@@ -223,9 +228,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert_matches(results, {("u2", "s2")})
@@ -268,9 +275,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert_matches(results, {("u2", "s2")})
@@ -299,9 +308,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp("2024-01-02 00:00:00+00:00"),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp("2024-01-02 00:00:00+00:00"),
+            )
         )
 
         assert_matches(results, {("u1", "s1")})
@@ -323,9 +334,11 @@ class TestSQLIndexingService(unittest.TestCase):
         )
 
         results = self.service.find_best_candidate(
-            [ObjectAtTime("o1", to_unix_timestamp(T0))],
-            max_timestamp_diff=DAY,
-            as_of=to_unix_timestamp(T0),
+            FindBestCandidateRequest(
+                objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
+                max_timestamp_diff=DAY,
+                as_of=to_unix_timestamp(T0),
+            )
         )
 
         assert results == []
