@@ -1,4 +1,6 @@
-# flake8: noqa
+"""
+Core types for indexing and matching strategies.
+"""
 
 from dataclasses import dataclass
 

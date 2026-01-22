@@ -1,4 +1,6 @@
-# flake8: noqa
+"""
+Matching strategies for finding best candidate sets.
+"""
 
 from abc import ABC, abstractmethod
 from bisect import bisect_left

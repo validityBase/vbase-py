@@ -1,4 +1,4 @@
-# flake8: noqa
+"""SQL models for indexing events."""
 
 from sqlmodel import Field, SQLModel
 
