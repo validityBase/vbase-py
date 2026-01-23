@@ -5,14 +5,36 @@ Matching strategies for finding best candidate sets.
 from abc import ABC, abstractmethod
 from bisect import bisect_left
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import DefaultDict
 
-import pandas as pd
 from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from ..models import event_add_set_object
 from ..types import SetCandidate, SetMatchingCriteria
+
+
+@dataclass(frozen=True, slots=True)
+class BucketKey:
+    set_cid: str
+    user: str
+
+
+@dataclass
+class BucketItem:
+    created_at: int | None = None
+    timestamps: DefaultDict[str, list[int]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    def add_event(self, object_cid: str, ts: int) -> None:
+        self.timestamps[object_cid].append(ts)
+
+    def set_created_at_once(self, created_ts: int) -> None:
+        if self.created_at is None:
+            self.created_at = created_ts
 
 
 class BaseMatchingStrategy(ABC):
@@ -134,17 +156,15 @@ class SetMatchingStrategy(BaseMatchingStrategy):
         # ------------------------------------------------------------
         # PHASE 3: BUILD TIME BUCKETS (ordered timestamps)
         # ------------------------------------------------------------
-        buckets: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
-
-        created_at: dict[tuple[str, str], int] = {}
+        buckets: dict[BucketKey, BucketItem] = defaultdict(BucketItem)
 
         for r in rows:
-            key = (r.set_cid, r.user)
+            key = BucketKey(set_cid=r.set_cid, user=r.user)
             ts = self._normalize_ts(r.timestamp)
-            buckets[key][r.object_cid].append(ts)
-            created_at.setdefault(key, self._normalize_ts(r.created_at))
+            created_ts = self._normalize_ts(r.created_at)
+
+            buckets[key].add_event(object_cid=r.object_cid, ts=ts)
+            buckets[key].set_created_at_once(created_ts)
 
         # ------------------------------------------------------------
         # PHASE 4: ORDERED MATCHING
@@ -167,12 +187,17 @@ class SetMatchingStrategy(BaseMatchingStrategy):
 
             return any(abs(ts - t) <= max_diff_sec for ts in candidates)
 
-        matched_counts: dict[tuple[str, str], int] = defaultdict(int)
+        matched_counts: dict[BucketKey, int] = defaultdict(int)
 
-        for key, by_object in buckets.items():
-            for q in objects:
-                ts_list = by_object.get(q.object_cid)
-                if ts_list and has_match(ts_list, q.timestamp):
+        for key, bucket in buckets.items():
+            timestamps_by_object: dict[str, list[int]] = bucket.timestamps
+            for query_obj in objects:
+                object_cid: str = query_obj.object_cid
+                query_ts: int = query_obj.timestamp
+                ts_list: list[int] | None = timestamps_by_object.get(object_cid)
+                if ts_list is None:
+                    continue
+                if has_match(ts_list, query_ts):
                     matched_counts[key] += 1
 
         # ------------------------------------------------------------
@@ -181,17 +206,18 @@ class SetMatchingStrategy(BaseMatchingStrategy):
         results: list[SetCandidate] = []
 
         for key, matched in matched_counts.items():
-            score = matched / query_len
-            if score == 0:
+            if matched == 0:
                 continue
 
-            set_cid, user = key
+            score = matched / query_len
+            bucket = buckets[key]
+
             results.append(
                 SetCandidate(
-                    set_cid=set_cid,
-                    user=user,
+                    set_cid=key.set_cid,
+                    user=key.user,
                     score=score,
-                    created_at=created_at[key],
+                    created_at=bucket.created_at,
                 )
             )
 
