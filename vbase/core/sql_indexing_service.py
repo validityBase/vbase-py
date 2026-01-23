@@ -1,6 +1,6 @@
 """SQL indexing service implementation."""
 
-from typing import Any, List, Optional, Union
+from typing import Any, List, Union
 
 import pandas as pd
 from sqlmodel import Session, create_engine, select
@@ -15,7 +15,6 @@ from .models import (
 )
 from .strategies.set_matching_strategy import BaseMatchingStrategy, SetMatchingStrategy
 from .types import (
-    DAY_HORIZONT,
     INDEXING_STALE_THRESHOLD_SECONDS,
     ObjectAtTime,
     SetCandidate,
@@ -312,12 +311,23 @@ class SQLIndexingService(IndexingService):
     def find_matching_user_sets(
         self,
         objects: list[ObjectAtTime],
-        as_of: int | None = None,
-        max_timestamp_diff: int = DAY_HORIZONT,
+        as_of: pd.Timestamp | int | None = None,
     ) -> list[SetCandidate]:
+        normalized_as_of = self._normalize_as_of_input(as_of)
         request = SetMatchingCriteria(
             objects=objects,
-            as_of=as_of,
-            max_timestamp_diff=max_timestamp_diff,
+            as_of=normalized_as_of,
         )
         return self.best_match_strategy.find_matching_user_sets(request)
+
+    @staticmethod
+    def _normalize_as_of_input(
+        as_of: pd.Timestamp | int | None,
+    ) -> pd.Timestamp | None:
+        if as_of is None:
+            return None
+        if isinstance(as_of, pd.Timestamp):
+            return as_of
+        if isinstance(as_of, int):
+            return pd.Timestamp(as_of, unit="s", tz="UTC")
+        raise TypeError("as_of must be a pandas.Timestamp, int, or None")

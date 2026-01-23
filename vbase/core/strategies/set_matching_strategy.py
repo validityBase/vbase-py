@@ -2,18 +2,26 @@
 Matching strategies for finding best candidate sets.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from bisect import bisect_left
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict
 
+import pandas as pd
 from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from ..models import event_add_set_object
-from ..types import SetCandidate, SetMatchingCriteria
+from ..types import (
+    ObjectAtTime,
+    SetCandidate,
+    SetMatchingCriteria,
+    SetMatchingStrategyConfig,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,12 +62,44 @@ class BaseMatchingStrategy(ABC):
         """
         pass
 
+    @staticmethod
+    def _normalize_unix_ts(ts: int) -> int:
+        """Normalize a UNIX timestamp by converting millisecond values to seconds."""
+        return ts // 1000 if ts > 10_000_000_000 else ts
+
+    def _normalize_request(
+        self,
+        request: SetMatchingCriteria,
+    ) -> tuple[list[ObjectAtTime], int | None]:
+        objects = [
+            ObjectAtTime(
+                object_cid=obj.object_cid,
+                timestamp=self._normalize_unix_ts(obj.timestamp),
+            )
+            for obj in request.objects
+        ]
+
+        as_of_unix: int | None = None
+        if request.as_of is not None:
+            if not isinstance(request.as_of, pd.Timestamp):
+                raise TypeError("as_of must be a pandas.Timestamp or None")
+            if request.as_of.tzinfo is None:
+                raise ValueError("as_of must be timezone-aware")
+            as_of_unix = int(request.as_of.timestamp())
+
+        return objects, as_of_unix
+
 
 class SetMatchingStrategy(BaseMatchingStrategy):
     """Set matching strategy implementation using SQL database."""
 
-    def __init__(self, db_engine: Engine):
+    def __init__(
+        self,
+        db_engine: Engine,
+        config: SetMatchingStrategyConfig | None = None,
+    ):
         self.db_engine = db_engine
+        self.config = config or SetMatchingStrategyConfig()
 
     def find_matching_user_sets(
         self,
@@ -77,11 +117,8 @@ class SetMatchingStrategy(BaseMatchingStrategy):
             - object_cid: exact
             - timestamp: abs(diff) <= max_timestamp_diff
         """
-        import pandas as pd
-
-        objects = request.objects
-        as_of = request.as_of
-        max_timestamp_diff = request.max_timestamp_diff
+        objects, as_of_unix = self._normalize_request(request)
+        max_timestamp_diff = self.config.max_timestamp_diff
 
         if not objects:
             return []
@@ -102,9 +139,7 @@ class SetMatchingStrategy(BaseMatchingStrategy):
                 event_add_set_object.user,
             ).where(event_add_set_object.object_cid.in_(query_cids))
 
-            if as_of is not None:
-                # Convert pd.Timestamp to int (seconds since epoch)
-                as_of_unix = int(as_of.timestamp())
+            if as_of_unix is not None:
                 probe_stmt = probe_stmt.where(
                     event_add_set_object.timestamp <= as_of_unix
                 )
@@ -144,9 +179,7 @@ class SetMatchingStrategy(BaseMatchingStrategy):
                 .order_by(event_add_set_object.timestamp)
             )
 
-            if as_of is not None:
-                # Convert pd.Timestamp to int (seconds since epoch)
-                as_of_unix = int(as_of.timestamp())
+            if as_of_unix is not None:
                 load_stmt = load_stmt.where(
                     event_add_set_object.timestamp <= as_of_unix
                 )
@@ -160,24 +193,28 @@ class SetMatchingStrategy(BaseMatchingStrategy):
 
         for r in rows:
             key = BucketKey(set_cid=r.set_cid, user=r.user)
-            ts = self._normalize_ts(r.timestamp)
-            created_ts = self._normalize_ts(r.created_at)
+            ts = self._normalize_unix_ts(r.timestamp)
+            created_ts = self._normalize_unix_ts(r.created_at)
 
             buckets[key].add_event(object_cid=r.object_cid, ts=ts)
             buckets[key].set_created_at_once(created_ts)
 
+        for bucket in buckets.values():
+            for ts_list in bucket.timestamps.values():
+                ts_list.sort()
+
         # ------------------------------------------------------------
         # PHASE 4: ORDERED MATCHING
         # ------------------------------------------------------------
+        max_diff_sec = int(max_timestamp_diff.total_seconds())
+
         def has_match(ts_list: list[int], t: int) -> bool:
             """Check if there is a timestamp in ts_list within max_timestamp_diff of t.
             ts_list:  [ ... , L , R , ... ] - should be always sorted
             t:        target timestamp
             R = ts_list[i] is the smallest value ≥ t
             L = ts_list[i - 1] is the largest value ≤ t
-
             """
-            max_diff_sec = int(max_timestamp_diff.total_seconds())
             i = bisect_left(ts_list, t)
             candidates = []
             if i > 0:
@@ -223,12 +260,3 @@ class SetMatchingStrategy(BaseMatchingStrategy):
 
         results.sort(key=lambda r: (-r.score, r.created_at))
         return results
-
-    def _normalize_ts(self, ts: int) -> int:
-        """Normalize a UNIX timestamp by converting millisecond values to seconds.
-
-        Timestamps greater than 10_000_000_000 are assumed to be in milliseconds
-        and are converted to seconds by integer division; smaller values are
-        treated as already being in seconds and returned unchanged.
-        """
-        return ts // 1000 if ts > 10_000_000_000 else ts

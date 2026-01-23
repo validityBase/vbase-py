@@ -7,7 +7,11 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.sql_indexing_service import ObjectAtTime, event_add_set_object
-from vbase.core.strategies import SetMatchingCriteria, SetMatchingStrategy
+from vbase.core.strategies import (
+    SetMatchingCriteria,
+    SetMatchingStrategy,
+    SetMatchingStrategyConfig,
+)
 
 
 def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
@@ -60,7 +64,10 @@ class TestSetMatchingStrategy(unittest.TestCase):
         self.engine = create_engine(db_url)
         SQLModel.metadata.drop_all(self.engine)
         SQLModel.metadata.create_all(self.engine)
-        self.service = SetMatchingStrategy(self.engine)
+        self.service = SetMatchingStrategy(
+            self.engine,
+            config=SetMatchingStrategyConfig(max_timestamp_diff=pd.Timedelta(days=1)),
+        )
 
     def _insert_data(self, data):
         with Session(self.engine) as session:
@@ -97,7 +104,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
@@ -130,7 +136,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp("2024-01-03 00:00:00+00:00"),
             )
         )
@@ -159,7 +164,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
                     ObjectAtTime("o1", to_unix_timestamp(T0)),
                     ObjectAtTime("o2", to_unix_timestamp(T0)),
                 ],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
@@ -192,7 +196,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
@@ -225,7 +228,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
@@ -272,7 +274,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
@@ -305,7 +306,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp("2024-01-02 00:00:00+00:00"),
             )
         )
@@ -331,7 +331,6 @@ class TestSetMatchingStrategy(unittest.TestCase):
         results = self.service.find_matching_user_sets(
             SetMatchingCriteria(
                 objects=[ObjectAtTime("o1", to_unix_timestamp(T0))],
-                max_timestamp_diff=pd.Timedelta(days=1),
                 as_of=pd.Timestamp(T0),
             )
         )
