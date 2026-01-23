@@ -3,7 +3,6 @@ import unittest
 from typing import Union
 
 import pandas as pd
-from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.set_matching_service import (

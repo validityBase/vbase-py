@@ -5,7 +5,7 @@ from ..types import (
     SetMatchingCriteria,
     SetMatchingSericeConfig,
 )
-from .set_matching_strategy import BaseMatchingService, SetMatchingService
+from .set_matching_service import BaseMatchingService, SetMatchingService
 
 __all__ = [
     "BaseMatchingService",

@@ -13,7 +13,7 @@ from .models import (
     event_add_set_object,
     last_batch_processing_time,
 )
-from .set_matching_service.set_matching_strategy import (
+from .set_matching_service.set_matching_service import (
     BaseMatchingService,
     SetMatchingService,
 )
