@@ -29,11 +29,9 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str, matching_strategy: BaseMatchingService = None):
+    def __init__(self, db_url: str, matching_service: BaseMatchingService = None):
         self.db_engine = create_engine(db_url)
-        self.best_match_strategy = matching_strategy or SetMatchingService(
-            self.db_engine
-        )
+        self.best_match_service = matching_service or SetMatchingService(self.db_engine)
 
     def find_user_sets(self, user: str) -> List[dict]:
         """
@@ -315,8 +313,16 @@ class SQLIndexingService(IndexingService):
         objects: list[ObjectAtTime],
         as_of: pd.Timestamp | int | None = None,
     ) -> list[SetCandidate]:
+        """
+        Find the best sets that approximately match the query objects.
+        Args:
+            objects (list[ObjectAtTime]): List of objects with timestamps.
+            as_of (pd.Timestamp | int | None): Optional as_of timestamp.
+        Returns:
+            list[SetCandidate]: List of candidate sets matching the criteria.
+        """
         criteria = SetMatchingCriteria(
             objects=objects,
             as_of=as_of,
         )
-        return self.best_match_strategy.find_matching_user_sets(criteria)
+        return self.best_match_service.find_matching_user_sets(criteria)

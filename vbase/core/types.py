@@ -8,8 +8,6 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-DAY_HORIZONT = 24 * 60 * 60
-
 
 @dataclass(frozen=True)
 class ObjectAtTime:

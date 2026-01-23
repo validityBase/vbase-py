@@ -98,7 +98,7 @@ class BaseMatchingService(ABC):
 
 
 class SetMatchingService(BaseMatchingService):
-    """Set matching strategy implementation using SQL database."""
+    """Set matching service implementation using SQL database."""
 
     def __init__(
         self,
