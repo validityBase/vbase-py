@@ -6,12 +6,12 @@ import pandas as pd
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from vbase.core.sql_indexing_service import ObjectAtTime, event_add_set_object
-from vbase.core.strategies import (
+from vbase.core.set_matching_service import (
     SetMatchingCriteria,
-    SetMatchingStrategy,
-    SetMatchingStrategyConfig,
+    SetMatchingSericeConfig,
+    SetMatchingService,
 )
+from vbase.core.sql_indexing_service import ObjectAtTime, event_add_set_object
 
 
 def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
@@ -64,9 +64,9 @@ class TestSetMatchingStrategy(unittest.TestCase):
         self.engine = create_engine(db_url)
         SQLModel.metadata.drop_all(self.engine)
         SQLModel.metadata.create_all(self.engine)
-        self.service = SetMatchingStrategy(
+        self.service = SetMatchingService(
             self.engine,
-            config=SetMatchingStrategyConfig(max_timestamp_diff=pd.Timedelta(days=1)),
+            config=SetMatchingSericeConfig(max_timestamp_diff=pd.Timedelta(days=1)),
         )
 
     def _insert_data(self, data):

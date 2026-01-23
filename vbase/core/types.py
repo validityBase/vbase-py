@@ -8,9 +8,6 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-# If last update of the node transaction is older than this threshold, indexing is considered stale.
-# All operations of this indexer will fail.
-INDEXING_STALE_THRESHOLD_SECONDS = 30
 DAY_HORIZONT = 24 * 60 * 60
 
 
@@ -45,16 +42,31 @@ class SetMatchingCriteria:
         objects (list[ObjectAtTime]):
             List of objects with their associated timestamps to match against user sets.
         as_of (pd.Timestamp | None):
-            Only consider records with timestamp <= as_of. Should be a pandas.Timestamp (UTC-aware).
-            If None, all records are considered.
+            Only consider records with timestamp <= as_of.
+            Always stored as a UTC-aware pandas.Timestamp or None.
     """
 
     objects: list[ObjectAtTime]
-    as_of: pd.Timestamp | None = None
+    as_of: pd.Timestamp | int | None = None
+
+    def __post_init__(self) -> None:
+        self.as_of = self._normalize_as_of(self.as_of)
+
+    @staticmethod
+    def _normalize_as_of(
+        as_of: pd.Timestamp | int | None,
+    ) -> pd.Timestamp | None:
+        if as_of is None:
+            return None
+        if isinstance(as_of, pd.Timestamp):
+            return as_of
+        if isinstance(as_of, int):
+            return pd.Timestamp(as_of, unit="s", tz="UTC")
+        raise TypeError("as_of must be a pandas.Timestamp, int, or None")
 
 
 @dataclass
-class SetMatchingStrategyConfig:
+class SetMatchingSericeConfig:
     """
     Configuration for set matching strategies.
 

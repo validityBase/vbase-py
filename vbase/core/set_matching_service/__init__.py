@@ -3,16 +3,16 @@ from ..types import (
     ObjectAtTime,
     SetCandidate,
     SetMatchingCriteria,
-    SetMatchingStrategyConfig,
+    SetMatchingSericeConfig,
 )
-from .set_matching_strategy import BaseMatchingStrategy, SetMatchingStrategy
+from .set_matching_strategy import BaseMatchingService, SetMatchingService
 
 __all__ = [
-    "BaseMatchingStrategy",
-    "SetMatchingStrategy",
+    "BaseMatchingService",
+    "SetMatchingService",
     "DAY_HORIZONT",
     "SetMatchingCriteria",
-    "SetMatchingStrategyConfig",
+    "SetMatchingSericeConfig",
     "ObjectAtTime",
     "SetCandidate",
 ]

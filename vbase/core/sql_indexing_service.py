@@ -13,13 +13,15 @@ from .models import (
     event_add_set_object,
     last_batch_processing_time,
 )
-from .strategies.set_matching_strategy import BaseMatchingStrategy, SetMatchingStrategy
-from .types import (
-    INDEXING_STALE_THRESHOLD_SECONDS,
-    ObjectAtTime,
-    SetCandidate,
-    SetMatchingCriteria,
+from .set_matching_service.set_matching_strategy import (
+    BaseMatchingService,
+    SetMatchingService,
 )
+from .types import ObjectAtTime, SetCandidate, SetMatchingCriteria
+
+# If last update of the node transaction is older than this threshold, indexing is considered stale.
+# All operations of this indexer will fail.
+INDEXING_STALE_THRESHOLD_SECONDS = 30
 
 
 class SQLIndexingService(IndexingService):
@@ -27,9 +29,9 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str, matching_strategy: BaseMatchingStrategy = None):
+    def __init__(self, db_url: str, matching_strategy: BaseMatchingService = None):
         self.db_engine = create_engine(db_url)
-        self.best_match_strategy = matching_strategy or SetMatchingStrategy(
+        self.best_match_strategy = matching_strategy or SetMatchingService(
             self.db_engine
         )
 
@@ -313,21 +315,8 @@ class SQLIndexingService(IndexingService):
         objects: list[ObjectAtTime],
         as_of: pd.Timestamp | int | None = None,
     ) -> list[SetCandidate]:
-        normalized_as_of = self._normalize_as_of_input(as_of)
-        request = SetMatchingCriteria(
+        criteria = SetMatchingCriteria(
             objects=objects,
-            as_of=normalized_as_of,
+            as_of=as_of,
         )
-        return self.best_match_strategy.find_matching_user_sets(request)
-
-    @staticmethod
-    def _normalize_as_of_input(
-        as_of: pd.Timestamp | int | None,
-    ) -> pd.Timestamp | None:
-        if as_of is None:
-            return None
-        if isinstance(as_of, pd.Timestamp):
-            return as_of
-        if isinstance(as_of, int):
-            return pd.Timestamp(as_of, unit="s", tz="UTC")
-        raise TypeError("as_of must be a pandas.Timestamp, int, or None")
+        return self.best_match_strategy.find_matching_user_sets(criteria)

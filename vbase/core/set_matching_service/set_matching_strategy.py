@@ -20,7 +20,7 @@ from ..types import (
     ObjectAtTime,
     SetCandidate,
     SetMatchingCriteria,
-    SetMatchingStrategyConfig,
+    SetMatchingSericeConfig,
 )
 
 
@@ -45,7 +45,7 @@ class BucketItem:
             self.created_at = created_ts
 
 
-class BaseMatchingStrategy(ABC):
+class BaseMatchingService(ABC):
     """Base class for matching strategies."""
 
     @abstractmethod
@@ -90,16 +90,16 @@ class BaseMatchingStrategy(ABC):
         return objects, as_of_unix
 
 
-class SetMatchingStrategy(BaseMatchingStrategy):
+class SetMatchingService(BaseMatchingService):
     """Set matching strategy implementation using SQL database."""
 
     def __init__(
         self,
         db_engine: Engine,
-        config: SetMatchingStrategyConfig | None = None,
+        config: SetMatchingSericeConfig | None = None,
     ):
         self.db_engine = db_engine
-        self.config = config or SetMatchingStrategyConfig()
+        self.config = config or SetMatchingSericeConfig()
 
     def find_matching_user_sets(
         self,
