@@ -64,7 +64,7 @@ class BaseMatchingService(ABC):
         Args:
             criteria (SetMatchingCriteria): Criteria for matching user sets.
         Returns:
-            list[SetCandidate]: List of candidate sets matching the criteria.
+            The user sets that match an ordered list of objects sorted in the decreasing order of match quality (similarity) to the object list.
         """
         pass
 
