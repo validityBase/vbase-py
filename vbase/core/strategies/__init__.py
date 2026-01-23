@@ -1,11 +1,11 @@
-from ..types import DAY_HORIZONT, FindBestCandidateRequest, ObjectAtTime, SetCandidate
-from .matching_strategy import BaseMatchingStrategy, SQLMatchingStrategy
+from ..types import DAY_HORIZONT, ObjectAtTime, SetCandidate, SetMatchingCriteria
+from .set_matching_strategy import BaseMatchingStrategy, SetMatchingStrategy
 
 __all__ = [
     "BaseMatchingStrategy",
-    "SQLMatchingStrategy",
+    "SetMatchingStrategy",
     "DAY_HORIZONT",
-    "FindBestCandidateRequest",
+    "SetMatchingCriteria",
     "ObjectAtTime",
     "SetCandidate",
 ]

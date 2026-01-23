@@ -1,15 +1,9 @@
-# flake8: noqa
+"""SQL indexing service implementation."""
 
-from abc import ABC, abstractmethod
-from bisect import bisect_left
-from collections import Counter, defaultdict
-from dataclasses import dataclass
 from typing import Any, List, Optional, Union
 
 import pandas as pd
-from sqlalchemy import func, tuple_
-from sqlalchemy.engine import Engine
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from vbase.core.indexing_service import IndexingService
 
@@ -19,13 +13,13 @@ from .models import (
     event_add_set_object,
     last_batch_processing_time,
 )
-from .strategies.matching_strategy import SQLMatchingStrategy
+from .strategies.set_matching_strategy import BaseMatchingStrategy, SetMatchingStrategy
 from .types import (
     DAY_HORIZONT,
     INDEXING_STALE_THRESHOLD_SECONDS,
-    FindBestCandidateRequest,
     ObjectAtTime,
     SetCandidate,
+    SetMatchingCriteria,
 )
 
 
@@ -34,14 +28,11 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(
-        self, db_url: str, engine_kwargs: Optional[dict[str, Any]] | None = None
-    ):
-        if engine_kwargs is None:
-            engine_kwargs = {}
-
-        self.db_engine = create_engine(db_url, **engine_kwargs)
-        self.best_match_strategy = SQLMatchingStrategy(self.db_engine)
+    def __init__(self, db_url: str, matching_strategy: BaseMatchingStrategy = None):
+        self.db_engine = create_engine(db_url)
+        self.best_match_strategy = matching_strategy or SetMatchingStrategy(
+            self.db_engine
+        )
 
     def find_user_sets(self, user: str) -> List[dict]:
         """
@@ -244,8 +235,8 @@ class SQLIndexingService(IndexingService):
 
         if len(cs_receipts) > 0:
             return cs_receipts[0]
-        else:
-            return None
+
+        return None
 
     def _fail_if_indexing_stale(self):
         """
@@ -318,16 +309,15 @@ class SQLIndexingService(IndexingService):
 
         return cs_receipts
 
-    def find_best_candidate(
+    def find_matching_user_sets(
         self,
         objects: list[ObjectAtTime],
-        *,
         as_of: int | None = None,
         max_timestamp_diff: int = DAY_HORIZONT,
     ) -> list[SetCandidate]:
-        request = FindBestCandidateRequest(
+        request = SetMatchingCriteria(
             objects=objects,
             as_of=as_of,
             max_timestamp_diff=max_timestamp_diff,
         )
-        return self.best_match_strategy.find_best_candidate(request)
+        return self.best_match_strategy.find_matching_user_sets(request)

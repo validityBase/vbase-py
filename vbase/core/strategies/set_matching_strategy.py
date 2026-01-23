@@ -5,40 +5,57 @@ Matching strategies for finding best candidate sets.
 from abc import ABC, abstractmethod
 from bisect import bisect_left
 from collections import defaultdict
-from typing import List
 
+import pandas as pd
 from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from ..models import event_add_set_object
-from ..types import DAY_HORIZONT, FindBestCandidateRequest, ObjectAtTime, SetCandidate
+from ..types import SetCandidate, SetMatchingCriteria
 
 
 class BaseMatchingStrategy(ABC):
+    """Base class for matching strategies."""
+
     @abstractmethod
-    def find_best_candidate(
+    def find_matching_user_sets(
         self,
-        request: FindBestCandidateRequest,
+        request: SetMatchingCriteria,
     ) -> list[SetCandidate]:
+        """
+        Find the best candidate sets based on the provided request.
+        Args:
+            request (SetMatchingCriteria): Criteria for matching user sets.
+        Returns:
+            list[SetCandidate]: List of candidate sets matching the criteria.
+        """
         pass
 
 
-class SQLMatchingStrategy(BaseMatchingStrategy):
+class SetMatchingStrategy(BaseMatchingStrategy):
+    """Set matching strategy implementation using SQL database."""
+
     def __init__(self, db_engine: Engine):
         self.db_engine = db_engine
 
-    def find_best_candidate(
+    def find_matching_user_sets(
         self,
-        request: FindBestCandidateRequest,
+        request: SetMatchingCriteria,
     ) -> list[SetCandidate]:
         """
+        Find the best candidate sets based on the provided request.
+        Args:
+            request (SetMatchingCriteria): Criteria for matching user sets.
+        Returns:
+            list[SetCandidate]: List of candidate sets matching the criteria.
         Matching semantics:
-        - set_cid: exact
-        - user: exact
-        - object_cid: exact
-        - timestamp: abs(diff) <= max_timestamp_diff
+            - set_cid: exact
+            - user: exact
+            - object_cid: exact
+            - timestamp: abs(diff) <= max_timestamp_diff
         """
+        import pandas as pd
 
         objects = request.objects
         as_of = request.as_of
@@ -64,7 +81,11 @@ class SQLMatchingStrategy(BaseMatchingStrategy):
             ).where(event_add_set_object.object_cid.in_(query_cids))
 
             if as_of is not None:
-                probe_stmt = probe_stmt.where(event_add_set_object.timestamp <= as_of)
+                # Convert pd.Timestamp to int (seconds since epoch)
+                as_of_unix = int(as_of.timestamp())
+                probe_stmt = probe_stmt.where(
+                    event_add_set_object.timestamp <= as_of_unix
+                )
 
             candidate_keys = {
                 (r.set_cid, r.user) for r in session.exec(probe_stmt).all()
@@ -102,12 +123,16 @@ class SQLMatchingStrategy(BaseMatchingStrategy):
             )
 
             if as_of is not None:
-                load_stmt = load_stmt.where(event_add_set_object.timestamp <= as_of)
+                # Convert pd.Timestamp to int (seconds since epoch)
+                as_of_unix = int(as_of.timestamp())
+                load_stmt = load_stmt.where(
+                    event_add_set_object.timestamp <= as_of_unix
+                )
 
             rows = session.exec(load_stmt).all()
 
         # ------------------------------------------------------------
-        # PHASE 3: BUILD BUCKETS (ordered timestamps)
+        # PHASE 3: BUILD TIME BUCKETS (ordered timestamps)
         # ------------------------------------------------------------
         buckets: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
             lambda: defaultdict(list)
@@ -125,13 +150,22 @@ class SQLMatchingStrategy(BaseMatchingStrategy):
         # PHASE 4: ORDERED MATCHING
         # ------------------------------------------------------------
         def has_match(ts_list: list[int], t: int) -> bool:
-            i = bisect_left(ts_list, t)
+            """Check if there is a timestamp in ts_list within max_timestamp_diff of t.
+            ts_list:  [ ... , L , R , ... ] - should be always sorted
+            t:        target timestamp
+            R = ts_list[i] is the smallest value ≥ t
+            L = ts_list[i - 1] is the largest value ≤ t
 
-            if i < len(ts_list) and abs(ts_list[i] - t) <= max_timestamp_diff:
-                return True
-            if i > 0 and abs(ts_list[i - 1] - t) <= max_timestamp_diff:
-                return True
-            return False
+            """
+            max_diff_sec = int(max_timestamp_diff.total_seconds())
+            i = bisect_left(ts_list, t)
+            candidates = []
+            if i > 0:
+                candidates.append(ts_list[i - 1])
+            if i < len(ts_list):
+                candidates.append(ts_list[i])
+
+            return any(abs(ts - t) <= max_diff_sec for ts in candidates)
 
         matched_counts: dict[tuple[str, str], int] = defaultdict(int)
 
