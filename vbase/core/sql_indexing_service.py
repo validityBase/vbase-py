@@ -1,52 +1,27 @@
-# flake8: noqa
+"""SQL indexing service implementation."""
 
-from typing import List, Union
+from typing import Any, List, Union
 
 import pandas as pd
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from vbase.core.indexing_service import IndexingService
+
+from .models import (
+    event_add_object,
+    event_add_set,
+    event_add_set_object,
+    last_batch_processing_time,
+)
+from .set_matching_service.set_matching_service import (
+    BaseMatchingService,
+    SetMatchingService,
+)
+from .types import ObjectAtTime, SetCandidate, SetMatchingCriteria
 
 # If last update of the node transaction is older than this threshold, indexing is considered stale.
 # All operations of this indexer will fail.
 INDEXING_STALE_THRESHOLD_SECONDS = 30
-
-
-class event_add_object(SQLModel, table=True):
-    __tablename__ = "event_add_object"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    object_cid: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class event_add_set_object(SQLModel, table=True):
-    __tablename__ = "event_add_set_object"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    set_cid: str = Field(index=False)
-    object_cid: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class event_add_set(SQLModel, table=True):
-    __tablename__ = "event_add_set"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    set_cid: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class last_batch_processing_time(SQLModel, table=True):
-    __tablename__ = "last_batch_processing_time"
-    id: str = Field(primary_key=True, index=True)
-    timestamp: int = Field(index=False)
 
 
 class SQLIndexingService(IndexingService):
@@ -54,9 +29,9 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str):
-        # open connection to db
+    def __init__(self, db_url: str, matching_service: BaseMatchingService = None):
         self.db_engine = create_engine(db_url)
+        self.best_match_service = matching_service or SetMatchingService(self.db_engine)
 
     def find_user_sets(self, user: str) -> List[dict]:
         """
@@ -259,8 +234,8 @@ class SQLIndexingService(IndexingService):
 
         if len(cs_receipts) > 0:
             return cs_receipts[0]
-        else:
-            return None
+
+        return None
 
     def _fail_if_indexing_stale(self):
         """
@@ -332,3 +307,22 @@ class SQLIndexingService(IndexingService):
                     receipt["setCid"] = set_cids[key]
 
         return cs_receipts
+
+    def find_matching_user_sets(
+        self,
+        objects: list[ObjectAtTime],
+        as_of: pd.Timestamp | int | None = None,
+    ) -> list[SetCandidate]:
+        """
+        Find the best sets that approximately match the query objects.
+        Args:
+            objects (list[ObjectAtTime]): List of objects with timestamps.
+            as_of (pd.Timestamp | int | None): Optional as_of timestamp.
+        Returns:
+            list[SetCandidate]: List of candidate sets matching the criteria.
+        """
+        criteria = SetMatchingCriteria(
+            objects=objects,
+            as_of=as_of,
+        )
+        return self.best_match_service.find_matching_user_sets(criteria)
