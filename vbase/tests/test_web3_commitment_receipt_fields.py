@@ -1,7 +1,8 @@
-"""Tests for Web3 commitment receipt fields (userAddress, setCid).
+"""Tests for Web3 commitment receipt fields (userAddress, setCid, chainId).
 
 Verify that _add_object_worker and _add_set_object_worker return commitment
-logs with userAddress and (for set) setCid, without requiring a live node.
+logs with userAddress and (for set) setCid, and that add_object/add_set_object
+in HTTP and forwarder services include chainId.
 """
 
 import unittest
@@ -10,6 +11,8 @@ from unittest.mock import MagicMock, patch
 from hexbytes import HexBytes
 
 from vbase.core.web3_commitment_service import Web3CommitmentService
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 
 
 class _ConcreteCommitmentService(Web3CommitmentService):
@@ -84,12 +87,14 @@ class TestWeb3CommitmentReceiptFields(unittest.TestCase):
             "objectCid": object_cid_bytes,
             "timestamp": timestamp_chain,
         }
-        mock_process_log = MagicMock(return_value={"args": mock_event_args})
+        mock_process_receipt = MagicMock(
+            return_value=[{"args": mock_event_args}]
+        )
 
         with patch.object(
             self.csc.events.AddObject.return_value,
-            "process_log",
-            mock_process_log,
+            "process_receipt",
+            mock_process_receipt,
         ):
             # pylint: disable=protected-access
             cl = self.service._add_object_worker(receipt)
@@ -129,12 +134,12 @@ class TestWeb3CommitmentReceiptFields(unittest.TestCase):
 
         with patch.object(
             self.csc.events.AddSetObject.return_value,
-            "process_log",
-            MagicMock(return_value={"args": add_set_object_args}),
+            "process_receipt",
+            MagicMock(return_value=[{"args": add_set_object_args}]),
         ), patch.object(
             self.csc.events.AddObject.return_value,
-            "process_log",
-            MagicMock(return_value={"args": add_object_args}),
+            "process_receipt",
+            MagicMock(return_value=[{"args": add_object_args}]),
         ):
             # pylint: disable=protected-access
             cl = self.service._add_set_object_worker(receipt)
@@ -143,3 +148,128 @@ class TestWeb3CommitmentReceiptFields(unittest.TestCase):
         self.assertEqual(cl["userAddress"], user_addr)
         self.assertIn("setCid", cl)
         self.assertEqual(cl["setCid"], "0x" + set_cid_bytes.hex())
+
+
+class _TestableWeb3HTTPService(Web3HTTPCommitmentService):
+    """Web3HTTPCommitmentService with injectable w3/csc for unit tests."""
+
+    def __init__(self, w3, csc):
+        self.w3 = w3
+        self.csc = csc
+
+
+class TestCommitmentReceiptChainId(unittest.TestCase):
+    """Test that add_object/add_set_object include chainId in the receipt."""
+
+    def setUp(self):
+        """Set up the tests."""
+        self.w3 = MagicMock()
+        self.csc = MagicMock()
+        self.w3.eth.chain_id = 84532
+        self.service = _TestableWeb3HTTPService(self.w3, self.csc)
+        self._minimal_cl = {
+            "userAddress": "0x1234567890123456789012345678901234567890",
+            "objectCid": "0xab",
+            "timestamp": "2024-01-01 00:00:00",
+            "transactionHash": "0xcd",
+        }
+
+    def test_add_object_includes_chain_id(self):
+        """add_object() must include chainId in the returned receipt."""
+        self.csc.functions.addObject.return_value.transact.return_value = (
+            b"\x00" * 32
+        )
+        self.w3.eth.wait_for_transaction_receipt.return_value = {
+            "status": 1,
+            "logs": [],
+        }
+        with patch.object(
+            self.service,
+            "_add_object_worker",
+            return_value=dict(self._minimal_cl),
+        ):
+            result = self.service.add_object("0xab")
+
+        self.assertIn("chainId", result)
+        self.assertIsInstance(result["chainId"], int)
+        self.assertEqual(result["chainId"], 84532)
+
+    def test_add_set_object_includes_chain_id(self):
+        """add_set_object() must include chainId in the returned receipt."""
+        self.csc.functions.addSetObject.return_value.transact.return_value = (
+            b"\x00" * 32
+        )
+        self.w3.eth.wait_for_transaction_receipt.return_value = {
+            "status": 1,
+            "logs": [],
+        }
+        minimal_set_cl = {**self._minimal_cl, "setCid": "0xef"}
+        with patch.object(
+            self.service,
+            "_add_set_object_worker",
+            return_value=dict(minimal_set_cl),
+        ):
+            result = self.service.add_set_object("0xset", "0xobj")
+
+        self.assertIn("chainId", result)
+        self.assertIsInstance(result["chainId"], int)
+        self.assertEqual(result["chainId"], 84532)
+
+
+class _TestableForwarderService(ForwarderCommitmentService):
+    """ForwarderCommitmentService with injectable _signature_data for tests."""
+
+    def __init__(self, chain_id=84532):
+        self._signature_data = {"domain": {"chainId": chain_id}}
+        self.w3 = MagicMock()
+        self.csc = MagicMock()
+
+
+class TestForwarderCommitmentReceiptChainId(unittest.TestCase):
+    """Test that forwarder add_object/add_set_object include chainId."""
+
+    def setUp(self):
+        """Set up the tests."""
+        self.chain_id = 84532
+        self.service = _TestableForwarderService(chain_id=self.chain_id)
+        self._minimal_cl = {
+            "userAddress": "0x1234567890123456789012345678901234567890",
+            "objectCid": "0xab",
+            "timestamp": "2024-01-01 00:00:00",
+            "transactionHash": "0xcd",
+        }
+
+    def test_add_object_includes_chain_id(self):
+        """add_object() must include chainId from signature domain."""
+        with patch.object(
+            self.service,
+            "_post_execute",
+            return_value={"status": 1, "logs": []},
+        ), patch.object(
+            self.service,
+            "_add_object_worker",
+            return_value=dict(self._minimal_cl),
+        ):
+            result = self.service.add_object("0xab")
+
+        self.assertIn("chainId", result)
+        self.assertIsInstance(result["chainId"], int)
+        self.assertEqual(result["chainId"], self.chain_id)
+
+    def test_add_set_object_includes_chain_id(self):
+        """add_set_object() must include chainId from signature domain."""
+        minimal_set_cl = {**self._minimal_cl, "setCid": "0xef"}
+        with patch.object(
+            self.service,
+            "_post_execute",
+            return_value={"status": 1, "logs": []},
+        ), patch.object(
+            self.service,
+            "_add_set_object_worker",
+            return_value=dict(minimal_set_cl),
+        ):
+            result = self.service.add_set_object("0xset", "0xobj")
+
+        self.assertIn("chainId", result)
+        self.assertIsInstance(result["chainId"], int)
+        self.assertEqual(result["chainId"], self.chain_id)
