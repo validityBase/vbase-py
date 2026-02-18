@@ -151,12 +151,14 @@ class Web3CommitmentService(CommitmentService, ABC):
         self._check_tx_success(receipt)
 
         # AddObject event should always be emitted on success.
-
-        # On some chains other events may be emitted, such as LogFeeTransfer.
-        # Return the AddSet event data from the 1st event.
-        event_data = self.csc.events.AddObject().process_log(receipt["logs"][0])
-
-        cl = dict(event_data["args"])
+        # On some chains other events may be emitted (e.g. LogFeeTransfer), so
+        # locate AddObject by scanning the receipt instead of assuming logs[0].
+        add_object_events = self.csc.events.AddObject().process_receipt(receipt)
+        if not add_object_events:
+            raise RuntimeError("AddObject event not found in receipt")
+        event_data = add_object_events[0]
+        args = event_data["args"] if "args" in event_data else event_data.args
+        cl = dict(args)
         # Convert bytestring to string
         # to allow serialization for the upper layers.
         cl["objectCid"] = bytes_to_hex_str(cl["objectCid"])
@@ -164,6 +166,9 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
+        # Expose committer as userAddress for API consumers (e.g. Django).
+        if "user" in cl:
+            cl["userAddress"] = str(cl["user"])
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -178,15 +183,27 @@ class Web3CommitmentService(CommitmentService, ABC):
 
         # Events should always be emitted on success.
 
-        # The call emits the following events:
-        # AddSetObject(user, setCid, objectCid, timestamp)
-        # AddObject(user, objectCid, timestamp)
-        # On some chains other events may be emitted, such as LogFeeTransfer.
-        # Return the object commitment log from the 2nd event.
-        event_data = self.csc.events.AddObject().process_log(receipt["logs"][1])
+        # The call emits AddSetObject and AddObject; on some chains other events
+        # (e.g. LogFeeTransfer) may be emitted, so locate by scanning the receipt.
+        add_set_object_events = self.csc.events.AddSetObject().process_receipt(
+            receipt
+        )
+        add_object_events = self.csc.events.AddObject().process_receipt(receipt)
+        if not add_set_object_events or not add_object_events:
+            raise RuntimeError(
+                "AddSetObject or AddObject event not found in receipt"
+            )
+        add_set_object_event = add_set_object_events[0]
+        event_data = add_object_events[0]
+        args = event_data["args"] if "args" in event_data else event_data.args
+        add_set_args = (
+            add_set_object_event["args"]
+            if "args" in add_set_object_event
+            else add_set_object_event.args
+        )
 
         # Prepare the commitment log using the returned event data.
-        cl = dict(event_data["args"])
+        cl = dict(args)
         # Convert bytestring to string
         # to allow serialization for the upper layers.
         cl["objectCid"] = bytes_to_hex_str(cl["objectCid"])
@@ -194,6 +211,11 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
+        # Expose committer as userAddress for API consumers (e.g. Django).
+        if "user" in cl:
+            cl["userAddress"] = str(cl["user"])
+        # Include setCid from AddSetObject event for stamp-with-collection responses.
+        cl["setCid"] = bytes_to_hex_str(add_set_args["setCid"])
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl

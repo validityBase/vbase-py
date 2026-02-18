@@ -199,7 +199,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         _LOG.debug("Sending transaction to addObject")
         tx_hash = self.csc.functions.addObject(object_cid).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_object_worker(receipt)
+        cl = self._add_object_worker(receipt)
+        cl["chainId"] = self.w3.eth.chain_id
+        return cl
 
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
         return self.csc.functions.verifyUserObject(
@@ -217,7 +219,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             object_cid,
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_set_object_worker(receipt)
+        cl = self._add_set_object_worker(receipt)
+        cl["chainId"] = self.w3.eth.chain_id
+        return cl
 
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
