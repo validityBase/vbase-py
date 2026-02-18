@@ -70,7 +70,7 @@ class CommitmentService(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_named_set_cid(self, name: str) -> str:
+    def get_named_set_cid(name: str) -> str:
         """Returns a hash corresponding to a set name.
         Abstracts the hashing implementation from the upper layers
 
