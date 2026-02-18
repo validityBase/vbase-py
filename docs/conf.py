@@ -6,6 +6,12 @@
 import os
 import sys
 
+from sphinx_markdown_builder.translator import (
+    MarkdownTranslator as MarkdownTranslatorBase,
+    TitleContext,
+    pushing_context,
+)
+
 sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
@@ -40,3 +46,20 @@ markdown_builder_options = {
 # for h1 and h2 level headings
 # (corresponding to #, ## in markdown).
 myst_heading_anchors = 2
+
+
+class CustomMarkdownTranslator(MarkdownTranslatorBase):
+    """Override desc headings for markdown output."""
+
+    @pushing_context
+    def visit_desc_signature(self, node):
+        if self.config.markdown_anchor_signatures:
+            for anchor in node.get("ids", []):
+                self._add_anchor(anchor)
+
+        h_level = 3 if node.get("class", None) else 2
+        self._push_context(TitleContext(h_level))
+
+
+def setup(app):
+    app.set_translator("markdown", CustomMarkdownTranslator)
