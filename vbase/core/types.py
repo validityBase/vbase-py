@@ -64,7 +64,7 @@ class SetMatchingCriteria:
 
 
 @dataclass
-class SetMatchingSericeConfig:
+class SetMatchingServiceConfig:
     """
     Configuration for set matching strategies.
 

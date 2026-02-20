@@ -1,5 +1,27 @@
 """
-Matching strategies for finding best candidate sets.
+Set matching strategies for identifying on-chain committed datasets that best
+correspond to a caller-supplied list of (object_cid, timestamp) pairs.
+
+Background
+----------
+vBase users commit individual data objects to the blockchain, grouping them into
+named "sets" (datasets). A common analytics need is the reverse lookup: given a
+snapshot of objects observed at particular times — for example, the holdings of a
+portfolio at a specific date — find which previously-committed on-chain set most
+closely matches that snapshot in both content and timing.
+
+This module provides that reverse-lookup capability.
+
+Usage
+-----
+`SetMatchingService` is the default implementation and is instantiated automatically
+by `SQLIndexingService`. Callers that need non-standard matching behaviour (e.g.
+stricter timestamp tolerances, alternative scoring) can subclass `BaseMatchingService`
+and pass an instance to `SQLIndexingService(matching_service=...)`.
+
+The primary entry point is `SQLIndexingService.find_matching_user_sets()`, which
+wraps `SetMatchingCriteria` construction and delegates to the matching service.
+Direct use of `SetMatchingService` is only needed in tests or custom integrations.
 """
 
 from __future__ import annotations
@@ -15,12 +37,12 @@ from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
-from ..models import event_add_set_object
-from ..types import (
+from .models import event_add_set_object
+from .types import (
     ObjectAtTime,
     SetCandidate,
     SetMatchingCriteria,
-    SetMatchingSericeConfig,
+    SetMatchingServiceConfig,
 )
 
 
@@ -52,7 +74,13 @@ class BucketItem:
 
 
 class BaseMatchingService(ABC):
-    """Base class for matching strategies."""
+    """
+    Abstract base class for set matching strategies.
+
+    Subclass this to implement alternative matching logic (e.g. stricter
+    timestamp tolerances, weighted scoring, or a non-SQL data source) and
+    pass the instance to SQLIndexingService(matching_service=...).
+    """
 
     @abstractmethod
     def find_matching_user_sets(
@@ -60,11 +88,14 @@ class BaseMatchingService(ABC):
         criteria: SetMatchingCriteria,
     ) -> list[SetCandidate]:
         """
-        Find the best candidate sets based on the provided criteria.
+        Find committed sets that best match the provided object/timestamp criteria.
+
         Args:
-            criteria (SetMatchingCriteria): Criteria for matching user sets.
+            criteria: Query objects with timestamps, and an optional as_of cutoff.
         Returns:
-            The user sets that match an ordered list of objects sorted in the decreasing order of match quality (similarity) to the object list.
+            Matching sets ordered by descending similarity score, then ascending
+            creation time. Score is the fraction of query objects that have a
+            committed counterpart within the configured timestamp tolerance.
         """
         pass
 
@@ -98,15 +129,33 @@ class BaseMatchingService(ABC):
 
 
 class SetMatchingService(BaseMatchingService):
-    """Set matching service implementation using SQL database."""
+    """
+    SQL-backed implementation of BaseMatchingService.
+
+    Matching algorithm (multi-phase):
+    1. Probe: find all (set_cid, user) pairs that share at least one object_cid
+       with the query, optionally filtered by an as_of timestamp cutoff.
+    2. Load: fetch the full event records for those candidate pairs, restricted
+       to the query's object_cids, with each row annotated with its set's
+       creation time via a window function.
+    3. Bucket: group events by (set_cid, user) and sort per-object timestamp
+       lists for binary search.
+    4. Score: for each query object, check whether a candidate set committed
+       that object within max_timestamp_diff of the query timestamp. Score is
+       matched_count / len(query_objects).
+    5. Return candidates sorted by descending score, then ascending creation time.
+
+    Configure timestamp tolerance via SetMatchingServiceConfig.max_timestamp_diff
+    (default: 1 day).
+    """
 
     def __init__(
         self,
         db_engine: Engine,
-        config: SetMatchingSericeConfig | None = None,
+        config: SetMatchingServiceConfig | None = None,
     ):
         self.db_engine = db_engine
-        self.config = config or SetMatchingSericeConfig()
+        self.config = config or SetMatchingServiceConfig()
 
     @staticmethod
     def _prepare_query_objects(

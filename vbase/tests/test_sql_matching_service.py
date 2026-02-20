@@ -5,12 +5,9 @@ from typing import Union
 import pandas as pd
 from sqlmodel import Session, SQLModel, create_engine
 
-from vbase.core.set_matching_service import (
-    SetMatchingCriteria,
-    SetMatchingSericeConfig,
-    SetMatchingService,
-)
-from vbase.core.sql_indexing_service import ObjectAtTime, event_add_set_object
+from vbase.core.set_matching_service import SetMatchingService
+from vbase.core.sql_indexing_service import event_add_set_object
+from vbase.core.types import ObjectAtTime, SetMatchingCriteria, SetMatchingServiceConfig
 
 
 def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
@@ -65,7 +62,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
         SQLModel.metadata.create_all(self.engine)
         self.service = SetMatchingService(
             self.engine,
-            config=SetMatchingSericeConfig(max_timestamp_diff=pd.Timedelta(days=1)),
+            config=SetMatchingServiceConfig(max_timestamp_diff=pd.Timedelta(days=1)),
         )
 
     def _insert_data(self, data):
