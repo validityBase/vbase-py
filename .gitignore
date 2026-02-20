@@ -50,3 +50,6 @@ nosetests.xml
 # Sphinx
 docs/_*
 docs/generated/
+
+# Claude Code local settings
+.claude/settings.local.json

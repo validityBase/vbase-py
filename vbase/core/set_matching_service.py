@@ -15,12 +15,12 @@ from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
-from ..models import event_add_set_object
-from ..types import (
+from .models import event_add_set_object
+from .types import (
     ObjectAtTime,
     SetCandidate,
     SetMatchingCriteria,
-    SetMatchingSericeConfig,
+    SetMatchingServiceConfig,
 )
 
 
@@ -103,10 +103,10 @@ class SetMatchingService(BaseMatchingService):
     def __init__(
         self,
         db_engine: Engine,
-        config: SetMatchingSericeConfig | None = None,
+        config: SetMatchingServiceConfig | None = None,
     ):
         self.db_engine = db_engine
-        self.config = config or SetMatchingSericeConfig()
+        self.config = config or SetMatchingServiceConfig()
 
     @staticmethod
     def _prepare_query_objects(
