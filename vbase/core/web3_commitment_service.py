@@ -153,7 +153,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         # AddObject event should always be emitted on success.
 
         # On some chains other events may be emitted, such as LogFeeTransfer.
-        # Return the AddSet event data from the 1st event.
+        # Return the AddObject event data from the 1st event.
         event_data = self.csc.events.AddObject().process_log(receipt["logs"][0])
 
         cl = dict(event_data["args"])
@@ -164,6 +164,9 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
+        # Expose committer as userAddress for API consumers (e.g. Django).
+        if "user" in cl:
+            cl["userAddress"] = str(cl["user"])
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -184,6 +187,9 @@ class Web3CommitmentService(CommitmentService, ABC):
         # On some chains other events may be emitted, such as LogFeeTransfer.
         # Return the object commitment log from the 2nd event.
         event_data = self.csc.events.AddObject().process_log(receipt["logs"][1])
+        add_set_object_event = self.csc.events.AddSetObject().process_log(
+            receipt["logs"][0]
+        )
 
         # Prepare the commitment log using the returned event data.
         cl = dict(event_data["args"])
@@ -194,6 +200,11 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
+        # Expose committer as userAddress for API consumers (e.g. Django).
+        if "user" in cl:
+            cl["userAddress"] = str(cl["user"])
+        # Include setCid from AddSetObject event for stamp-with-collection responses.
+        cl["setCid"] = bytes_to_hex_str(add_set_object_event["args"]["setCid"])
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl

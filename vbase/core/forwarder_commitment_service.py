@@ -404,7 +404,9 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addObject",
             args=[object_cid],
         )
-        return self._add_object_worker(receipt)
+        cl = self._add_object_worker(receipt)
+        cl["chainId"] = self._signature_data["domain"]["chainId"]
+        return cl
 
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
         user = self.w3.to_checksum_address(user)
@@ -426,7 +428,9 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addSetObject",
             args=[set_cid, object_cid],
         )
-        return self._add_set_object_worker(receipt)
+        cl = self._add_set_object_worker(receipt)
+        cl["chainId"] = self._signature_data["domain"]["chainId"]
+        return cl
 
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
