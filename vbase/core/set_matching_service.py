@@ -37,7 +37,7 @@ from sqlalchemy import func, tuple_
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
-from .models import event_add_set_object
+from .models import EventAddSetObject
 from .types import (
     ObjectAtTime,
     SetCandidate,
@@ -174,12 +174,12 @@ class SetMatchingService(BaseMatchingService):
     ) -> set[tuple[str, str]]:
         """Find (set_cid, user) pairs that contain any queried object."""
         probe_stmt = select(
-            event_add_set_object.set_cid,
-            event_add_set_object.user,
-        ).where(event_add_set_object.object_cid.in_(query_cids))
+            EventAddSetObject.set_cid,
+            EventAddSetObject.user,
+        ).where(EventAddSetObject.object_cid.in_(query_cids))
 
         if as_of_unix is not None:
-            probe_stmt = probe_stmt.where(event_add_set_object.timestamp <= as_of_unix)
+            probe_stmt = probe_stmt.where(EventAddSetObject.timestamp <= as_of_unix)
 
         return {(r.set_cid, r.user) for r in session.exec(probe_stmt).all()}
 
@@ -190,34 +190,34 @@ class SetMatchingService(BaseMatchingService):
         query_cids: set[str],
         as_of_unix: int | None,
     ) -> list:
-        """Load event_add_set_object records matching candidate (set_cid, user) pairs"""
+        """Load EventAddSetObject records matching candidate (set_cid, user) pairs"""
         load_stmt = (
             select(
-                event_add_set_object.set_cid,
-                event_add_set_object.user,
-                event_add_set_object.object_cid,
-                event_add_set_object.timestamp,
-                func.min(event_add_set_object.timestamp)
+                EventAddSetObject.set_cid,
+                EventAddSetObject.user,
+                EventAddSetObject.object_cid,
+                EventAddSetObject.timestamp,
+                func.min(EventAddSetObject.timestamp)
                 .over(
                     partition_by=(
-                        event_add_set_object.set_cid,
-                        event_add_set_object.user,
+                        EventAddSetObject.set_cid,
+                        EventAddSetObject.user,
                     )
                 )
                 .label("created_at"),
             )
             .where(
                 tuple_(
-                    event_add_set_object.set_cid,
-                    event_add_set_object.user,
+                    EventAddSetObject.set_cid,
+                    EventAddSetObject.user,
                 ).in_(candidate_keys)
             )
-            .where(event_add_set_object.object_cid.in_(query_cids))
-            .order_by(event_add_set_object.timestamp)
+            .where(EventAddSetObject.object_cid.in_(query_cids))
+            .order_by(EventAddSetObject.timestamp)
         )
 
         if as_of_unix is not None:
-            load_stmt = load_stmt.where(event_add_set_object.timestamp <= as_of_unix)
+            load_stmt = load_stmt.where(EventAddSetObject.timestamp <= as_of_unix)
 
         return session.exec(load_stmt).all()
 

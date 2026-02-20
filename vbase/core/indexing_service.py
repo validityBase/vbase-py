@@ -53,7 +53,8 @@ class IndexingService(ABC):
     def create_instance_from_env_json_descriptor(
         dotenv_path: Union[str, None] = None
     ) -> "IndexingService":
-        """Creates an instance initialized from an environment variable containing a JSON descriptor.
+        """Creates an instance initialized from an environment variable
+        containing a JSON descriptor.
         Syntactic sugar for initializing a new indexing service object using settings
         stored in a .env file or in environment variables.
         This method is especially useful for constructing complex

@@ -1,3 +1,5 @@
+"""Tests for AggregateIndexingService."""
+
 import unittest
 from unittest.mock import create_autospec
 
@@ -6,6 +8,8 @@ from vbase.core.indexing_service import IndexingService
 
 
 class TestAggregateIndexingService(unittest.TestCase):
+    """Unit tests for AggregateIndexingService."""
+
     def setUp(self):
         self.service1 = create_autospec(IndexingService)
         self.service2 = create_autospec(IndexingService)
@@ -14,6 +18,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         )
 
     def test_find_user_sets_aggregates_and_deduplicates(self):
+        """Results from all services are merged and deduplicated by transactionHash."""
         user = "alice"
         result1 = [
             {"transactionHash": "tx1", "data": 1},
@@ -32,6 +37,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(len(result), 3)
 
     def test_find_user_objects_aggregates_and_deduplicates(self):
+        """Object results from all services are merged and deduplicated by transactionHash."""
         user = "bob"
         self.service1.find_user_objects.return_value = [{"transactionHash": "a"}]
         self.service2.find_user_objects.return_value = [
@@ -44,6 +50,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(len(result), 2)
 
     def test_find_user_set_objects_aggregates_and_deduplicates(self):
+        """Set-object results from all services are merged and deduplicated by transactionHash."""
         user = "bob"
         set_cid = "set1"
         self.service1.find_user_set_objects.return_value = [{"transactionHash": "x"}]
@@ -57,6 +64,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(len(result), 2)
 
     def test_find_last_user_set_object_returns_latest(self):
+        """Returns the object with the highest timestamp across all services."""
         user = "alice"
         set_cid = "set2"
         obj1 = {"timestamp": 100, "transactionHash": "t1"}
@@ -67,6 +75,8 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(result, obj2)
 
     def test_find_objects_aggregates_and_deduplicates(self):
+        """Object lookup results from all services are merged
+        and deduplicated by transactionHash."""
         cids = ["cid1", "cid2"]
         self.service1.find_objects.return_value = [
             {"transactionHash": "h1"},
@@ -82,6 +92,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(len(result), 3)
 
     def test_find_object_returns_first_non_empty(self):
+        """Returns the result from the first service that has a non-empty response."""
         cid = "cid1"
         self.service1.find_object.return_value = []
         self.service2.find_object.return_value = [{"transactionHash": "h1"}]
@@ -89,6 +100,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(result, [{"transactionHash": "h1"}])
 
     def test_find_object_returns_empty_if_all_empty(self):
+        """Returns an empty list when all services return empty results."""
         cid = "cid2"
         self.service1.find_object.return_value = []
         self.service2.find_object.return_value = []
@@ -96,6 +108,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_find_last_object_returns_latest(self):
+        """Returns the object with the highest timestamp across all services."""
         cid = "cid3"
         obj1 = {"timestamp": 10, "transactionHash": "a"}
         obj2 = {"timestamp": 20, "transactionHash": "b"}
@@ -105,6 +118,7 @@ class TestAggregateIndexingService(unittest.TestCase):
         self.assertEqual(result, obj2)
 
     def test_find_last_object_returns_none_if_all_none(self):
+        """Returns None when all services return None."""
         cid = "cid4"
         self.service1.find_last_object.return_value = None
         self.service2.find_last_object.return_value = None
