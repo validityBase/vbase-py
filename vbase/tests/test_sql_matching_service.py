@@ -1,3 +1,5 @@
+"""Tests for SetMatchingService set matching strategies."""
+
 import datetime
 import unittest
 from typing import Union
@@ -5,8 +7,8 @@ from typing import Union
 import pandas as pd
 from sqlmodel import Session, SQLModel, create_engine
 
+from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching_service import SetMatchingService
-from vbase.core.sql_indexing_service import event_add_set_object
 from vbase.core.types import ObjectAtTime, SetMatchingCriteria, SetMatchingServiceConfig
 
 
@@ -50,11 +52,14 @@ T0 = "2024-01-01 12:00:00+00:00"
 
 
 def assert_matches(results, expected):
+    """Assert that results contain exactly the (user, set_cid) pairs in expected."""
     actual = {(r.user, r.set_cid) for r in results}
     assert actual == expected
 
 
 class TestSetMatchingStrategy(unittest.TestCase):
+    """Unit tests for SetMatchingService.find_matching_user_sets."""
+
     def setUp(self):
         db_url = "sqlite:///file::memory:?cache=shared"
         self.engine = create_engine(db_url)
@@ -69,7 +74,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
         with Session(self.engine) as session:
             for item in data:
                 session.add(
-                    event_add_set_object(
+                    EventAddSetObject(
                         id=item["id"],
                         user=item["user"],
                         set_cid=item["set_cid"],
@@ -85,6 +90,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 1. Same number of records (N ↔ N)
     # ------------------------------------------------------------
     def test_same_number_of_records(self):
+        """Query with N objects matches a set with exactly N committed objects."""
         self._insert_data(
             [
                 {
@@ -110,6 +116,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 2. One extra record (N ↔ N+1)
     # ------------------------------------------------------------
     def test_plus_one_record(self):
+        """Query with N objects matches a set that has committed N+1 objects."""
         self._insert_data(
             [
                 {
@@ -142,6 +149,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 3. One missing record (N ↔ N−1)
     # ------------------------------------------------------------
     def test_minus_one_record(self):
+        """Query with N objects still matches a set that committed only N-1 of them."""
         self._insert_data(
             [
                 {
@@ -170,6 +178,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 4. Single user, timestamp drift, multiple sets
     # ------------------------------------------------------------
     def test_single_user_timestamp_drift_multiple_sets(self):
+        """Selects the set whose committed timestamp is closest to the query timestamp."""
         self._insert_data(
             [
                 {
@@ -202,6 +211,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 5. Multiple users, timestamp drift, multiple sets
     # ------------------------------------------------------------
     def test_multiple_users_timestamp_drift_multiple_sets(self):
+        """Selects the set across multiple users with the closest timestamp match."""
         self._insert_data(
             [
                 {
@@ -234,6 +244,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 6. Multiple users, drift, multiple sets, different counts
     # ------------------------------------------------------------
     def test_multiple_users_multiple_sets_different_counts(self):
+        """Scores are compared across users; the set with the better match ratio wins."""
         self._insert_data(
             [
                 {
@@ -280,6 +291,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 7. as_of filters out future records
     # ------------------------------------------------------------
     def test_as_of_filters_future_records(self):
+        """Records committed after as_of are excluded from matching."""
         self._insert_data(
             [
                 {
@@ -312,6 +324,7 @@ class TestSetMatchingStrategy(unittest.TestCase):
     # 8. Not found
     # ------------------------------------------------------------
     def test_not_found(self):
+        """Returns an empty list when no committed object matches the query."""
         self._insert_data(
             [
                 {

@@ -3,7 +3,9 @@
 from sqlmodel import Field, SQLModel
 
 
-class event_add_object(SQLModel, table=True):
+class EventAddObject(SQLModel, table=True):
+    """ORM model for the event_add_object table, recording per-object commitment events."""
+
     __tablename__ = "event_add_object"
     id: str = Field(primary_key=True, index=True)
     user: str = Field(index=False)
@@ -13,7 +15,9 @@ class event_add_object(SQLModel, table=True):
     timestamp: int = Field(index=False)
 
 
-class event_add_set_object(SQLModel, table=True):
+class EventAddSetObject(SQLModel, table=True):
+    """ORM model for the event_add_set_object table, linking objects to their containing sets."""
+
     __tablename__ = "event_add_set_object"
     id: str = Field(primary_key=True, index=True)
     user: str = Field(index=False)
@@ -24,7 +28,9 @@ class event_add_set_object(SQLModel, table=True):
     timestamp: int = Field(index=False)
 
 
-class event_add_set(SQLModel, table=True):
+class EventAddSet(SQLModel, table=True):
+    """ORM model for the event_add_set table, recording set creation events."""
+
     __tablename__ = "event_add_set"
     id: str = Field(primary_key=True, index=True)
     user: str = Field(index=False)
@@ -34,7 +40,9 @@ class event_add_set(SQLModel, table=True):
     timestamp: int = Field(index=False)
 
 
-class last_batch_processing_time(SQLModel, table=True):
+class LastBatchProcessingTime(SQLModel, table=True):
+    """ORM model for the last_batch_processing_time table, tracking indexer heartbeat."""
+
     __tablename__ = "last_batch_processing_time"
     id: str = Field(primary_key=True, index=True)
     timestamp: int = Field(index=False)

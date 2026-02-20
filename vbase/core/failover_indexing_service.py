@@ -1,3 +1,5 @@
+"""Failover indexing service that tries multiple services in sequence."""
+
 import logging
 
 from vbase.core.indexing_service import IndexingService

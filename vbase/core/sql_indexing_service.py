@@ -1,6 +1,6 @@
 """SQL indexing service implementation."""
 
-from typing import Any, List, Union
+from typing import List, Union
 
 import pandas as pd
 from sqlmodel import Session, create_engine, select
@@ -8,10 +8,10 @@ from sqlmodel import Session, create_engine, select
 from vbase.core.indexing_service import IndexingService
 
 from .models import (
-    event_add_object,
-    event_add_set,
-    event_add_set_object,
-    last_batch_processing_time,
+    EventAddObject,
+    EventAddSet,
+    EventAddSetObject,
+    LastBatchProcessingTime,
 )
 from .set_matching_service import BaseMatchingService, SetMatchingService
 from .types import ObjectAtTime, SetCandidate, SetMatchingCriteria
@@ -61,9 +61,9 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set)
-                .where(event_add_set.user == user)
-                .order_by(event_add_set.timestamp)
+                select(EventAddSet)
+                .where(EventAddSet.user == user)
+                .order_by(EventAddSet.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -80,7 +80,7 @@ class SQLIndexingService(IndexingService):
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """
-        find all event_add_object for a user.
+        Find all EventAddObject records for a user.
         """
 
         # lowercase the user to match the db
@@ -91,9 +91,9 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.user == user)
-                .order_by(event_add_object.timestamp)
+                select(EventAddObject)
+                .where(EventAddObject.user == user)
+                .order_by(EventAddObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -124,12 +124,12 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set_object)
+                select(EventAddSetObject)
                 .where(
-                    event_add_set_object.user == user,
-                    event_add_set_object.set_cid == set_cid,
+                    EventAddSetObject.user == user,
+                    EventAddSetObject.set_cid == set_cid,
                 )
-                .order_by(event_add_set_object.timestamp)
+                .order_by(EventAddSetObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -158,12 +158,12 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set_object)
+                select(EventAddSetObject)
                 .where(
-                    event_add_set_object.user == user,
-                    event_add_set_object.set_cid == set_cid,
+                    EventAddSetObject.user == user,
+                    EventAddSetObject.set_cid == set_cid,
                 )
-                .order_by(event_add_set_object.timestamp.desc())
+                .order_by(EventAddSetObject.timestamp.desc())
             )
             event = session.exec(statement).first()
             if event:
@@ -190,9 +190,9 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.object_cid.in_(object_cids))
-                .order_by(event_add_object.timestamp)
+                select(EventAddObject)
+                .where(EventAddObject.object_cid.in_(object_cids))
+                .order_by(EventAddObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -228,9 +228,9 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.object_cid == object_cid)
-                .order_by(event_add_object.timestamp.desc())
+                select(EventAddObject)
+                .where(EventAddObject.object_cid == object_cid)
+                .order_by(EventAddObject.timestamp.desc())
             )
             event = session.exec(statement).first()
             if event:
@@ -258,8 +258,8 @@ class SQLIndexingService(IndexingService):
         Raises an exception if the indexing is stale.
         """
         with Session(self.db_engine) as session:
-            statement = select(last_batch_processing_time).order_by(
-                last_batch_processing_time.timestamp.desc()
+            statement = select(LastBatchProcessingTime).order_by(
+                LastBatchProcessingTime.timestamp.desc()
             )
             last_batch = session.exec(statement).first()
             if last_batch is None:
@@ -273,7 +273,9 @@ class SQLIndexingService(IndexingService):
                 current_time - last_time
             ).total_seconds() > self.indexing_stale_threshold_seconds:
                 raise Exception(
-                    f"Indexing is stale. Last batch processing time: {last_time} by {last_batch.id}, current time: {current_time}. "
+                    f"Indexing is stale. "
+                    f"Last batch processing time: {last_time} by {last_batch.id}, "
+                    f"current time: {current_time}. "
                     f"Stale threshold: {self.indexing_stale_threshold_seconds} seconds."
                 )
 
@@ -299,8 +301,8 @@ class SQLIndexingService(IndexingService):
         for i in range(0, len(object_cids), batch_size):
             batch_cids = object_cids[i : i + batch_size]
             with Session(self.db_engine) as session:
-                statement = select(event_add_set_object).where(
-                    event_add_set_object.object_cid.in_(batch_cids)
+                statement = select(EventAddSetObject).where(
+                    EventAddSetObject.object_cid.in_(batch_cids)
                 )
                 events = session.exec(statement).all()
                 set_cids = {

@@ -1,3 +1,5 @@
+"""Tests for FailoverIndexingService."""
+
 import unittest
 from unittest.mock import create_autospec
 
@@ -6,6 +8,8 @@ from vbase.core.indexing_service import IndexingService
 
 
 class TestFailoverIndexingService(unittest.TestCase):
+    """Unit tests for FailoverIndexingService."""
+
     def setUp(self):
         # Create two mock services
         self.service1 = create_autospec(IndexingService)
@@ -13,6 +17,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.failover_service = FailoverIndexingService([self.service1, self.service2])
 
     def test_find_user_sets_success_first_service(self):
+        """Returns the result from the first service when it succeeds."""
         self.service1.find_user_sets.return_value = [{"id": 1}]
         result = self.failover_service.find_user_sets("user1")
         self.assertEqual(result, [{"id": 1}])
@@ -20,6 +25,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.service2.find_user_sets.assert_not_called()
 
     def test_find_user_sets_failover_to_second_service(self):
+        """Falls back to the second service when the first raises an exception."""
         self.service1.find_user_sets.side_effect = Exception("fail")
         self.service2.find_user_sets.return_value = [{"id": 2}]
         result = self.failover_service.find_user_sets("user2")
@@ -28,6 +34,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.service2.find_user_sets.assert_called_once_with("user2")
 
     def test_find_user_sets_all_services_fail(self):
+        """Raises an exception with 'All services failed' when every service fails."""
         self.service1.find_user_sets.side_effect = Exception("fail1")
         self.service2.find_user_sets.side_effect = Exception("fail2")
         with self.assertRaises(Exception) as cm:
@@ -35,18 +42,21 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.assertIn("All services failed", str(cm.exception))
 
     def test_find_user_objects(self):
+        """Delegates to the first available service for find_user_objects."""
         self.service1.find_user_objects.return_value = [{"obj": "a"}]
         result = self.failover_service.find_user_objects("userX")
         self.assertEqual(result, [{"obj": "a"}])
         self.service1.find_user_objects.assert_called_once_with("userX", False)
 
     def test_find_user_set_objects(self):
+        """Delegates to the first available service for find_user_set_objects."""
         self.service1.find_user_set_objects.return_value = {"set": "abc"}
         result = self.failover_service.find_user_set_objects("userY", "set123")
         self.assertEqual(result, {"set": "abc"})
         self.service1.find_user_set_objects.assert_called_once_with("userY", "set123")
 
     def test_find_last_user_set_object(self):
+        """Delegates to the first available service for find_last_user_set_object."""
         self.service1.find_last_user_set_object.return_value = {"last": "obj"}
         result = self.failover_service.find_last_user_set_object("userZ", "set456")
         self.assertEqual(result, {"last": "obj"})
@@ -55,6 +65,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         )
 
     def test_find_object_failover(self):
+        """Falls back to the second service for find_object when the first fails."""
         self.service1.find_object.side_effect = Exception("fail")
         self.service2.find_object.return_value = {"cid": "c2"}
         result = self.failover_service.find_object("c2", return_set_cids=False)

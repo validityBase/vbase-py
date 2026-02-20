@@ -1,3 +1,5 @@
+"""Aggregate indexing service that fans out queries across multiple services."""
+
 import concurrent.futures
 import logging
 
@@ -78,7 +80,8 @@ class AggregateIndexingService(IndexingService):
         return latest
 
     def find_last_user_set_object(self, user: str, set_cid: str) -> dict | None:
-        """Aggregate the last user set object from all services, returning the one with the latest timestamp."""
+        """Aggregate the last user set object from all services,
+        returning the one with the latest timestamp."""
         all_results = self._execute_with_aggregation(
             "find_last_user_set_object", user, set_cid
         )
@@ -102,7 +105,8 @@ class AggregateIndexingService(IndexingService):
         return []  # Return an empty list if no results found
 
     def find_last_object(self, object_cid: str, return_set_cid=False) -> dict | None:
-        """Aggregate the last object from all services, returning the one with the latest timestamp."""
+        """Aggregate the last object from all services,
+        returning the one with the latest timestamp."""
         all_results = self._execute_with_aggregation(
             "find_last_object", object_cid, return_set_cid=return_set_cid
         )
