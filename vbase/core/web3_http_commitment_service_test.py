@@ -54,7 +54,9 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
             object_cid, self.convert_timestamp_str_to_chain(timestamp)
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_object_worker(receipt)
+        cl = self._add_object_worker(receipt)
+        cl["chainId"] = self.w3.eth.chain_id
+        return cl
 
     def add_set_object_with_timestamp(
         self, set_cid: str, object_cid: str, timestamp: str
@@ -67,7 +69,9 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
             self.convert_timestamp_str_to_chain(timestamp),
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_set_object_worker(receipt)
+        cl = self._add_set_object_worker(receipt)
+        cl["chainId"] = self.w3.eth.chain_id
+        return cl
 
     def add_sets_objects_with_timestamps_batch(
         self, set_cids: List[str], object_cids: List[str], timestamps: List[str]
