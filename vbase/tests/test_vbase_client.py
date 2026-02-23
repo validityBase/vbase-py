@@ -10,6 +10,24 @@ from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.tests.utils import TEST_HASH1, TEST_HASH2, int_to_hash
 
 
+def _assert_commitment_receipt_fields(cl: dict, expect_set_cid: bool = False):
+    """Assert commitment receipt has userAddress, chainId; optionally setCid (E2E)."""
+    user_addr = cl.get("userAddress") or cl.get("user")
+    assert user_addr, "commitment receipt must have userAddress or user (non-null)"
+    assert isinstance(user_addr, str) and len(user_addr) > 0, (
+        "userAddress must be non-empty string"
+    )
+    chain_id = cl.get("chainId") or cl.get("chain_id")
+    assert chain_id is not None, "commitment receipt must have chainId"
+    assert isinstance(chain_id, int), "chainId must be an int"
+    if expect_set_cid:
+        set_cid = cl.get("setCid") or cl.get("set_cid")
+        assert set_cid is not None, "commitment receipt must have setCid for set object"
+        assert isinstance(set_cid, str) and len(set_cid) > 0, (
+            "setCid must be non-empty string"
+        )
+
+
 class TestVBaseClient(unittest.TestCase):
     """Test base vBase client functionality."""
 
@@ -45,6 +63,7 @@ class TestVBaseClient(unittest.TestCase):
     def test_add_object(self):
         """Test a simple object commitment."""
         cl = self.vbc.add_object(TEST_HASH1)
+        _assert_commitment_receipt_fields(cl, expect_set_cid=False)
         assert self.vbc.verify_user_object(cl["user"], cl["objectCid"], cl["timestamp"])
         # Check bogus timestamp.
         assert not self.vbc.verify_user_object(
@@ -58,6 +77,7 @@ class TestVBaseClient(unittest.TestCase):
     def test_add_set_object(self):
         """Test a simple set object commitment."""
         cl = self.vbc.add_set_object(TEST_HASH1, TEST_HASH2)
+        _assert_commitment_receipt_fields(cl, expect_set_cid=True)
         assert self.vbc.verify_user_object(cl["user"], cl["objectCid"], cl["timestamp"])
         assert self.vbc.verify_user_set_objects(cl["user"], TEST_HASH1, TEST_HASH2)
         # Check bogus hashes.
@@ -93,6 +113,7 @@ class TestVBaseClient(unittest.TestCase):
         cl = self.vbc.add_set_object_with_timestamp(
             TEST_HASH1, TEST_HASH2, pd.Timestamp("2023-01-01")
         )
+        _assert_commitment_receipt_fields(cl, expect_set_cid=True)
         assert self.vbc.verify_user_object(
             cl["user"], TEST_HASH2, pd.Timestamp("2023-01-01")
         )

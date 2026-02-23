@@ -398,6 +398,19 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return bool(int(ret, base=16))
 
+    def _get_chain_id(self) -> int:
+        """Return chainId from signature data; raise if missing or invalid."""
+        if self._signature_data is None:
+            raise ValueError("signature_data is None; cannot get chainId")
+        if not isinstance(self._signature_data, dict):
+            raise ValueError("signature_data is not a dict")
+        if "domain" not in self._signature_data:
+            raise ValueError("signature_data missing 'domain'")
+        domain = self._signature_data["domain"]
+        if "chainId" not in domain:
+            raise ValueError("signature_data['domain'] missing 'chainId'")
+        return int(domain["chainId"])
+
     def add_object(self, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addObject")
         receipt = self._post_execute(
@@ -405,7 +418,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             args=[object_cid],
         )
         cl = self._add_object_worker(receipt)
-        cl["chainId"] = self._signature_data["domain"]["chainId"]
+        cl["chainId"] = self._get_chain_id()
         return cl
 
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
@@ -429,7 +442,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             args=[set_cid, object_cid],
         )
         cl = self._add_set_object_worker(receipt)
-        cl["chainId"] = self._signature_data["domain"]["chainId"]
+        cl["chainId"] = self._get_chain_id()
         return cl
 
     def add_sets_objects_batch(
