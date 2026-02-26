@@ -66,7 +66,8 @@ class Web3CommitmentService(CommitmentService, ABC):
         # and one of the built-in accounts will be used.
         return self.w3.eth.accounts[0]
 
-    def get_named_set_cid(self, name: str) -> str:
+    @staticmethod
+    def get_named_set_cid(name: str) -> str:
         return hash_typed_values(abi_types=["string"], values=[name])
 
     @staticmethod

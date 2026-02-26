@@ -1,57 +1,24 @@
-# flake8: noqa
+"""SQL indexing service implementation."""
 
-from bisect import bisect_left
-from collections import Counter, defaultdict
-from dataclasses import dataclass
 from typing import List, Union
 
 import pandas as pd
-from sqlalchemy import func, tuple_
-from sqlalchemy.engine import Engine
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from vbase.core.indexing_service import IndexingService
 
-# If last update of the node transaction is older than this threshold, indexing is considered stale.
-# All operations of this indexer will fail.
-INDEXING_STALE_THRESHOLD_SECONDS = 30
+from .models import (
+    EventAddObject,
+    EventAddSet,
+    EventAddSetObject,
+    LastBatchProcessingTime,
+)
+from .set_matching_service import BaseMatchingService, SetMatchingService
+from .types import ObjectAtTime, SetCandidate, SetMatchingCriteria
 
-
-class event_add_object(SQLModel, table=True):
-    __tablename__ = "event_add_object"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    object_cid: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class event_add_set_object(SQLModel, table=True):
-    __tablename__ = "event_add_set_object"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    set_cid: str = Field(index=False)
-    object_cid: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class event_add_set(SQLModel, table=True):
-    __tablename__ = "event_add_set"
-    id: str = Field(primary_key=True, index=True)
-    user: str = Field(index=False)
-    set_cid: str = Field(index=False)
-    chain_id: int = Field(index=False)
-    transaction_hash: str = Field(index=False)
-    timestamp: int = Field(index=False)
-
-
-class last_batch_processing_time(SQLModel, table=True):
-    __tablename__ = "last_batch_processing_time"
-    id: str = Field(primary_key=True, index=True)
-    timestamp: int = Field(index=False)
+# Default staleness threshold: if the last indexed batch is older than this, all operations fail.
+# Allow enough time for the indexer container to restart.
+INDEXING_STALE_THRESHOLD_SECONDS = 60
 
 
 class SQLIndexingService(IndexingService):
@@ -59,9 +26,27 @@ class SQLIndexingService(IndexingService):
     Indexing service based on chain indexing data from sql db.
     """
 
-    def __init__(self, db_url: str):
-        # open connection to db
+    def __init__(
+        self,
+        db_url: str,
+        matching_service: BaseMatchingService = None,
+        indexing_stale_threshold_seconds: int = INDEXING_STALE_THRESHOLD_SECONDS,
+    ):
+        """
+        Initialize the SQL indexing service.
+
+        Args:
+            db_url: SQLAlchemy database URL.
+            matching_service: Optional set matching service. Defaults to SetMatchingService.
+            indexing_stale_threshold_seconds: How many seconds old the last indexed batch may be
+                before operations are rejected. Defaults to INDEXING_STALE_THRESHOLD_SECONDS.
+                Some applications are tolerant of stale index data — for example, portfolio
+                analytics that run over historical data and do not require a live index.
+                Pass a larger value or ``math.inf`` (cast to int) to relax this constraint.
+        """
         self.db_engine = create_engine(db_url)
+        self.best_match_service = matching_service or SetMatchingService(self.db_engine)
+        self.indexing_stale_threshold_seconds = indexing_stale_threshold_seconds
 
     def find_user_sets(self, user: str) -> List[dict]:
         """
@@ -76,9 +61,9 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set)
-                .where(event_add_set.user == user)
-                .order_by(event_add_set.timestamp)
+                select(EventAddSet)
+                .where(EventAddSet.user == user)
+                .order_by(EventAddSet.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -95,7 +80,7 @@ class SQLIndexingService(IndexingService):
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """
-        find all event_add_object for a user.
+        Find all EventAddObject records for a user.
         """
 
         # lowercase the user to match the db
@@ -106,9 +91,9 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.user == user)
-                .order_by(event_add_object.timestamp)
+                select(EventAddObject)
+                .where(EventAddObject.user == user)
+                .order_by(EventAddObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -139,12 +124,12 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set_object)
+                select(EventAddSetObject)
                 .where(
-                    event_add_set_object.user == user,
-                    event_add_set_object.set_cid == set_cid,
+                    EventAddSetObject.user == user,
+                    EventAddSetObject.set_cid == set_cid,
                 )
-                .order_by(event_add_set_object.timestamp)
+                .order_by(EventAddSetObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -173,12 +158,12 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_set_object)
+                select(EventAddSetObject)
                 .where(
-                    event_add_set_object.user == user,
-                    event_add_set_object.set_cid == set_cid,
+                    EventAddSetObject.user == user,
+                    EventAddSetObject.set_cid == set_cid,
                 )
-                .order_by(event_add_set_object.timestamp.desc())
+                .order_by(EventAddSetObject.timestamp.desc())
             )
             event = session.exec(statement).first()
             if event:
@@ -205,9 +190,9 @@ class SQLIndexingService(IndexingService):
         cs_receipts = []
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.object_cid.in_(object_cids))
-                .order_by(event_add_object.timestamp)
+                select(EventAddObject)
+                .where(EventAddObject.object_cid.in_(object_cids))
+                .order_by(EventAddObject.timestamp)
             )
             events = session.exec(statement).all()
             cs_receipts = [
@@ -243,9 +228,9 @@ class SQLIndexingService(IndexingService):
 
         with Session(self.db_engine) as session:
             statement = (
-                select(event_add_object)
-                .where(event_add_object.object_cid == object_cid)
-                .order_by(event_add_object.timestamp.desc())
+                select(EventAddObject)
+                .where(EventAddObject.object_cid == object_cid)
+                .order_by(EventAddObject.timestamp.desc())
             )
             event = session.exec(statement).first()
             if event:
@@ -264,8 +249,8 @@ class SQLIndexingService(IndexingService):
 
         if len(cs_receipts) > 0:
             return cs_receipts[0]
-        else:
-            return None
+
+        return None
 
     def _fail_if_indexing_stale(self):
         """
@@ -273,8 +258,8 @@ class SQLIndexingService(IndexingService):
         Raises an exception if the indexing is stale.
         """
         with Session(self.db_engine) as session:
-            statement = select(last_batch_processing_time).order_by(
-                last_batch_processing_time.timestamp.desc()
+            statement = select(LastBatchProcessingTime).order_by(
+                LastBatchProcessingTime.timestamp.desc()
             )
             last_batch = session.exec(statement).first()
             if last_batch is None:
@@ -286,10 +271,12 @@ class SQLIndexingService(IndexingService):
             last_time = pd.Timestamp(int(last_batch.timestamp), unit="ms", tz="UTC")
             if (
                 current_time - last_time
-            ).total_seconds() > INDEXING_STALE_THRESHOLD_SECONDS:
+            ).total_seconds() > self.indexing_stale_threshold_seconds:
                 raise Exception(
-                    f"Indexing is stale. Last batch processing time: {last_time} by {last_batch.id}, current time: {current_time}. "
-                    f"Stale threshold: {INDEXING_STALE_THRESHOLD_SECONDS} seconds."
+                    f"Indexing is stale. "
+                    f"Last batch processing time: {last_time} by {last_batch.id}, "
+                    f"current time: {current_time}. "
+                    f"Stale threshold: {self.indexing_stale_threshold_seconds} seconds."
                 )
 
     def _format_timestamp(self, timestamp) -> str:
@@ -314,8 +301,8 @@ class SQLIndexingService(IndexingService):
         for i in range(0, len(object_cids), batch_size):
             batch_cids = object_cids[i : i + batch_size]
             with Session(self.db_engine) as session:
-                statement = select(event_add_set_object).where(
-                    event_add_set_object.object_cid.in_(batch_cids)
+                statement = select(EventAddSetObject).where(
+                    EventAddSetObject.object_cid.in_(batch_cids)
                 )
                 events = session.exec(statement).all()
                 set_cids = {
@@ -338,178 +325,21 @@ class SQLIndexingService(IndexingService):
 
         return cs_receipts
 
-
-@dataclass(frozen=True)
-class ObjectAtTime:
-    """
-    Object at time structure.
-    """
-
-    object_cid: str
-    timestamp: int
-
-
-@dataclass(frozen=True)
-class SetCandidate:
-    """
-    SetCandidate structure.
-    """
-
-    score: float
-    created_at: int
-    set_cid: str
-    user: str
-
-
-class SqlSetMatchingService:
-    """
-    Finds best-matching collections for a given list of object CIDs
-    """
-
-    DAY_HORIZONT = 24 * 60 * 60
-
-    def __init__(self, db):
-        if isinstance(db, Engine):
-            self.engine = db
-        else:
-            self.engine = create_engine(db)
-
-    def find_best_candidate(
+    def find_matching_user_sets(
         self,
         objects: list[ObjectAtTime],
-        *,
-        as_of: int | None = None,
-        max_timestamp_diff: int = DAY_HORIZONT,
+        as_of: pd.Timestamp | int | None = None,
     ) -> list[SetCandidate]:
         """
-        Matching semantics:
-        - set_cid: exact
-        - user: exact
-        - object_cid: exact
-        - timestamp: abs(diff) <= max_timestamp_diff
+        Find the best sets that approximately match the query objects.
+        Args:
+            objects (list[ObjectAtTime]): List of objects with timestamps.
+            as_of (pd.Timestamp | int | None): Optional as_of timestamp.
+        Returns:
+            list[SetCandidate]: List of candidate sets matching the criteria.
         """
-
-        if not objects:
-            return []
-
-        # ------------------------------------------------------------
-        # PHASE 0: NORMALIZE INPUT
-        # ------------------------------------------------------------
-        objects = sorted(set(objects), key=lambda o: o.timestamp)
-        query_len = len(objects)
-        query_cids = {o.object_cid for o in objects}
-
-        with Session(self.engine) as session:
-
-            # ------------------------------------------------------------
-            # PHASE 1: PROBE (discover candidate sets)
-            # ------------------------------------------------------------
-            probe_stmt = select(
-                event_add_set_object.set_cid,
-                event_add_set_object.user,
-            ).where(event_add_set_object.object_cid.in_(query_cids))
-
-            if as_of is not None:
-                probe_stmt = probe_stmt.where(event_add_set_object.timestamp <= as_of)
-
-            candidate_keys = {
-                (r.set_cid, r.user) for r in session.exec(probe_stmt).all()
-            }
-
-            if not candidate_keys:
-                return []
-
-            # ------------------------------------------------------------
-            # PHASE 2: LOAD ALL CANDIDATE OBJECTS
-            # ------------------------------------------------------------
-            load_stmt = (
-                select(
-                    event_add_set_object.set_cid,
-                    event_add_set_object.user,
-                    event_add_set_object.object_cid,
-                    event_add_set_object.timestamp,
-                    func.min(event_add_set_object.timestamp)
-                    .over(
-                        partition_by=(
-                            event_add_set_object.set_cid,
-                            event_add_set_object.user,
-                        )
-                    )
-                    .label("created_at"),
-                )
-                .where(
-                    tuple_(
-                        event_add_set_object.set_cid,
-                        event_add_set_object.user,
-                    ).in_(candidate_keys)
-                )
-                .where(event_add_set_object.object_cid.in_(query_cids))
-                .order_by(event_add_set_object.timestamp)
-            )
-
-            if as_of is not None:
-                load_stmt = load_stmt.where(event_add_set_object.timestamp <= as_of)
-
-            rows = session.exec(load_stmt).all()
-
-        # ------------------------------------------------------------
-        # PHASE 3: BUILD BUCKETS (ordered timestamps)
-        # ------------------------------------------------------------
-        buckets: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(
-            lambda: defaultdict(list)
+        criteria = SetMatchingCriteria(
+            objects=objects,
+            as_of=as_of,
         )
-
-        created_at: dict[tuple[str, str], int] = {}
-
-        for r in rows:
-            key = (r.set_cid, r.user)
-            ts = self._normalize_ts(r.timestamp)
-            buckets[key][r.object_cid].append(ts)
-            created_at.setdefault(key, self._normalize_ts(r.created_at))
-
-        # ------------------------------------------------------------
-        # PHASE 4: ORDERED MATCHING
-        # ------------------------------------------------------------
-        def has_match(ts_list: list[int], t: int) -> bool:
-            i = bisect_left(ts_list, t)
-
-            if i < len(ts_list) and abs(ts_list[i] - t) <= max_timestamp_diff:
-                return True
-            if i > 0 and abs(ts_list[i - 1] - t) <= max_timestamp_diff:
-                return True
-            return False
-
-        matched_counts: dict[tuple[str, str], int] = defaultdict(int)
-
-        for key, by_object in buckets.items():
-            for q in objects:
-                ts_list = by_object.get(q.object_cid)
-                if ts_list and has_match(ts_list, q.timestamp):
-                    matched_counts[key] += 1
-
-        # ------------------------------------------------------------
-        # PHASE 5: BUILD RESULTS
-        # ------------------------------------------------------------
-        results: list[SetCandidate] = []
-
-        for key, matched in matched_counts.items():
-            score = matched / query_len
-            if score == 0:
-                continue
-
-            set_cid, user = key
-            results.append(
-                SetCandidate(
-                    set_cid=set_cid,
-                    user=user,
-                    score=score,
-                    created_at=created_at[key],
-                )
-            )
-
-        results.sort(key=lambda r: (-r.score, r.created_at))
-        return results
-
-    def _normalize_ts(self, ts: int) -> int:
-        """"""
-        return ts // 1000 if ts > 10_000_000_000 else ts
+        return self.best_match_service.find_matching_user_sets(criteria)

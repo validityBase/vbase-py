@@ -13,8 +13,7 @@ _LOG.setLevel(logging.INFO)
 
 
 class CommitmentService(ABC):
-    """Interface for base commitment operations
-    """
+    """Interface for base commitment operations"""
 
     @staticmethod
     @abstractmethod
@@ -68,8 +67,9 @@ class CommitmentService(ABC):
         :return: The pandas timestamp in string representation.
         """
 
+    @staticmethod
     @abstractmethod
-    def get_named_set_cid(self, name: str) -> str:
+    def get_named_set_cid(name: str) -> str:
         """Returns a hash corresponding to a set name.
         Abstracts the hashing implementation from the upper layers
 

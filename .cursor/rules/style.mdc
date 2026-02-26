@@ -1,0 +1,38 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+- Make minimal changes required to satisfy the objective:
+  - Make the changes strictly isolated.
+  - Make sure you do not modify unrelated code, comments, or type decorators. Make only the essential changes to accomplish the goal.
+  - When changing settings or configuration, make sure you do not change any other settings and configurations.
+  - Do no modify unrelated code:
+- Use the minimal necessary implementation.
+  - Do not add unnecessary layers of abstraction.
+  - Do not add simple one-line function that only have a few uses.
+- Use standard libraries and best practices whenever possible.
+  - Always review if there is a standard library or API available to solve a problem and use that.
+  - Do not write custom code when there is a standard module to accomplish a task.
+  - For example, use standard `python-dotenv` instead of writing custom .env parsers.
+- Follow software engineering best practices:
+  - Use DRY (do not repeat yourself principles).
+  - Factor common duplicated code into utility functions.
+  - Avoid large functions. Split them up into simple units that are easy to understand and review.
+  - Avoid complex functions with lots of variables and branches. Split them up into simple units that are easy to understand and review.
+- Produce clean, concise, easy-to-read code that is visually structured:
+  - Add comments above the relevant code line rather than inline to make the lines shorter.
+- Write clean standard Python code that follows best practices and is free of linter warnings:
+  - Use python3.11.
+  - Conform to PEP8 standards.
+  - Follow standard best practices for writing clean code.
+  - Keep all imports at the top of the file.
+  - Use Python typehints and ensure Python type safety.
+    - Do not use dictionaries, tuples, and other untyped collections to pass or return complex data.
+    - Always use typed objects such as TypedDicts to ensure all data is type-safe.
+    - Write fully type-safe and annotated code.
+  - Use black formatter for Python.
+  - Explicitly specify encoding when using open.
+- When fixing linter and other code scanner warnings, address the root cause. Do not simply disable warnings to fix them.
+- Use the `unittest` package to write unit tests
+- Run code using a virtual environment in the folder `venv`.
