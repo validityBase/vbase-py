@@ -239,31 +239,30 @@ class Web3CommitmentService(CommitmentService, ABC):
 
         # Events should always be emitted on success.
 
-        # The commitment calls emit AddUserSetObject and AddObject events.
-        # Return the object commitment log from the 2nd event.
-        # On some chains other events may be emitted, such as LogFeeTransfer.
-        # These should have odd indexes and will be skipped.
-        # NOTE: This worker uses index parity (odd-indexed logs = AddObject) rather than
-        # process_receipt() scanning. The batch contract emits events in fixed pairs
-        # (AddSetObject at even indices, AddObject at odd indices), so parity is stable
-        # here. Extra chain events (e.g. LogFeeTransfer) would break this assumption and
-        # would require migrating to process_receipt() as done in the single-op workers.
+        # The call emits one AddObject per committed object. On some chains other events
+        # (e.g. LogFeeTransfer) may be emitted; process_receipt() filters by event
+        # signature so only AddObject events are returned, in log order.
+        add_object_events = self.csc.events.AddObject().process_receipt(
+            receipt, errors=EventLogErrorFlags.Discard
+        )
+        # Hoist constants that are the same for every item in the batch.
+        tx_hash = receipt["transactionHash"]
+        chain_id = self._get_chain_id()
         l_cls = []
-        for i, log in enumerate(receipt["logs"]):
-            if i % 2 == 0:
-                continue
-            event_data = self.csc.events.AddObject().process_log(log)
-            # Convert bytestrings to strings to allow serialization for upper layers.
+        for event_data in add_object_events:
+            # process_receipt() returns EventData (AttributeDict) objects;
+            # dict-style ["args"] access always works.
             cl = dict(event_data["args"])
+            # Convert bytestrings to strings to allow serialization for upper layers.
             cl["objectCid"] = bytes_to_hex_str(cl["objectCid"])
             # Convert timestamp to the string representation of the Pandas object
             # to allow serialization for the upper layers.
             cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
-            cl["transactionHash"] = receipt["transactionHash"]
+            cl["transactionHash"] = tx_hash
             # Expose committer as userAddress for API consumers.
             if "user" in cl:
                 cl["userAddress"] = str(cl["user"])
-            cl["chainId"] = self._get_chain_id()
+            cl["chainId"] = chain_id
             l_cls.append(cl)
 
         _LOG.debug("Commitment logs:\n%s", pprint.pformat(l_cls))
