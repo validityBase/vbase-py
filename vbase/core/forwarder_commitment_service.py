@@ -123,7 +123,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "ForwarderCommitmentService":
         return ForwarderCommitmentService(
             **ForwarderCommitmentService.get_init_args_from_env(dotenv_path)
@@ -407,6 +407,8 @@ class ForwarderCommitmentService(Web3CommitmentService):
         if "domain" not in self._signature_data:
             raise ValueError("signature_data missing 'domain'")
         domain = self._signature_data["domain"]
+        # Note that for the forwarder to function correctly,
+        # the correct chainId must be included in the signature data.
         if "chainId" not in domain:
             raise ValueError("signature_data['domain'] missing 'chainId'")
         return int(domain["chainId"])
@@ -417,9 +419,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addObject",
             args=[object_cid],
         )
-        cl = self._add_object_worker(receipt)
-        cl["chainId"] = self._get_chain_id()
-        return cl
+        return self._add_object_worker(receipt)
 
     def verify_user_object(self, user: str, object_cid: str, timestamp: str) -> bool:
         user = self.w3.to_checksum_address(user)
@@ -441,9 +441,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addSetObject",
             args=[set_cid, object_cid],
         )
-        cl = self._add_set_object_worker(receipt)
-        cl["chainId"] = self._get_chain_id()
-        return cl
+        return self._add_set_object_worker(receipt)
 
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]

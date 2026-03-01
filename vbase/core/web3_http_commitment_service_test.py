@@ -36,7 +36,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "Web3HTTPCommitmentServiceTest":
         return Web3HTTPCommitmentServiceTest(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)
@@ -54,9 +54,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
             object_cid, self.convert_timestamp_str_to_chain(timestamp)
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        cl = self._add_object_worker(receipt)
-        cl["chainId"] = self.w3.eth.chain_id
-        return cl
+        return self._add_object_worker(receipt)
 
     def add_set_object_with_timestamp(
         self, set_cid: str, object_cid: str, timestamp: str
@@ -69,9 +67,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
             self.convert_timestamp_str_to_chain(timestamp),
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        cl = self._add_set_object_worker(receipt)
-        cl["chainId"] = self.w3.eth.chain_id
-        return cl
+        return self._add_set_object_worker(receipt)
 
     def add_sets_objects_with_timestamps_batch(
         self, set_cids: List[str], object_cids: List[str], timestamps: List[str]

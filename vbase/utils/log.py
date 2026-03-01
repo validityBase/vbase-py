@@ -1,5 +1,4 @@
-"""Default logging interface
-"""
+"""Default logging interface"""
 
 import logging
 

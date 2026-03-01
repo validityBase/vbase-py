@@ -51,7 +51,7 @@ class IndexingService(ABC):
 
     @staticmethod
     def create_instance_from_env_json_descriptor(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "IndexingService":
         """Creates an instance initialized from an environment variable
         containing a JSON descriptor.
@@ -223,7 +223,7 @@ class Web3HTTPIndexingService(IndexingService):
 
     @staticmethod
     def create_instance_from_env_json_descriptor(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "Web3HTTPIndexingService":
         # Load .env file if it exists.
         if dotenv_path:

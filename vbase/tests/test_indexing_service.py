@@ -1,5 +1,4 @@
-"""Tests of the indexing service for the vbase package
-"""
+"""Tests of the indexing service for the vbase package"""
 
 import secrets
 import unittest
