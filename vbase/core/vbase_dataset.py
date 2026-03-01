@@ -109,7 +109,7 @@ class VBaseDataset(ABC):
 
     # The dataset constructor has to have many arguments
     # to support multiple initialization modes and overloading.
-    # pylint: disable=too-many-arguments
+    # pylint: disable-msg=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         vbc: Union[VBaseClient, VBaseClientTest],

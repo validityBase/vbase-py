@@ -88,6 +88,16 @@ class Web3CommitmentService(CommitmentService, ABC):
         """
         return self.w3.eth.chain_id
 
+    def _init_receipt_fields(self, cl: dict) -> None:
+        """Initialize userAddress and chainId in the commitment receipt dict.
+
+        userAddress is set unconditionally from cl["user"] — the ABI guarantees
+        the user field is present on all commitment events, so a missing user
+        should raise KeyError immediately rather than silently omit userAddress.
+        """
+        cl["userAddress"] = str(cl["user"])
+        cl["chainId"] = self._get_chain_id()
+
     @staticmethod
     def _check_tx_success(receipt):
         if receipt is None:
@@ -124,9 +134,7 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl["setCid"] = bytes_to_hex_str(cl["setCid"])
             cl["transactionHash"] = receipt["transactionHash"]
             # Expose committer as userAddress for API consumers.
-            if "user" in cl:
-                cl["userAddress"] = str(cl["user"])
-            cl["chainId"] = self._get_chain_id()
+            self._init_receipt_fields(cl)
             # To return set timestamps for UX and compatibility
             # we would need to retrieve these from the transaction timestamps.
             # This worker function is called by the ForwarderCommitmentService
@@ -178,9 +186,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
         # Expose committer as userAddress for API consumers.
-        if "user" in cl:
-            cl["userAddress"] = str(cl["user"])
-        cl["chainId"] = self._get_chain_id()
+        self._init_receipt_fields(cl)
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -219,12 +225,10 @@ class Web3CommitmentService(CommitmentService, ABC):
         # to allow serialization for the upper layers.
         cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
         cl["transactionHash"] = receipt["transactionHash"]
-        # Expose committer as userAddress for API consumers.
-        if "user" in cl:
-            cl["userAddress"] = str(cl["user"])
         # Include setCid from AddSetObject event for stamp-with-collection responses.
         cl["setCid"] = bytes_to_hex_str(add_set_args["setCid"])
-        cl["chainId"] = self._get_chain_id()
+        # Expose committer as userAddress for API consumers.
+        self._init_receipt_fields(cl)
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
@@ -260,8 +264,8 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl["timestamp"] = self.convert_timestamp_chain_to_str(cl["timestamp"])
             cl["transactionHash"] = tx_hash
             # Expose committer as userAddress for API consumers.
-            if "user" in cl:
-                cl["userAddress"] = str(cl["user"])
+            # chain_id is hoisted outside the loop to avoid N calls to _get_chain_id().
+            cl["userAddress"] = str(cl["user"])
             cl["chainId"] = chain_id
             l_cls.append(cl)
 
