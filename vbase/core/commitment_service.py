@@ -27,7 +27,7 @@ class CommitmentService(ABC):
     @staticmethod
     @abstractmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "CommitmentService":
         """Creates an instance initialized from environment variables.
         Syntactic sugar for initializing new commitment objects using settings

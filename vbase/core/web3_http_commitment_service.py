@@ -52,7 +52,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             return default
         return val.lower() in ["true", "1", "t", "y", "yes"]
 
-    # pylint: disable-msg=too-many-arguments
+    # pylint: disable-msg=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         node_rpc_url: str,
@@ -168,7 +168,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "Web3HTTPCommitmentService":
         return Web3HTTPCommitmentService(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)

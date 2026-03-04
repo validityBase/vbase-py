@@ -33,7 +33,7 @@ class VBaseClientTest(VBaseClient):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "VBaseClientTest":
         if dotenv_path is not None:
             load_dotenv(dotenv_path, verbose=True, override=True)

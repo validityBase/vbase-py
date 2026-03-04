@@ -1,5 +1,4 @@
-"""Common cryptographic utility functions
-"""
+"""Common cryptographic utility functions"""
 
 import hashlib
 from typing import Any, List, Union

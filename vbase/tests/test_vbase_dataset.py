@@ -1,5 +1,4 @@
-"""Tests of the vbase_dataset module
-"""
+"""Tests of the vbase_dataset module"""
 
 import logging
 import time

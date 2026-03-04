@@ -1,5 +1,4 @@
-"""Test crypto utilities
-"""
+"""Test crypto utilities"""
 
 import hashlib
 import unittest

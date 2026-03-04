@@ -17,7 +17,7 @@ _LOG.setLevel(logging.INFO)
 class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentServiceTest):
     """Test commitment service accessible using Web3.HTTPProvider."""
 
-    # pylint: disable-msg=too-many-arguments
+    # pylint: disable-msg=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         node_rpc_url: str = None,
@@ -36,7 +36,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "Web3HTTPCommitmentServiceTest":
         return Web3HTTPCommitmentServiceTest(
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)

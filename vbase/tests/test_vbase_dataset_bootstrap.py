@@ -1,5 +1,4 @@
-"""Tests of the large dataset bootstrap for the vbase module
-"""
+"""Tests of the large dataset bootstrap for the vbase module"""
 
 import time
 import unittest

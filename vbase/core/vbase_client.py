@@ -1,5 +1,4 @@
-"""The vbase module provides access to base validityBase (vBase) commitments.
-"""
+"""The vbase module provides access to base validityBase (vBase) commitments."""
 
 import logging
 import os

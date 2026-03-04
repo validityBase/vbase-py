@@ -1,5 +1,4 @@
-"""Tests of the vbase_dataset_async module
-"""
+"""Tests of the vbase_dataset_async module"""
 
 import asyncio
 import logging

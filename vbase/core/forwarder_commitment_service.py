@@ -123,7 +123,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "ForwarderCommitmentService":
         return ForwarderCommitmentService(
             **ForwarderCommitmentService.get_init_args_from_env(dotenv_path)
@@ -397,6 +397,21 @@ class ForwarderCommitmentService(Web3CommitmentService):
             },
         )
         return bool(int(ret, base=16))
+
+    def _get_chain_id(self) -> int:
+        """Return chainId from signature data; raise if missing or invalid."""
+        if self._signature_data is None:
+            raise ValueError("signature_data is None; cannot get chainId")
+        if not isinstance(self._signature_data, dict):
+            raise ValueError("signature_data is not a dict")
+        if "domain" not in self._signature_data:
+            raise ValueError("signature_data missing 'domain'")
+        domain = self._signature_data["domain"]
+        # Note that for the forwarder to function correctly,
+        # the correct chainId must be included in the signature data.
+        if "chainId" not in domain:
+            raise ValueError("signature_data['domain'] missing 'chainId'")
+        return int(domain["chainId"])
 
     def add_object(self, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addObject")

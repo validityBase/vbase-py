@@ -35,7 +35,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
 
     @staticmethod
     def create_instance_from_env(
-        dotenv_path: Union[str, None] = None
+        dotenv_path: Union[str, None] = None,
     ) -> "ForwarderCommitmentServiceTest":
         return ForwarderCommitmentServiceTest(
             **ForwarderCommitmentService.get_init_args_from_env(dotenv_path)

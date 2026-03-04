@@ -1,5 +1,4 @@
-"""Common error and validation utility functions
-"""
+"""Common error and validation utility functions"""
 
 
 def check_for_missing_env_vars(env_vars: dict):

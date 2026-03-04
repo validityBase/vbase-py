@@ -1,5 +1,4 @@
-"""vBase Test utils
-"""
+"""vBase Test utils"""
 
 import json
 import logging
