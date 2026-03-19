@@ -10,6 +10,7 @@ from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServ
 from vbase.core.indexing_service import IndexingService, Web3HTTPIndexingService
 from vbase.core.sql_indexing_service import (
     SQLIndexingService,
+    SqlSetMatchingService,
     SetCandidate,
     ObjectAtTime,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "IndexingService",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
+    "SqlSetMatchingService",
     "SetCandidate",
     "ObjectAtTime",
     "FailoverIndexingService",
