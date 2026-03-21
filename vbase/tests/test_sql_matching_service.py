@@ -8,8 +8,8 @@ import pandas as pd
 from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.models import EventAddSetObject
-from vbase.core.set_matching_service import SetMatchingService
-from vbase.core.types import ObjectAtTime, SetMatchingCriteria, SetMatchingServiceConfig
+from vbase.core.set_matching.set_matching_service import SetMatchingService
+from vbase.core.set_matching.types import ObjectAtTime, SetMatchingCriteria, SetMatchingServiceConfig
 
 
 def to_unix_timestamp(ts: Union[int, str, datetime.datetime]) -> int:
