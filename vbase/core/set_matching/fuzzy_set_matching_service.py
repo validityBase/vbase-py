@@ -220,7 +220,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 EventAddSetObject.set_cid,
                 EventAddSetObject.user,
                 EventAddSetObject.chain_id,
-                func.count(func.distinct(EventAddSetObject.object_cid)).label(
+                func.count(EventAddSetObject.object_cid).label(
                     "match_count"
                 ),
             )
@@ -231,10 +231,10 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 EventAddSetObject.chain_id,
             )
             .having(
-                func.count(func.distinct(EventAddSetObject.object_cid))
+                func.count(EventAddSetObject.object_cid)
                 >= required_matches
             )
-            .order_by(func.count(func.distinct(EventAddSetObject.object_cid)).desc())
+            .order_by(func.count(EventAddSetObject.object_cid).desc())
             .limit(5)
         )
 
