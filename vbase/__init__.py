@@ -17,6 +17,15 @@ from vbase.core.vbase_dataset import (
 from vbase.core.vbase_dataset_async import (
     VBaseDatasetAsync,
 )
+from vbase.core.set_matching import (
+    AggregateSetMatchingService,
+    BaseSetMatchingService,
+    FuzzySetMatchingService,
+    HeadBasedSetMatchingService,
+    SetMatching,
+    SetMatchingCriteria,
+    SetMatchingCriteriaItem,
+)
 from vbase.core.vbase_object import (
     VBaseBytesObject,
     VBaseFloatObject,
