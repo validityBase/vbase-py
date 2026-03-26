@@ -139,41 +139,87 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         """
         Ranks a candidate set based on how well it matches the criteria with tolerance.
 
-        Compares sequences position-by-position in timestamp order. Element ordering matters:
-        if criteria is [a, b, c] and candidate is [b, a, c], positions 0 and 1 differ.
+        Uses Levenshtein distance to compare sequences of CIDs in timestamp order.
+        The Levenshtein distance measures the minimum number of edits (insertions,
+        deletions, or substitutions) needed to transform one sequence into another.
 
         Returns -1 if the match quality is below the tolerance threshold.
-        Otherwise, returns a score based on:
-        - Number of matching positions (primary factor)
-        - Timestamp alignment for matching positions (secondary factor)
+        Otherwise, returns a score based on the Levenshtein distance.
 
         Lower scores are better.
         """
         ordered_criteria = sorted(criteria.objects, key=lambda item: item.timestamp)
         ordered_candidate = sorted(candidate.objects, key=lambda obj: obj.timestamp)
 
-        # Compare the shorter length to avoid index errors
-        comparison_length = min(len(ordered_criteria), len(ordered_candidate))
-        
-        # Count position-by-position matches
-        position_matches = sum(
-            1
-            for i in range(comparison_length)
-            if ordered_criteria[i].object_cid == ordered_candidate[i].object_cid
+        # Extract CID sequences
+        criteria_cids = [obj.object_cid for obj in ordered_criteria]
+        candidate_cids = [obj.object_cid for obj in ordered_candidate]
+
+        # Truncate the longer sequence to match the criteria length
+        # This ensures we only compare up to the criteria length
+        if len(candidate_cids) > len(criteria_cids):
+            candidate_cids = candidate_cids[:len(criteria_cids)]
+
+        # Calculate Levenshtein distance
+        distance = FuzzySetMatchingService._levenshtein_distance(
+            criteria_cids, candidate_cids
         )
 
         # Calculate required matches based on tolerance
         required_matches = int(len(ordered_criteria) * (1.0 - tolerance))
+        
+        # Maximum allowed distance is the number of allowed mismatches
+        max_allowed_distance = len(ordered_criteria) - required_matches
 
         # Check if we meet the tolerance threshold
-        if position_matches < required_matches:
+        if distance > max_allowed_distance:
             return -1
 
-        mismatch_count = len(ordered_criteria) - position_matches
-        # calculate a rank as a percentage of matching positions
-        # so ideal match will be 1.0
-        rank = (len(ordered_criteria) - position_matches) / len(ordered_criteria) 
+        # Calculate rank as distance normalized by criteria length
+        # Perfect match (distance=0) gets rank=1.0, higher distance gets lower rank
+        rank = 1 - distance / len(ordered_criteria)
         return rank
+
+    @staticmethod
+    def _levenshtein_distance(seq1: list, seq2: list) -> int:
+        """
+        Calculate the Levenshtein distance between two sequences.
+
+        The Levenshtein distance is the minimum number of single-element edits
+        (insertions, deletions, or substitutions) required to change one sequence
+        into another.
+
+        Args:
+            seq1: First sequence
+            seq2: Second sequence
+
+        Returns:
+            The Levenshtein distance as an integer
+        """
+        len1, len2 = len(seq1), len(seq2)
+
+        # Create a matrix to store distances
+        dp = [[0] * (len2 + 1) for _ in range(len1 + 1)]
+
+        # Initialize first column and row
+        for i in range(len1 + 1):
+            dp[i][0] = i
+        for j in range(len2 + 1):
+            dp[0][j] = j
+
+        # Fill the matrix
+        for i in range(1, len1 + 1):
+            for j in range(1, len2 + 1):
+                if seq1[i - 1] == seq2[j - 1]:
+                    dp[i][j] = dp[i - 1][j - 1]
+                else:
+                    dp[i][j] = 1 + min(
+                        dp[i - 1][j],      # deletion
+                        dp[i][j - 1],      # insertion
+                        dp[i - 1][j - 1]   # substitution
+                    )
+
+        return dp[len1][len2]
 
     @staticmethod
     def _build_candidate_filters(

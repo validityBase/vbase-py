@@ -72,7 +72,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-small")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].score, 0.0)  # Perfect match
+        self.assertEqual(matches[0].score, 1.0)  # Perfect match
         self.assertEqual(matches[0].as_of_timestamp, 2000)
 
     def test_small_criteria_no_match_if_one_position_differs(self) -> None:
@@ -161,7 +161,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Should find exact match
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-large")
-        self.assertEqual(matches[0].score, 0.0)  # Perfect match
+        self.assertEqual(matches[0].score, 1.0)  # Perfect match
 
     def test_large_criteria_fuzzy_match_within_tolerance(self) -> None:
         """Test that large criteria matches when within 20% tolerance (1 out of 5 different)."""
@@ -619,10 +619,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 2)
         # First match should be the perfect one (lower score)
         self.assertEqual(matches[0].set_cid, "set-perfect")
-        self.assertEqual(matches[0].score, 0.0)  # Perfect match
+        self.assertEqual(matches[0].score, 1.0)  # Perfect match
         # Second match should have higher score due to timestamp differences
         self.assertEqual(matches[1].set_cid, "set-offset")
-        self.assertEqual(matches[1].score, 0.0)  # perfect match in terms of object order 
+        self.assertEqual(matches[1].score, 1.0)  # perfect match in terms of object order 
 
     def test_max_5_results_returned(self) -> None:
         """Test that at most 5 matches are returned."""
@@ -669,6 +669,44 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         # Should return at most 5 matches
         self.assertLessEqual(len(matches), 5)
+
+    def test_levenshtein_missing_first_element(self) -> None:
+        """Test Levenshtein distance when candidate is missing the first element."""
+        # Add a set with 7 objects (e2 through e8)
+        self.add_test_events([
+            {
+                "id": f"event-{i}",
+                "user": "0xAlice",
+                "set_cid": "set-missing-first",
+                "object_cid": f"e{i}",
+                "chain_id": 1,
+                "timestamp": i * 1000,
+            }
+            for i in range(2, 9)  # e2 through e8
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+
+        # Search with 8 elements (e1 through e8)
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid=f"e{i}", timestamp=i * 1000)
+                for i in range(1, 9)  # e1 through e8
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        # Should find the match
+        # Levenshtein distance = 1 (one deletion at the beginning)
+        # required_matches = int(8 * (1 - 0.2)) = 6
+        # max_allowed_distance = 8 - 6 = 2
+        # distance (1) <= max_allowed_distance (2), so it should match
+        # rank = 1 - 1 / 8 = 0.875
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].set_cid, "set-missing-first")
+        self.assertEqual(matches[0].user, "0xAlice")
+        self.assertAlmostEqual(matches[0].score, 0.875, delta=0.1)
 
 
 if __name__ == "__main__":
