@@ -3,8 +3,8 @@
 Core classes for set matching services in the validityBase (vBase) platform Python library
 """
 
-from vbase.core.set_matching.aggregate_set_matching_service import (
-    AggregateSetMatchingService,
+from vbase.core.set_matching.chain_set_matching_service import (
+    ChainSetMatchingService,
 )
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.fuzzy_set_matching_service import FuzzySetMatchingService
@@ -18,7 +18,7 @@ from vbase.core.set_matching.types import (
 )
 
 __all__ = [
-    "AggregateSetMatchingService",
+    "ChainSetMatchingService",
     "BaseSetMatchingService",
     "FuzzySetMatchingService",
     "HeadBasedSetMatchingService",

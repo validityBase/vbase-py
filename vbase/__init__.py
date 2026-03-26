@@ -18,7 +18,7 @@ from vbase.core.vbase_dataset_async import (
     VBaseDatasetAsync,
 )
 from vbase.core.set_matching import (
-    AggregateSetMatchingService,
+    ChainSetMatchingService,
     BaseSetMatchingService,
     FuzzySetMatchingService,
     HeadBasedSetMatchingService,
@@ -52,7 +52,7 @@ __all__ = [
     "Web3HTTPIndexingService",
     "SQLIndexingService",
     
-    "AggregateSetMatchingService",
+    "ChainSetMatchingService",
     "HeadBasedSetMatchingService",
     "FuzzySetMatchingService",
     "BaseSetMatchingService",

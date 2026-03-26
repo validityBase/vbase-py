@@ -1,7 +1,7 @@
 import unittest
 
-from vbase.core.set_matching.aggregate_set_matching_service import (
-    AggregateSetMatchingService,
+from vbase.core.set_matching.chain_set_matching_service import (
+    ChainSetMatchingService,
 )
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import (
@@ -21,7 +21,7 @@ class StubSetMatchingService(BaseSetMatchingService):
         return self.matches
 
 
-class TestAggregateSetMatchingService(unittest.TestCase):
+class TestChainSetMatchingService(unittest.TestCase):
     def setUp(self) -> None:
         self.criteria = SetMatchingCriteria(
             objects=[SetMatchingCriteriaItem(object_cid="cid-1", timestamp=1700000000)]
@@ -42,7 +42,7 @@ class TestAggregateSetMatchingService(unittest.TestCase):
     def test_returns_first_non_empty_and_stops(self) -> None:
         first = StubSetMatchingService([self.match_a])
         second = StubSetMatchingService([self.match_b])
-        service = AggregateSetMatchingService([first, second])
+        service = ChainSetMatchingService([first, second])
 
         result = service.find_matching_sets(self.criteria)
 
@@ -53,7 +53,7 @@ class TestAggregateSetMatchingService(unittest.TestCase):
     def test_returns_first_non_empty_after_skipping_empty(self) -> None:
         empty = StubSetMatchingService([])
         second = StubSetMatchingService([self.match_b])
-        service = AggregateSetMatchingService([empty, second])
+        service = ChainSetMatchingService([empty, second])
 
         result = service.find_matching_sets(self.criteria)
 
@@ -63,7 +63,7 @@ class TestAggregateSetMatchingService(unittest.TestCase):
 
     def test_returns_empty_when_no_strategies_match(self) -> None:
         strategies = [StubSetMatchingService([]), StubSetMatchingService([])]
-        service = AggregateSetMatchingService(strategies)
+        service = ChainSetMatchingService(strategies)
 
         result = service.find_matching_sets(self.criteria)
 
