@@ -59,7 +59,7 @@ The SDK is organized in layers:
 
 **Layer 2 — Indexing Services** (`vbase/core/indexing_service.py`): Abstract base for querying past commitments. Implementations:
 - `Web3HTTPIndexingService` — Direct chain queries
-- `SQLIndexingService` — SQL-backed with matching service support
+- `SQLIndexingService` — SQL-backed queries
 - `AggregateIndexingService` — Combines multiple services
 - `FailoverIndexingService` — Fallback chain
 
@@ -69,7 +69,7 @@ The SDK is organized in layers:
 
 **Layer 5 — Datasets** (`vbase/core/vbase_dataset.py`): `VBaseDataset` manages collections of objects with provenance. `VBaseDatasetAsync` provides non-blocking operations.
 
-**Layer 6 — Set Matching** (`vbase/core/set_matching_service.py`): Reverse-lookup service that answers the question "which previously-committed on-chain dataset best matches this list of (object_cid, timestamp) pairs?" This identifies if any on-chain commitments match a given dataset without any hints as to the address or collection name. If there is a match, it can be found. `SQLIndexingService.find_matching_user_sets()` is the public entry point; it delegates to a `BaseMatchingService` instance. `SetMatchingService` is the SQL-backed default implementation, scoring candidates by the fraction of query objects that have a committed counterpart within a configurable timestamp tolerance (`SetMatchingServiceConfig.max_timestamp_diff`, default 1 day). Pass a custom `BaseMatchingService` subclass to `SQLIndexingService(matching_service=...)` to override the strategy. Config and shared types (`ObjectAtTime`, `SetCandidate`, `SetMatchingCriteria`, `SetMatchingServiceConfig`) live in `vbase/core/types.py`.
+**Layer 6 — Set Matching** (`vbase/core/set_matching/`): Reverse-lookup service that answers the question "which previously-committed on-chain dataset best matches this list of (object_cid, timestamp) pairs?" This identifies if any on-chain commitments match a given dataset without any hints as to the address or collection name. If there is a match, it can be found. Users instantiate matching services directly (e.g., `HeadBasedSetMatchingService`, `FuzzySetMatchingService`, or `AggregateSetMatchingService`) and call `find_matching_sets()`. `AggregateSetMatchingService` combines multiple strategies (head-based, then fuzzy) for robust matching. Config and shared types (`SetMatchingCriteria`, `SetMatchingCriteriaItem`, `SetMatching`) live in `vbase/core/set_matching/types.py`.
 
 Smart contract ABIs are stored in `vbase/core/abi/`.
 

@@ -1,266 +1,243 @@
+"""
+Fuzzy set matching service implementation.
+"""
+
+from sqlalchemy import and_, func, or_
+from sqlmodel import Session, create_engine, select
+
+from vbase.core.models import EventAddSetObject
+from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
+from vbase.core.set_matching.types import (
+    ObjectSetData,
+    SetKey,
+    SetMatching,
+    SetMatchingCriteria,
+)
 
 
-# @dataclass(frozen=True, slots=True)
-# class BucketKey:
-#     """Key for bucketing sets."""
+class FuzzySetMatchingService(BaseSetMatchingService):
+    """
+    Service for performing fuzzy set matching with tolerance.
+    Finds sets whose elements match the criteria within a configurable tolerance.
+    Searches the blockchain index SQL table of EventAddSetObject events with the following columns:
 
-#     set_cid: str
-#     user: str
+    - chainId
+    - set_cid
+    - user
+    - object_cid
+    - timestamp
 
+    Each set is identified by its set_cid, user, and chainId, and consists of all
+    objects with the same set_cid ordered by timestamp.
+    Sets belonging to different users or chains are not mixed together.
 
-# @dataclass
-# class BucketItem:
-#     """Item in a bucket, holding timestamps and creation time."""
+    Unlike HeadBasedSetMatchingService which requires exact head matching, this service
+    allows a configurable percentage of CIDs to differ.
+    """
 
-#     created_at: int | None = None
-#     timestamps: DefaultDict[str, list[int]] = field(
-#         default_factory=lambda: defaultdict(list)
-#     )
+    MIN_CRITERIA_SIZE_FOR_TOLERANCE = 5
 
-#     def add_event(self, object_cid: str, ts: int) -> None:
-#         """Add an event timestamp for a given object CID."""
-#         self.timestamps[object_cid].append(ts)
+    def __init__(
+        self,
+        db_url: str,
+        tolerance: float = 0.2,
+    ):
+        """
+        Initialize the fuzzy set matching service.
 
-#     def set_created_at_once(self, created_ts: int) -> None:
-#         """Set the creation timestamp if not already set."""
-#         if self.created_at is None:
-#             self.created_at = created_ts
+        Args:
+            db_url: Database connection URL
+            tolerance: Fraction of CIDs that can differ (0.0 to 1.0). Default is 0.2 (20%)
+        """
+        self.db_url = db_url
+        self.db_engine = create_engine(db_url)
+        self.tolerance = tolerance
 
+    def find_matching_sets(
+        self,
+        criteria: SetMatchingCriteria,
+    ) -> list[SetMatching]:
+        """
+        Scans the blockchain index SQL table of EventAddSetObject events to find sets
+        whose elements match the criteria within the configured tolerance.
+        Access to the database is sqlmodel based.
 
-# class SetMatchingService(BaseMatchingService):
-#     """
-#     SQL-backed implementation of BaseMatchingService.
+        Algorithm:
+            - If criteria has fewer than MIN_CRITERIA_SIZE_FOR_TOLERANCE elements, use exact matching (tolerance = 0).
+            - Find all sets that contain at least (1 - tolerance) * 100% of the criteria elements.
+            - For each candidate set, rank by how many CIDs match and timestamp alignment.
+            - Use timestamps to determine element ordering.
 
-#     Matching algorithm (multi-phase):
-#     1. Probe: find all (set_cid, user) pairs that share at least one object_cid
-#        with the query, optionally filtered by an as_of timestamp cutoff.
-#     2. Load: fetch the full event records for those candidate pairs, restricted
-#        to the query's object_cids, with each row annotated with its set's
-#        creation time via a window function.
-#     3. Bucket: group events by (set_cid, user) and sort per-object timestamp
-#        lists for binary search.
-#     4. Score: for each query object, check whether a candidate set committed
-#        that object within max_timestamp_diff of the query timestamp. Score is
-#        matched_count / len(query_objects).
-#     5. Return candidates sorted by descending score, then ascending creation time.
+        Corner Cases:
+            - Empty search criteria: return an empty list.
+            - Multiple matches: return up to five matches, ranked by match quality.
+        """
+        if not criteria.objects:
+            return []
 
-#     Configure timestamp tolerance via SetMatchingServiceConfig.max_timestamp_diff
-#     (default: 1 day).
-#     """
+        # Use exact matching for small criteria sets
+        effective_tolerance = (
+            0.0
+            if len(criteria.objects) < self.MIN_CRITERIA_SIZE_FOR_TOLERANCE
+            else self.tolerance
+        )
 
-#     def __init__(
-#         self,
-#         db_engine: Engine,
-#         config: SetMatchingServiceConfig | None = None,
-#     ):
-#         self.db_engine = db_engine
-#         self.config = config or SetMatchingServiceConfig()
+        # Make sure that the criteria objects are ordered by timestamp
+        criteria.objects = sorted(criteria.objects, key=lambda item: item.timestamp)
 
-#     @staticmethod
-#     def _prepare_query_objects(
-#         objects: list[ObjectAtTime],
-#     ) -> tuple[list[ObjectAtTime], set[str]]:
-#         """Normalize query objects into a stable, deduplicated order."""
-#         normalized_objects = sorted(set(objects), key=lambda o: o.timestamp)
-#         query_cids = {o.object_cid for o in normalized_objects}
-#         return normalized_objects, query_cids
+        with Session(self.db_engine) as session:
+            # Get narrow selection of most promising candidate sets
+            candidate_keys = self._get_candidates(
+                session, criteria, effective_tolerance
+            )
 
-#     @staticmethod
-#     def _find_user_sets_by_object_cids(
-#         session: Session,
-#         query_cids: set[str],
-#         as_of_unix: int | None,
-#     ) -> set[tuple[str, str]]:
-#         """Find (set_cid, user) pairs that contain any queried object."""
-#         probe_stmt = select(
-#             EventAddSetObject.set_cid,
-#             EventAddSetObject.user,
-#         ).where(EventAddSetObject.object_cid.in_(query_cids))
+            if not candidate_keys:
+                return []
 
-#         if as_of_unix is not None:
-#             probe_stmt = probe_stmt.where(EventAddSetObject.timestamp <= as_of_unix)
+            # Load all elements for the candidate sets
+            event_rows = session.exec(
+                select(EventAddSetObject)
+                .where(self._build_candidate_filters(candidate_keys))
+                .order_by(EventAddSetObject.timestamp)
+            ).all()
 
-#         return {(r.set_cid, r.user) for r in session.exec(probe_stmt).all()}
+        # Build ObjectSetData from the event_rows
+        candidate_sets_dict: dict[SetKey, ObjectSetData] = {}
+        for event_row in event_rows:
+            set_key = SetKey(event_row.set_cid, event_row.user, event_row.chain_id)
+            if set_key not in candidate_sets_dict:
+                candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
+            candidate_sets_dict[set_key].objects.append(event_row)
 
-#     @staticmethod
-#     def _load_user_sets_objects_matched_by_keys(
-#         session: Session,
-#         candidate_keys: set[tuple[str, str]],
-#         query_cids: set[str],
-#         as_of_unix: int | None,
-#     ) -> list:
-#         """Load EventAddSetObject records matching candidate (set_cid, user) pairs"""
-#         load_stmt = (
-#             select(
-#                 EventAddSetObject.set_cid,
-#                 EventAddSetObject.user,
-#                 EventAddSetObject.object_cid,
-#                 EventAddSetObject.timestamp,
-#                 func.min(EventAddSetObject.timestamp)
-#                 .over(
-#                     partition_by=(
-#                         EventAddSetObject.set_cid,
-#                         EventAddSetObject.user,
-#                     )
-#                 )
-#                 .label("created_at"),
-#             )
-#             .where(
-#                 tuple_(
-#                     EventAddSetObject.set_cid,
-#                     EventAddSetObject.user,
-#                 ).in_(candidate_keys)
-#             )
-#             .where(EventAddSetObject.object_cid.in_(query_cids))
-#             .order_by(EventAddSetObject.timestamp)
-#         )
+        candidate_sets: list[ObjectSetData] = list(candidate_sets_dict.values())
+        for candidate_set in candidate_sets:
+            candidate_set.rank = self._rank_candidate(
+                candidate_set, criteria, effective_tolerance
+            )
 
-#         if as_of_unix is not None:
-#             load_stmt = load_stmt.where(EventAddSetObject.timestamp <= as_of_unix)
+        # Take everything that meets the tolerance threshold (rank != -1) and sort by rank
+        matching_sets = [s for s in candidate_sets if s.rank != -1]
+        matching_sets.sort(key=lambda s: s.rank)
 
-#         return session.exec(load_stmt).all()
+        # Return the top 5 matches
+        return [
+            SetMatching(
+                score=s.rank,
+                set_cid=s.key.set_cid,
+                user=s.key.user,
+                as_of_timestamp=s.objects[min(len(s.objects) - 1, len(criteria.objects) - 1)].timestamp,
+            )
+            for s in matching_sets[:5]
+        ]
 
-#     def _build_buckets(self, rows: list) -> dict[BucketKey, BucketItem]:
-#         """Build per-(set_cid, user) buckets of timestamps, normalized to seconds."""
-#         buckets: dict[BucketKey, BucketItem] = defaultdict(BucketItem)
+    @staticmethod
+    def _rank_candidate(
+        candidate: ObjectSetData,
+        criteria: SetMatchingCriteria,
+        tolerance: float,
+    ) -> int:
+        """
+        Ranks a candidate set based on how well it matches the criteria with tolerance.
 
-#         for r in rows:
-#             key = BucketKey(set_cid=r.set_cid, user=r.user)
-#             ts = self._normalize_unix_ts(r.timestamp)
-#             created_ts = self._normalize_unix_ts(r.created_at)
+        Compares sequences position-by-position in timestamp order. Element ordering matters:
+        if criteria is [a, b, c] and candidate is [b, a, c], positions 0 and 1 differ.
 
-#             buckets[key].add_event(object_cid=r.object_cid, ts=ts)
-#             buckets[key].set_created_at_once(created_ts)
+        Returns -1 if the match quality is below the tolerance threshold.
+        Otherwise, returns a score based on:
+        - Number of matching positions (primary factor)
+        - Timestamp alignment for matching positions (secondary factor)
 
-#         for bucket in buckets.values():
-#             for ts_list in bucket.timestamps.values():
-#                 ts_list.sort()
+        Lower scores are better.
+        """
+        ordered_criteria = sorted(criteria.objects, key=lambda item: item.timestamp)
+        ordered_candidate = sorted(candidate.objects, key=lambda obj: obj.timestamp)
 
-#         return buckets
+        # Compare the shorter length to avoid index errors
+        comparison_length = min(len(ordered_criteria), len(ordered_candidate))
+        
+        # Count position-by-position matches
+        position_matches = sum(
+            1
+            for i in range(comparison_length)
+            if ordered_criteria[i].object_cid == ordered_candidate[i].object_cid
+        )
 
-#     @staticmethod
-#     def _has_match(ts_list: list[int], t: int, max_diff_sec: int) -> bool:
-#         """Check if ts_list contains a timestamp within max_diff_sec of t."""
-#         i = bisect_left(ts_list, t)
-#         candidates = []
-#         if i > 0:
-#             candidates.append(ts_list[i - 1])
-#         if i < len(ts_list):
-#             candidates.append(ts_list[i])
+        # Calculate required matches based on tolerance
+        required_matches = int(len(ordered_criteria) * (1.0 - tolerance))
 
-#         return any(abs(ts - t) <= max_diff_sec for ts in candidates)
+        # Check if we meet the tolerance threshold
+        if position_matches < required_matches:
+            return -1
 
-#     def _count_matches(
-#         self,
-#         buckets: dict[BucketKey, BucketItem],
-#         objects: list[ObjectAtTime],
-#         max_diff_sec: int,
-#     ) -> dict[BucketKey, int]:
-#         """Count how many query objects match each bucket."""
-#         matched_counts: dict[BucketKey, int] = defaultdict(int)
+        mismatch_count = len(ordered_criteria) - position_matches
+        # calculate a rank as a percentage of matching positions
+        # so ideal match will be 1.0
+        rank = (len(ordered_criteria) - position_matches) / len(ordered_criteria) 
+        return rank
 
-#         for key, bucket in buckets.items():
-#             timestamps_by_object: dict[str, list[int]] = bucket.timestamps
-#             for query_obj in objects:
-#                 object_cid: str = query_obj.object_cid
-#                 query_ts: int = query_obj.timestamp
-#                 ts_list: list[int] | None = timestamps_by_object.get(object_cid)
-#                 if ts_list is None:
-#                     continue
-#                 if self._has_match(ts_list, query_ts, max_diff_sec):
-#                     matched_counts[key] += 1
+    @staticmethod
+    def _build_candidate_filters(
+        candidate_keys: list[SetKey],
+    ):
+        """Builds SQLAlchemy filters to find all events belonging to any of the candidate sets."""
+        return or_(
+            *[
+                and_(
+                    EventAddSetObject.set_cid == candidate_key.set_cid,
+                    EventAddSetObject.user == candidate_key.user,
+                    EventAddSetObject.chain_id == candidate_key.chain_id,
+                )
+                for candidate_key in candidate_keys
+            ]
+        )
 
-#         return matched_counts
+    def _get_candidates(
+        self,
+        session: Session,
+        criteria: SetMatchingCriteria,
+        tolerance: float,
+    ) -> list[SetKey]:
+        """
+        Find high-probability candidate sets for the given criteria with tolerance.
 
-#     @staticmethod
-#     def _build_results(
-#         buckets: dict[BucketKey, BucketItem],
-#         matched_counts: dict[BucketKey, int],
-#         query_len: int,
-#     ) -> list[SetCandidate]:
-#         """Build and sort SetCandidate results from matched counts."""
-#         results: list[SetCandidate] = []
+        Unlike the head-based approach, this method finds sets that contain at least
+        (1 - tolerance) * 100% of the criteria CIDs, not necessarily all of them.
 
-#         for key, matched in matched_counts.items():
-#             if matched == 0:
-#                 continue
+        Returns up to five candidate sets ranked by how many criteria CIDs they contain.
+        """
+        if not criteria.objects:
+            return []
 
-#             score = matched / query_len
-#             bucket = buckets[key]
+        required_matches = max(1, int(len(criteria.objects) * (1.0 - tolerance)))
 
-#             results.append(
-#                 SetCandidate(
-#                     set_cid=key.set_cid,
-#                     user=key.user,
-#                     score=score,
-#                     created_at=bucket.created_at,
-#                 )
-#             )
+        # Collect all criteria CIDs
+        criteria_cids = [obj.object_cid for obj in criteria.objects]
 
-#         results.sort(key=lambda r: (-r.score, r.created_at))
-#         return results
+        # Find all sets that contain at least one of the criteria CIDs
+        # Group by set key and count how many criteria CIDs each set contains
+        candidate_stmt = (
+            select(
+                EventAddSetObject.set_cid,
+                EventAddSetObject.user,
+                EventAddSetObject.chain_id,
+                func.count(func.distinct(EventAddSetObject.object_cid)).label(
+                    "match_count"
+                ),
+            )
+            .where(EventAddSetObject.object_cid.in_(criteria_cids))
+            .group_by(
+                EventAddSetObject.set_cid,
+                EventAddSetObject.user,
+                EventAddSetObject.chain_id,
+            )
+            .having(
+                func.count(func.distinct(EventAddSetObject.object_cid))
+                >= required_matches
+            )
+            .order_by(func.count(func.distinct(EventAddSetObject.object_cid)).desc())
+            .limit(5)
+        )
 
-#     def find_matching_user_sets(
-#         self,
-#         criteria: SetMatchingCriteria,
-#     ) -> list[SetCandidate]:
-#         """
-#         Find user sets that best match the given object/timestamp criteria.
+        rows = session.exec(candidate_stmt).all()
 
-#         This method performs a multi-phase SQL-backed match:
-#         1) Normalize inputs (timestamps and as_of) and deduplicate query objects.
-#         2) Probe for candidate (set_cid, user) pairs containing any query object.
-#         3) Load ordered events for candidates and bucket them per set/user.
-#         4) For each query object, check if a candidate has a nearby timestamp
-#            within max_timestamp_diff, then score by match ratio.
-
-#         Matching semantics:
-#         - set_cid: exact
-#         - user: exact
-#         - object_cid: exact
-#         - timestamp: abs(diff) <= max_timestamp_diff
-
-#         Args:
-#             criteria (SetMatchingCriteria): Criteria for matching user sets.
-#         Returns:
-#             list[SetCandidate]: List of candidate sets matching the criteria.
-#         """
-#         objects, as_of_unix = self._normalize_criteria(criteria)
-#         max_timestamp_diff = self.config.max_timestamp_diff
-
-#         if not objects:
-#             return []
-
-#         objects, query_cids = self._prepare_query_objects(objects)
-#         query_len = len(objects)
-
-#         with Session(self.db_engine) as session:
-#             candidate_keys = self._find_user_sets_by_object_cids(
-#                 session=session,
-#                 query_cids=query_cids,
-#                 as_of_unix=as_of_unix,
-#             )
-
-#             if not candidate_keys:
-#                 return []
-
-#             rows = self._load_user_sets_objects_matched_by_keys(
-#                 session=session,
-#                 candidate_keys=candidate_keys,
-#                 query_cids=query_cids,
-#                 as_of_unix=as_of_unix,
-#             )
-
-#         buckets = self._build_buckets(rows)
-#         max_diff_sec = int(max_timestamp_diff.total_seconds())
-#         matched_counts = self._count_matches(
-#             buckets=buckets,
-#             objects=objects,
-#             max_diff_sec=max_diff_sec,
-#         )
-
-#         return self._build_results(
-#             buckets=buckets,
-#             matched_counts=matched_counts,
-#             query_len=query_len,
-#         )
+        return [SetKey(row.set_cid, row.user, row.chain_id) for row in rows]

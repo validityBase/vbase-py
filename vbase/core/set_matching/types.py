@@ -3,6 +3,7 @@ Core types for indexing and matching strategies.
 """
 
 from dataclasses import dataclass
+from vbase.core.models import EventAddSetObject
 
 @dataclass
 class SetMatchingCriteriaItem:
@@ -27,8 +28,27 @@ class SetMatching:
     Represents a successful match of a set of objects to a set on the blockchain, along with metadata about the match.
     """
 
-    score: float
-    created_at: int
+    score: float # a score representing how well the set matches [0:1], where 1.0 is a perfect match
     set_cid: str
     user: str
     as_of_timestamp: int
+
+
+@dataclass(frozen=True)
+class SetKey:
+    """
+    Unique identifier for a set, based on its set_cid, user, and chain_id.
+    """
+    set_cid: str
+    user: str
+    chain_id: int
+
+
+@dataclass
+class ObjectSetData:
+    """
+    Holds data for a set of objects, including its key, the objects themselves, and a rank for matching purposes.
+    """
+    key: SetKey
+    objects: list[EventAddSetObject]
+    rank: float | None = None

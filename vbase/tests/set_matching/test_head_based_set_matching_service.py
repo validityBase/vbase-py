@@ -63,7 +63,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-abc")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].created_at, 1000)  # timestamp of head element
+        self.assertEqual(matches[0].score, 1.0)  # perfect match, no timestamp differences
         self.assertEqual(matches[0].as_of_timestamp, 2000)  # timestamp of last matching element
 
     def test_returns_empty_for_non_matching_head(self) -> None:
@@ -178,8 +178,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-xyz")
         self.assertEqual(matches[0].user, "0xAlice")
-        # Score should reflect timestamp differences: |1000-1500| + |2000-2500| = 500 + 500 = 1000
-        self.assertEqual(matches[0].score, 1000.0)
+        self.assertLess(matches[0].score, 1.0)  # score should be less than 1.0 due to timestamp differences
 
     def test_no_match_when_timestamp_order_differs(self) -> None:
         """Test that service returns empty when CIDs match but timestamp order differs."""

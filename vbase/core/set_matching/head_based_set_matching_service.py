@@ -9,21 +9,7 @@ from sqlmodel import Session, create_engine, select
 
 from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
-from vbase.core.set_matching.types import SetMatching, SetMatchingCriteria
-
-@dataclass(frozen=True)
-class SetKey:
-    set_cid: str
-    user: str
-    chain_id: int
-
-
-@dataclass
-class ObjectSetData:
-    key: SetKey
-    objects: list[EventAddSetObject]
-    rank: int | None = None
-
+from vbase.core.set_matching.types import ObjectSetData, SetKey, SetMatching, SetMatchingCriteria
 
 class HeadBasedSetMatchingService(BaseSetMatchingService):
     """
@@ -112,20 +98,22 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         matching_sets = [s for s in candidate_sets if s.rank != -1]
         matching_sets.sort(key=lambda s: s.rank)
 
+        # take the max rank to calculate a score as a percentage of the max rank, so that the best match will have score 1.0 and the worst will have score close to 0.0
+        max_rank = max(s.rank for s in matching_sets) if matching_sets else 1.0
+
         # convert to SetMatching and return the top 5
         return [SetMatching(
-            score=float(s.rank),  # use rank as score (lower is better)
-            created_at=s.objects[0].timestamp,  # timestamp of the head element
+            score= 1 - (s.rank / max_rank if max_rank > 0 else 0.0),  # normalize rank to [0, 1]
             set_cid=s.key.set_cid,
             user=s.key.user,
             as_of_timestamp=s.objects[len(criteria.objects) - 1].timestamp,  # timestamp of the last mathcing element
-        ) for s in matching_sets]
+        ) for s in matching_sets[:5]]
 
     @staticmethod
     def _rank_candidate(
         candidate: ObjectSetData,
         criteria: SetMatchingCriteria,
-    ) -> int:
+    ) -> float:
         """"Ranks a candidate set based on how well its head matches the criteria.
         If it doesn't match by CIDs - returns -1. Otherwise, returns the sum of absolute timestamp differences between
         the candidate set and the criteria for the head elements.

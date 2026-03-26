@@ -28,14 +28,12 @@ class TestAggregateSetMatchingService(unittest.TestCase):
         )
         self.match_a = SetMatching(
             score=0.9,
-            created_at=1700000001,
             set_cid="set-a",
             user="alice",
             as_of_timestamp=1700000002,
         )
         self.match_b = SetMatching(
             score=0.8,
-            created_at=1700000003,
             set_cid="set-b",
             user="bob",
             as_of_timestamp=1700000004,
