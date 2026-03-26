@@ -42,6 +42,15 @@ __all__ = [
     "IndexingService",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
+    
+    "AggregateSetMatchingService",
+    "HeadBasedSetMatchingService",
+    "FuzzySetMatchingService",
+    "BaseSetMatchingService",
+    "SetMatching",
+    "SetMatchingCriteria",
+    "SetMatchingCriteriaItem",
+
     "FailoverIndexingService",
     "AggregateIndexingService",
     "VBaseObject",
