@@ -52,3 +52,14 @@ class ObjectSetData:
     key: SetKey
     objects: list[EventAddSetObject]
     rank: float | None = None
+
+
+@dataclass(frozen=True)
+class LevenshteinDistance:
+    """
+    Result of Levenshtein distance calculation with detailed operation counts.
+    """
+    insertions: int  # Number of insertion operations
+    deletions: int  # Number of deletion operations
+    substitutions: int  # Number of substitution operations
+    distance: int  # Total edit distance (insertions + deletions + substitutions)

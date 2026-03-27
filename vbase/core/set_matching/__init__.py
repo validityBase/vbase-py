@@ -12,6 +12,7 @@ from vbase.core.set_matching.head_based_set_matching_service import (
     HeadBasedSetMatchingService,
 )
 from vbase.core.set_matching.types import (
+    LevenshteinDistance,
     SetMatching,
     SetMatchingCriteria,
     SetMatchingCriteriaItem,
@@ -22,6 +23,7 @@ __all__ = [
     "BaseSetMatchingService",
     "FuzzySetMatchingService",
     "HeadBasedSetMatchingService",
+    "LevenshteinDistance",
     "SetMatching",
     "SetMatchingCriteria",
     "SetMatchingCriteriaItem",

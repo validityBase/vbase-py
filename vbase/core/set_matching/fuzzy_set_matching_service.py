@@ -8,6 +8,7 @@ from sqlmodel import Session, create_engine, select
 from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import (
+    LevenshteinDistance,
     ObjectSetData,
     SetKey,
     SetMatching,
@@ -161,7 +162,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             candidate_cids = candidate_cids[:len(criteria_cids)]
 
         # Calculate Levenshtein distance
-        distance = FuzzySetMatchingService._levenshtein_distance(
+        lev_result = FuzzySetMatchingService._levenshtein_distance(
             criteria_cids, candidate_cids
         )
 
@@ -172,16 +173,28 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         max_allowed_distance = len(ordered_criteria) - required_matches
 
         # Check if we meet the tolerance threshold
-        if distance > max_allowed_distance:
+
+        if lev_result.insertions > 0:
+            # if we have insertions, it means we are pushing the criteria tail behind the candidate tail,
+            # which produce additional deletions, so we need to substract insertions from deletions, and recalculate the total distance
+            adjusted_deletions = max(0, lev_result.deletions - lev_result.insertions)
+            lev_result = LevenshteinDistance(
+                insertions=lev_result.insertions,
+                deletions=adjusted_deletions,
+                substitutions=lev_result.substitutions,
+                distance=lev_result.insertions + adjusted_deletions + lev_result.substitutions
+            )
+
+        if lev_result.distance > max_allowed_distance:
             return -1
 
         # Calculate rank as distance normalized by criteria length
         # Perfect match (distance=0) gets rank=1.0, higher distance gets lower rank
-        rank = 1 - distance / len(ordered_criteria)
+        rank = 1 - lev_result.distance / len(ordered_criteria)
         return rank
 
     @staticmethod
-    def _levenshtein_distance(seq1: list, seq2: list) -> int:
+    def _levenshtein_distance(seq1: list, seq2: list) -> LevenshteinDistance:
         """
         Calculate the Levenshtein distance between two sequences.
 
@@ -194,7 +207,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             seq2: Second sequence
 
         Returns:
-            The Levenshtein distance as an integer
+            LevenshteinDistance with detailed operation counts
         """
         len1, len2 = len(seq1), len(seq2)
 
@@ -219,7 +232,52 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                         dp[i - 1][j - 1]   # substitution
                     )
 
-        return dp[len1][len2]
+        # Backtrack to count operation types
+        insertions = 0
+        deletions = 0
+        substitutions = 0
+        i, j = len1, len2
+        
+        while i > 0 or j > 0:
+            if i == 0:
+                # Only insertions left
+                insertions += j
+                break
+            if j == 0:
+                # Only deletions left
+                deletions += i
+                break
+            
+            current = dp[i][j]
+            diagonal = dp[i - 1][j - 1]
+            left = dp[i][j - 1]
+            up = dp[i - 1][j]
+            
+            if seq1[i - 1] == seq2[j - 1]:
+                # No operation needed, move diagonally
+                i -= 1
+                j -= 1
+            elif current == diagonal + 1:
+                # Substitution
+                substitutions += 1
+                i -= 1
+                j -= 1
+            elif current == left + 1:
+                # Insertion
+                insertions += 1
+                j -= 1
+            else:
+                # Deletion
+                deletions += 1
+                i -= 1
+        
+        total_distance = insertions + deletions + substitutions
+        return LevenshteinDistance(
+            insertions=insertions,
+            deletions=deletions,
+            substitutions=substitutions,
+            distance=total_distance
+        )
 
     @staticmethod
     def _build_candidate_filters(
