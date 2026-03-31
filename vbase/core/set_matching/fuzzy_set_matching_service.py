@@ -8,8 +8,8 @@ from sqlmodel import Session, create_engine, select
 from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import (
+    FuzzyCheckObjectSetData,
     LevenshteinDistance,
-    ObjectSetData,
     SetKey,
     SetMatching,
     SetMatchingCriteria,
@@ -102,17 +102,22 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 .order_by(EventAddSetObject.timestamp)
             ).all()
 
-        # Build ObjectSetData from the event_rows
-        candidate_sets_dict: dict[SetKey, ObjectSetData] = {}
+        # Build FuzzyCheckObjectSetData from the event_rows
+        candidate_sets_dict: dict[SetKey, FuzzyCheckObjectSetData] = {}
         for event_row in event_rows:
             set_key = SetKey(event_row.set_cid, event_row.user, event_row.chain_id)
             if set_key not in candidate_sets_dict:
-                candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
+                candidate_sets_dict[set_key] = FuzzyCheckObjectSetData(
+                    key=set_key,
+                    objects=[],
+                )
             candidate_sets_dict[set_key].objects.append(event_row)
 
-        candidate_sets: list[ObjectSetData] = list(candidate_sets_dict.values())
+        candidate_sets: list[FuzzyCheckObjectSetData] = list(
+            candidate_sets_dict.values()
+        )
         for candidate_set in candidate_sets:
-            candidate_set.rank = self._rank_candidate(
+            candidate_set.rank, candidate_set.lev_result = self._rank_candidate(
                 candidate_set, criteria, effective_tolerance
             )
 
@@ -121,22 +126,36 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         matching_sets.sort(key=lambda s: s.rank)
 
         # Return the top 5 matches
-        return [
-            SetMatching(
-                score=s.rank,
-                set_cid=s.key.set_cid,
-                user=s.key.user,
-                as_of_timestamp=s.objects[min(len(s.objects) - 1, len(criteria.objects) - 1)].timestamp,
+        results: list[SetMatching] = []
+        for candidate_set in matching_sets[:5]:
+            # Project the criteria length onto the candidate sequence, adjusted by
+            # Levenshtein insertions and deletions, to find the matched timestamp.
+            matched_length = len(criteria.objects)
+            if candidate_set.lev_result is not None:
+                matched_length += candidate_set.lev_result.insertions
+                matched_length -= candidate_set.lev_result.deletions
+
+            as_of_index = min(
+                len(candidate_set.objects) - 1,
+                max(0, matched_length - 1),
             )
-            for s in matching_sets[:5]
-        ]
+            results.append(
+                SetMatching(
+                    score=candidate_set.rank,
+                    set_cid=candidate_set.key.set_cid,
+                    user=candidate_set.key.user,
+                    as_of_timestamp=candidate_set.objects[as_of_index].timestamp,
+                )
+            )
+
+        return results
 
     @staticmethod
     def _rank_candidate(
-        candidate: ObjectSetData,
+        candidate: FuzzyCheckObjectSetData,
         criteria: SetMatchingCriteria,
         tolerance: float,
-    ) -> int:
+    ) -> tuple[float, LevenshteinDistance]:
         """
         Ranks a candidate set based on how well it matches the criteria with tolerance.
 
@@ -144,8 +163,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         The Levenshtein distance measures the minimum number of edits (insertions,
         deletions, or substitutions) needed to transform one sequence into another.
 
-        Returns -1 if the match quality is below the tolerance threshold.
-        Otherwise, returns a score based on the Levenshtein distance.
+        Returns the score and detailed Levenshtein result for the comparison.
+        A score of -1 means the candidate is below the tolerance threshold.
 
         Lower scores are better.
         """
@@ -186,12 +205,12 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             )
 
         if lev_result.distance > max_allowed_distance:
-            return -1
+            return -1, lev_result
 
         # Calculate rank as distance normalized by criteria length
         # Perfect match (distance=0) gets rank=1.0, higher distance gets lower rank
         rank = 1 - lev_result.distance / len(ordered_criteria)
-        return rank
+        return rank, lev_result
 
     @staticmethod
     def _levenshtein_distance(seq1: list, seq2: list) -> LevenshteinDistance:

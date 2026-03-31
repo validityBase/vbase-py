@@ -63,3 +63,11 @@ class LevenshteinDistance:
     deletions: int  # Number of deletion operations
     substitutions: int  # Number of substitution operations
     distance: int  # Total edit distance (insertions + deletions + substitutions)
+
+
+@dataclass
+class FuzzyCheckObjectSetData(ObjectSetData):
+    """
+    Holds fuzzy match evaluation data for a set of objects.
+    """
+    lev_result: LevenshteinDistance | None = None

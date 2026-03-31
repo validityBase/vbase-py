@@ -4,10 +4,16 @@ Unit tests for FuzzySetMatchingService.
 
 import unittest
 
+from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.fuzzy_set_matching_service import (
     FuzzySetMatchingService,
 )
-from vbase.core.set_matching.types import SetMatchingCriteria, SetMatchingCriteriaItem
+from vbase.core.set_matching.types import (
+    FuzzyCheckObjectSetData,
+    SetKey,
+    SetMatchingCriteria,
+    SetMatchingCriteriaItem,
+)
 from vbase.tests.set_matching.base_sql_matching_test import BaseSQLMatchingTest
 
 
@@ -707,6 +713,161 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(matches[0].set_cid, "set-missing-first")
         self.assertEqual(matches[0].user, "0xAlice")
         self.assertAlmostEqual(matches[0].score, 0.875, delta=0.1)
+
+    def test_rank_candidate_returns_levenshtein_result(self) -> None:
+        """Test that fuzzy ranking returns both the rank and Levenshtein details."""
+        candidate = FuzzyCheckObjectSetData(
+            key=SetKey(set_cid="set-fuzzy", user="0xAlice", chain_id=1),
+            objects=[
+                EventAddSetObject(
+                    id=f"event-{i}",
+                    user="0xAlice",
+                    set_cid="set-fuzzy",
+                    object_cid=f"obj-{i}",
+                    chain_id=1,
+                    transaction_hash="0x0",
+                    timestamp=i * 1000,
+                )
+                for i in range(1, 6)
+            ],
+        )
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
+                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
+                SetMatchingCriteriaItem(object_cid="obj-4", timestamp=4000),
+                SetMatchingCriteriaItem(object_cid="obj-different", timestamp=5000),
+            ]
+        )
+
+        candidate.rank, candidate.lev_result = FuzzySetMatchingService._rank_candidate(
+            candidate, criteria, tolerance=0.2
+        )
+
+        self.assertEqual(candidate.rank, 0.8)
+        self.assertIsNotNone(candidate.lev_result)
+        assert candidate.lev_result is not None
+        self.assertEqual(candidate.lev_result.substitutions, 1)
+        self.assertEqual(candidate.lev_result.insertions, 0)
+        self.assertEqual(candidate.lev_result.deletions, 0)
+        self.assertEqual(candidate.lev_result.distance, 1)
+
+    def test_as_of_timestamp_accounts_for_insertions(self) -> None:
+        """Test that as_of_timestamp advances when Levenshtein inserts extra candidate elements."""
+        self.add_test_events([
+            {
+                "id": "event-0",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-prefix",
+                "chain_id": 1,
+                "timestamp": 500,
+            },
+            {
+                "id": "event-1",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-1",
+                "chain_id": 1,
+                "timestamp": 1000,
+            },
+            {
+                "id": "event-2",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-2",
+                "chain_id": 1,
+                "timestamp": 2000,
+            },
+            {
+                "id": "event-3",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-3",
+                "chain_id": 1,
+                "timestamp": 3000,
+            },
+            {
+                "id": "event-4",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-4",
+                "chain_id": 1,
+                "timestamp": 4000,
+            },
+            {
+                "id": "event-5",
+                "user": "0xAlice",
+                "set_cid": "set-inserted-prefix",
+                "object_cid": "obj-5",
+                "chain_id": 1,
+                "timestamp": 5000,
+            },
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                for i in range(1, 6)
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].as_of_timestamp, 5000)
+
+    def test_as_of_timestamp_accounts_for_deletions(self) -> None:
+        """Test that as_of_timestamp moves back when candidate elements are deleted."""
+        self.add_test_events([
+            {
+                "id": "event-1",
+                "user": "0xAlice",
+                "set_cid": "set-missing-tail",
+                "object_cid": "obj-1",
+                "chain_id": 1,
+                "timestamp": 1000,
+            },
+            {
+                "id": "event-2",
+                "user": "0xAlice",
+                "set_cid": "set-missing-tail",
+                "object_cid": "obj-2",
+                "chain_id": 1,
+                "timestamp": 2000,
+            },
+            {
+                "id": "event-3",
+                "user": "0xAlice",
+                "set_cid": "set-missing-tail",
+                "object_cid": "obj-3",
+                "chain_id": 1,
+                "timestamp": 3000,
+            },
+            {
+                "id": "event-4",
+                "user": "0xAlice",
+                "set_cid": "set-missing-tail",
+                "object_cid": "obj-4",
+                "chain_id": 1,
+                "timestamp": 4000,
+            },
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.25)
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                for i in range(1, 6)
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].as_of_timestamp, 4000)
 
 
 if __name__ == "__main__":
