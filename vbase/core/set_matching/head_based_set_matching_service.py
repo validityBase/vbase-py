@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, or_
 from sqlmodel import Session, create_engine, select
 
-from vbase.core.models import EventAddSetObject
+from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import ObjectSetData, SetKey, SetMatching, SetMatchingCriteria
 
@@ -63,6 +63,12 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         criteria.objects = sorted(criteria.objects, key=lambda item: item.timestamp)
         
         with Session(self.db_engine) as session:
+
+            last_batch_statement = select(LastBatchProcessingTime).order_by(
+                LastBatchProcessingTime.timestamp.desc()
+            )
+            last_batch = session.exec(last_batch_statement).first().timestamp
+
             # get narrow selection of most promising candidate sets
             candidate_keys = self._get_candidates(session, criteria)
 
@@ -89,10 +95,13 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
             candidate_sets_dict[set_key].objects.append(event_row)
 
+        # update set_length for each candidate set
+        for candidate_set in candidate_sets_dict.values():
+            candidate_set.set_length = len(candidate_set.objects)
         
         candidate_sets: list[ObjectSetData] = list(candidate_sets_dict.values())
         for candidate_set in candidate_sets:
-            candidate_set.rank = self._rank_candidate(candidate_set, criteria)
+            candidate_set.rank = self._get_distance(candidate_set, criteria)
 
         # take everything that matches by CIDs (rank != -1) and sort by rank (lower is better)
         matching_sets = [s for s in candidate_sets if s.rank != -1]
@@ -103,18 +112,20 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
 
         # convert to SetMatching and return the top 5
         return [SetMatching(
-            score= 1 - (s.rank / max_rank if max_rank > 0 else 0.0),  # normalize rank to [0, 1]
+            rank= 1 - (s.rank / max_rank if max_rank > 0 else 0.0),  # normalize rank to [0 - worst match, 1 - best match] 
             set_cid=s.key.set_cid,
             user=s.key.user,
-            as_of_timestamp=s.objects[len(criteria.objects) - 1].timestamp,  # timestamp of the last mathcing element
+            as_of_timestamp=s.objects[len(criteria.objects) - 1].timestamp,  # timestamp of the last matching element
+            is_full_match=s.set_length == len(criteria.objects),  # case when the head is full set
+            data_freshness_timestamp=last_batch
         ) for s in matching_sets[:5]]
 
     @staticmethod
-    def _rank_candidate(
+    def _get_distance(
         candidate: ObjectSetData,
         criteria: SetMatchingCriteria,
     ) -> float:
-        """"Ranks a candidate set based on how well its head matches the criteria.
+        """"Get a distance for a candidate set based on how well its head matches the criteria.
         If it doesn't match by CIDs - returns -1. Otherwise, returns the sum of absolute timestamp differences between
         the candidate set and the criteria for the head elements.
         """

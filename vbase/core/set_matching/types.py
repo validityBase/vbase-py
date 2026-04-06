@@ -28,10 +28,14 @@ class SetMatching:
     Represents a successful match of a set of objects to a set on the blockchain, along with metadata about the match.
     """
 
-    score: float # a score representing how well the set matches [0:1], where 1.0 is a perfect match
+    rank: float # a rank representing how well the set matches [0:1], where 1.0 is a perfect match
     set_cid: str
     user: str
     as_of_timestamp: int
+    #: Whether the match is a full match (all criteria objects are in the set and all set objects
+    #: are in the criteria), or a partial match where extra objects are in the set.
+    is_full_match: bool
+    data_freshness_timestamp: int | None = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +56,7 @@ class ObjectSetData:
     key: SetKey
     objects: list[EventAddSetObject]
     rank: float | None = None
+    set_length: int | None = None  # length of the longest chain of events for this set, used for tie-breaking in matching
 
 
 @dataclass(frozen=True)

@@ -116,6 +116,11 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         candidate_sets: list[FuzzyCheckObjectSetData] = list(
             candidate_sets_dict.values()
         )
+
+        # update set_length for each candidate set
+        for candidate_set in candidate_sets_dict.values():
+            candidate_set.set_length = len(candidate_set.objects)
+
         for candidate_set in candidate_sets:
             candidate_set.rank, candidate_set.lev_result = self._rank_candidate(
                 candidate_set, criteria, effective_tolerance
@@ -123,7 +128,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
 
         # Take everything that meets the tolerance threshold (rank != -1) and sort by rank
         matching_sets = [s for s in candidate_sets if s.rank != -1]
-        matching_sets.sort(key=lambda s: s.rank)
+        matching_sets.sort(key=lambda s: s.rank, reverse=True)
 
         # Return the top 5 matches
         results: list[SetMatching] = []
@@ -141,10 +146,14 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             )
             results.append(
                 SetMatching(
-                    score=candidate_set.rank,
+                    rank=candidate_set.rank,
                     set_cid=candidate_set.key.set_cid,
                     user=candidate_set.key.user,
                     as_of_timestamp=candidate_set.objects[as_of_index].timestamp,
+                    is_full_match=(
+                        candidate_set.set_length == len(criteria.objects)
+                        and candidate_set.lev_result.distance == 0
+                    )
                 )
             )
 

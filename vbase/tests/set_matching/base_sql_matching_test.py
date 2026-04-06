@@ -9,7 +9,7 @@ from abc import ABC
 
 from sqlmodel import Session, SQLModel, create_engine
 
-from vbase.core.models import EventAddSetObject
+from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
 
 
 class BaseSQLMatchingTest(unittest.TestCase, ABC):
@@ -93,6 +93,13 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
         
         with Session(self.db_engine) as session:
             session.add(event)
+            session.commit()
+
+    def add_last_batch_processing_time(self, timestamp: int, record_id: str = "batch-1") -> None:
+        """Add a LastBatchProcessingTime record to the test database."""
+        record = LastBatchProcessingTime(id=record_id, timestamp=timestamp)
+        with Session(self.db_engine) as session:
+            session.add(record)
             session.commit()
 
     def add_test_events(self, events: list[dict]) -> None:

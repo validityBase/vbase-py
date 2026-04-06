@@ -78,7 +78,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-small")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].score, 1.0)  # Perfect match
+        self.assertEqual(matches[0].rank, 1.0)  # Perfect match
         self.assertEqual(matches[0].as_of_timestamp, 2000)
 
     def test_small_criteria_no_match_if_one_position_differs(self) -> None:
@@ -167,7 +167,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Should find exact match
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-large")
-        self.assertEqual(matches[0].score, 1.0)  # Perfect match
+        self.assertEqual(matches[0].rank, 1.0)  # Perfect match
 
     def test_large_criteria_fuzzy_match_within_tolerance(self) -> None:
         """Test that large criteria matches when within 20% tolerance (1 out of 5 different)."""
@@ -625,10 +625,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 2)
         # First match should be the perfect one (lower score)
         self.assertEqual(matches[0].set_cid, "set-perfect")
-        self.assertEqual(matches[0].score, 1.0)  # Perfect match
+        self.assertEqual(matches[0].rank, 1.0)  # Perfect match
         # Second match should have higher score due to timestamp differences
         self.assertEqual(matches[1].set_cid, "set-offset")
-        self.assertEqual(matches[1].score, 1.0)  # perfect match in terms of object order 
+        self.assertEqual(matches[1].rank, 1.0)  # perfect match in terms of object order
 
     def test_max_5_results_returned(self) -> None:
         """Test that at most 5 matches are returned."""
@@ -712,7 +712,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-missing-first")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertAlmostEqual(matches[0].score, 0.875, delta=0.1)
+        self.assertAlmostEqual(matches[0].rank, 0.875, delta=0.1)
 
     def test_rank_candidate_returns_levenshtein_result(self) -> None:
         """Test that fuzzy ranking returns both the rank and Levenshtein details."""
@@ -868,6 +868,98 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].as_of_timestamp, 4000)
+
+    # ========== Test is_full_match ==========
+
+    def test_is_full_match_true_when_perfect_match_and_same_size(self) -> None:
+        """Test that is_full_match is True when criteria exactly equals the set (same elements, same size)."""
+        self.add_test_events([
+            {
+                "id": f"event-{i}",
+                "user": "0xAlice",
+                "set_cid": "set-exact",
+                "object_cid": f"obj-{i}",
+                "chain_id": 1,
+                "timestamp": i * 1000,
+            }
+            for i in range(1, 6)
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+
+        # Criteria has exactly 5 elements, same CIDs as the set
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                for i in range(1, 6)
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertTrue(matches[0].is_full_match)
+
+    def test_is_full_match_false_when_set_longer_than_criteria(self) -> None:
+        """Test that is_full_match is False when the set has more objects than criteria."""
+        self.add_test_events([
+            {
+                "id": f"event-{i}",
+                "user": "0xAlice",
+                "set_cid": "set-longer",
+                "object_cid": f"obj-{i}",
+                "chain_id": 1,
+                "timestamp": i * 1000,
+            }
+            for i in range(1, 9)  # 8 objects in the set
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+
+        # Criteria has only 5 elements; set has 8
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                for i in range(1, 6)
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertFalse(matches[0].is_full_match)
+
+    def test_is_full_match_false_when_same_size_but_substitution(self) -> None:
+        """Test that is_full_match is False when sizes match but a CID differs (lev distance > 0)."""
+        self.add_test_events([
+            {
+                "id": f"event-{i}",
+                "user": "0xAlice",
+                "set_cid": "set-sub",
+                "object_cid": f"obj-{i}",
+                "chain_id": 1,
+                "timestamp": i * 1000,
+            }
+            for i in range(1, 6)
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+
+        # Criteria has same size (5) but last CID differs → lev distance = 1
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
+                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
+                SetMatchingCriteriaItem(object_cid="obj-4", timestamp=4000),
+                SetMatchingCriteriaItem(object_cid="obj-DIFFERENT", timestamp=5000),
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertFalse(matches[0].is_full_match)
 
 
 if __name__ == "__main__":

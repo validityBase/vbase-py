@@ -27,16 +27,18 @@ class TestChainSetMatchingService(unittest.TestCase):
             objects=[SetMatchingCriteriaItem(object_cid="cid-1", timestamp=1700000000)]
         )
         self.match_a = SetMatching(
-            score=0.9,
+            rank=0.9,
             set_cid="set-a",
             user="alice",
             as_of_timestamp=1700000002,
+            is_full_match=False,
         )
         self.match_b = SetMatching(
-            score=0.8,
+            rank=0.8,
             set_cid="set-b",
             user="bob",
             as_of_timestamp=1700000004,
+            is_full_match=False,
         )
 
     def test_returns_first_non_empty_and_stops(self) -> None:

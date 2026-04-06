@@ -16,6 +16,11 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     Tests for HeadBasedSetMatchingService using in-memory database.
     """
 
+    def setUp(self) -> None:
+        super().setUp()
+        # HeadBasedSetMatchingService queries LastBatchProcessingTime; seed one record.
+        self.add_last_batch_processing_time(timestamp=9999999)
+
     def test_finds_exact_head_match(self) -> None:
         """Test that service finds a set when head objects match exactly."""
         # Add test data: a set with 3 objects
@@ -63,8 +68,10 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-abc")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].score, 1.0)  # perfect match, no timestamp differences
+        self.assertEqual(matches[0].rank, 1.0)  # perfect match, no timestamp differences
         self.assertEqual(matches[0].as_of_timestamp, 2000)  # timestamp of last matching element
+        self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
+        self.assertEqual(matches[0].data_freshness_timestamp, 9999999)
 
     def test_returns_empty_for_non_matching_head(self) -> None:
         """Test that service returns empty list when head doesn't match."""
@@ -178,7 +185,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-xyz")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertLess(matches[0].score, 1.0)  # score should be less than 1.0 due to timestamp differences
+        self.assertLess(matches[0].rank, 1.0)  # rank should be less than 1.0 due to timestamp differences
+        self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
 
     def test_no_match_when_timestamp_order_differs(self) -> None:
         """Test that service returns empty when CIDs match but timestamp order differs."""
@@ -228,6 +236,89 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # DB order: obj-1, obj-2
         # Criteria order (after sorting): obj-2, obj-1
         self.assertEqual(len(matches), 0)
+
+
+    # ========== Test is_full_match ==========
+
+    def test_is_full_match_true_when_criteria_equals_set_size(self) -> None:
+        """Test that is_full_match is True when criteria length equals the set length."""
+        self.add_test_events([
+            {
+                "id": "event-1",
+                "user": "0xAlice",
+                "set_cid": "set-full",
+                "object_cid": "obj-1",
+                "chain_id": 1,
+                "timestamp": 1000,
+            },
+            {
+                "id": "event-2",
+                "user": "0xAlice",
+                "set_cid": "set-full",
+                "object_cid": "obj-2",
+                "chain_id": 1,
+                "timestamp": 2000,
+            },
+        ])
+
+        service = HeadBasedSetMatchingService(db_url=self.db_url)
+
+        # Criteria has exactly 2 elements, same as the set
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
+                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertTrue(matches[0].is_full_match)
+
+    def test_is_full_match_false_when_set_longer_than_criteria(self) -> None:
+        """Test that is_full_match is False when the set has more objects than criteria."""
+        self.add_test_events([
+            {
+                "id": "event-1",
+                "user": "0xAlice",
+                "set_cid": "set-partial",
+                "object_cid": "obj-1",
+                "chain_id": 1,
+                "timestamp": 1000,
+            },
+            {
+                "id": "event-2",
+                "user": "0xAlice",
+                "set_cid": "set-partial",
+                "object_cid": "obj-2",
+                "chain_id": 1,
+                "timestamp": 2000,
+            },
+            {
+                "id": "event-3",
+                "user": "0xAlice",
+                "set_cid": "set-partial",
+                "object_cid": "obj-3",
+                "chain_id": 1,
+                "timestamp": 3000,
+            },
+        ])
+
+        service = HeadBasedSetMatchingService(db_url=self.db_url)
+
+        # Criteria has only 2 elements but the set has 3
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
+                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        self.assertFalse(matches[0].is_full_match)
 
 
 if __name__ == "__main__":
