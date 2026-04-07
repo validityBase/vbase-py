@@ -1,7 +1,8 @@
 name: Setup Python dependencies
 description: >
-  Cache pip and install requirements. The cache key is defined here as the single
-  source of truth — workflows must use this action rather than inline pip steps.
+  Cache pip and install requirements. The cache key uses the Python major.minor
+  string (not pythonLocation paths) plus hashes of requirement files that this
+  action installs. Workflows must use this action rather than inline pip steps.
 inputs:
   install-docs-first:
     description: If true, install docs/requirements.txt before requirements.txt
@@ -10,14 +11,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Determine Python version
+      id: python-version
+      shell: bash
+      run: |
+        echo "version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')" >> "$GITHUB_OUTPUT"
+
     - name: Cache pip
       uses: actions/cache@v5
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ env.pythonLocation }}-${{ hashFiles('requirements.txt', 'docs/requirements.txt', 'requirements-dev.txt') }}-v2
+        key: ${{ runner.os }}-pip-${{ steps.python-version.outputs.version }}-${{ hashFiles('requirements.txt', 'docs/requirements.txt') }}-v2
         restore-keys: |
-          ${{ runner.os }}-pip-${{ env.pythonLocation }}-
-          ${{ runner.os }}-pip-
+          ${{ runner.os }}-pip-${{ steps.python-version.outputs.version }}-
+
     - name: Install dependencies
       shell: bash
       run: |
