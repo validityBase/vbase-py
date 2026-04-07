@@ -1,4 +1,4 @@
-""""
+"""
 Base class for set matching strategies.
 """
 

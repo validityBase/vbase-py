@@ -68,8 +68,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         Algorithm:
             - If criteria has fewer than MIN_CRITERIA_SIZE_FOR_TOLERANCE elements, use exact matching (tolerance = 0).
             - Find all sets that contain at least (1 - tolerance) * 100% of the criteria elements.
-            - For each candidate set, rank by how many CIDs match and timestamp alignment.
-            - Use timestamps to determine element ordering.
+            - Order criteria and candidate set elements by timestamp to build comparable CID sequences.
+            - Rank candidate sets by CID sequence similarity (for example, Levenshtein distance over the ordered CIDs).
 
         Corner Cases:
             - Empty search criteria: return an empty list.
@@ -154,6 +154,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                     as_of_timestamp=candidate_set.objects[as_of_index].timestamp,
                     is_full_match=(
                         candidate_set.set_length == len(criteria.objects)
+                        and candidate_set.lev_result is not None
                         and candidate_set.lev_result.distance == 0
                     )
                 )
@@ -174,10 +175,10 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         The Levenshtein distance measures the minimum number of edits (insertions,
         deletions, or substitutions) needed to transform one sequence into another.
 
-        Returns the score and detailed Levenshtein result for the comparison.
-        A score of -1 means the candidate is below the tolerance threshold.
+        Returns the rank and detailed Levenshtein result for the comparison.
+        A rank of -1 means the candidate is below the tolerance threshold.
 
-        Lower scores are better.
+        Higher ranks are better, with 1.0 representing a perfect match.
         """
         ordered_criteria = sorted(criteria.objects, key=lambda item: item.timestamp)
         ordered_candidate = sorted(candidate.objects, key=lambda obj: obj.timestamp)
