@@ -2,6 +2,8 @@
 Fuzzy set matching service implementation.
 """
 
+import math
+
 from sqlalchemy import and_, func, or_
 from sqlmodel import Session, create_engine, select
 
@@ -194,8 +196,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             criteria_cids, candidate_cids
         )
 
-        # Calculate required matches based on tolerance
-        required_matches = int(len(ordered_criteria) * (1.0 - tolerance))
+        # Calculate required matches based on tolerance (ceil ensures mismatch fraction never exceeds tolerance)
+        required_matches = math.ceil(len(ordered_criteria) * (1.0 - tolerance))
         
         # Maximum allowed distance is the number of allowed mismatches
         max_allowed_distance = len(ordered_criteria) - required_matches

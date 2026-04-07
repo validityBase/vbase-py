@@ -267,6 +267,53 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-boundary")
 
+    def test_non_multiple_criteria_size_enforces_ceiling(self) -> None:
+        """Test tolerance ceiling with a non-multiple size (len=6, tolerance=0.2).
+
+        math.ceil(6 * 0.8) = 5, so max_allowed_distance = 1.
+        1 mismatch (16.7%) must match; 2 mismatches (33.3%) must not.
+        """
+        self.add_test_events([
+            {
+                "id": f"event-{i}",
+                "user": "0xAlice",
+                "set_cid": "set-nonmultiple",
+                "object_cid": f"obj-{i}",
+                "chain_id": 1,
+                "timestamp": i * 1000,
+            }
+            for i in range(1, 7)
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+
+        # 1 mismatch out of 6 (16.7%) — must match
+        criteria_one_diff = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(
+                    object_cid=f"obj-{i}" if i < 6 else "obj-DIFF",
+                    timestamp=i * 1000,
+                )
+                for i in range(1, 7)
+            ]
+        )
+        matches = service.find_matching_sets(criteria_one_diff)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].set_cid, "set-nonmultiple")
+
+        # 2 mismatches out of 6 (33.3%) — must NOT match (exceeds 20% tolerance)
+        criteria_two_diff = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(
+                    object_cid=f"obj-{i}" if i < 5 else f"obj-DIFF{i}",
+                    timestamp=i * 1000,
+                )
+                for i in range(1, 7)
+            ]
+        )
+        matches = service.find_matching_sets(criteria_two_diff)
+        self.assertEqual(len(matches), 0)
+
     # ========== Test Position-Based Ordering ==========
 
     def test_position_order_matters(self) -> None:
@@ -705,9 +752,9 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         # Should find the match
         # Levenshtein distance = 1 (one deletion at the beginning)
-        # required_matches = int(8 * (1 - 0.2)) = 6
-        # max_allowed_distance = 8 - 6 = 2
-        # distance (1) <= max_allowed_distance (2), so it should match
+        # required_matches = math.ceil(8 * (1 - 0.2)) = math.ceil(6.4) = 7
+        # max_allowed_distance = 8 - 7 = 1
+        # distance (1) <= max_allowed_distance (1), so it should match
         # rank = 1 - 1 / 8 = 0.875
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-missing-first")
