@@ -86,12 +86,14 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         )
 
         # Make sure that the criteria objects are ordered by timestamp
-        criteria.objects = sorted(criteria.objects, key=lambda item: item.timestamp)
+        sorted_criteria = SetMatchingCriteria(
+            objects=sorted(criteria.objects, key=lambda item: item.timestamp)
+        )
 
         with Session(self.db_engine) as session:
             # Get narrow selection of most promising candidate sets
             candidate_keys = self._get_candidates(
-                session, criteria, effective_tolerance
+                session, sorted_criteria, effective_tolerance
             )
 
             if not candidate_keys:
@@ -125,7 +127,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
 
         for candidate_set in candidate_sets:
             candidate_set.rank, candidate_set.lev_result = self._rank_candidate(
-                candidate_set, criteria, effective_tolerance
+                candidate_set, sorted_criteria, effective_tolerance
             )
 
         # Take everything that meets the tolerance threshold (rank != -1) and sort by rank
@@ -137,7 +139,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         for candidate_set in matching_sets[:5]:
             # Project the criteria length onto the candidate sequence, adjusted by
             # Levenshtein insertions and deletions, to find the matched timestamp.
-            matched_length = len(criteria.objects)
+            matched_length = len(sorted_criteria.objects)
             if candidate_set.lev_result is not None:
                 matched_length += candidate_set.lev_result.insertions
                 matched_length -= candidate_set.lev_result.deletions
@@ -153,7 +155,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                     user=candidate_set.key.user,
                     as_of_timestamp=candidate_set.objects[as_of_index].timestamp,
                     is_full_match=(
-                        candidate_set.set_length == len(criteria.objects)
+                        candidate_set.set_length == len(sorted_criteria.objects)
                         and candidate_set.lev_result is not None
                         and candidate_set.lev_result.distance == 0
                     )
@@ -187,34 +189,24 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         criteria_cids = [obj.object_cid for obj in ordered_criteria]
         candidate_cids = [obj.object_cid for obj in ordered_candidate]
 
-        # Truncate the longer sequence to match the criteria length
-        # This ensures we only compare up to the criteria length
-        if len(candidate_cids) > len(criteria_cids):
-            candidate_cids = candidate_cids[:len(criteria_cids)]
+        # Calculate required matches based on tolerance (ceil ensures mismatch fraction never exceeds tolerance)
+        required_matches = math.ceil(len(ordered_criteria) * (1.0 - tolerance))
+
+        # Maximum allowed distance is the number of allowed mismatches
+        max_allowed_distance = len(ordered_criteria) - required_matches
+
+        # Allow up to max_allowed_distance extra elements in the candidate so that
+        # Levenshtein can detect head insertions correctly. Truncating to exactly
+        # len(criteria_cids) forces equal-length sequences, where Levenshtein
+        # prefers substitutions over insert+delete, hiding true insertions and
+        # producing incorrect as_of_timestamp values.
+        if len(candidate_cids) > len(criteria_cids) + max_allowed_distance:
+            candidate_cids = candidate_cids[:len(criteria_cids) + max_allowed_distance]
 
         # Calculate Levenshtein distance
         lev_result = FuzzySetMatchingService._levenshtein_distance(
             criteria_cids, candidate_cids
         )
-
-        # Calculate required matches based on tolerance (ceil ensures mismatch fraction never exceeds tolerance)
-        required_matches = math.ceil(len(ordered_criteria) * (1.0 - tolerance))
-        
-        # Maximum allowed distance is the number of allowed mismatches
-        max_allowed_distance = len(ordered_criteria) - required_matches
-
-        # Check if we meet the tolerance threshold
-
-        if lev_result.insertions > 0:
-            # if we have insertions, it means we are pushing the criteria tail behind the candidate tail,
-            # which produce additional deletions, so we need to substract insertions from deletions, and recalculate the total distance
-            adjusted_deletions = max(0, lev_result.deletions - lev_result.insertions)
-            lev_result = LevenshteinDistance(
-                insertions=lev_result.insertions,
-                deletions=adjusted_deletions,
-                substitutions=lev_result.substitutions,
-                distance=lev_result.insertions + adjusted_deletions + lev_result.substitutions
-            )
 
         if lev_result.distance > max_allowed_distance:
             return -1, lev_result

@@ -866,6 +866,53 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].as_of_timestamp, 5000)
 
+    def test_insertion_at_head_with_repeated_cids_uses_correct_as_of_timestamp(self) -> None:
+        """Regression test: when all CIDs are identical, an extra element at the head
+        must be detected as an insertion (not a substitution), so as_of_timestamp
+        points to the last covered element, not one position too early.
+
+        The old code truncated the candidate to len(criteria), producing equal-length
+        sequences where Levenshtein prefers substitution over insert+delete.
+        That caused insertions=0 and matched_length=5, giving the wrong timestamp.
+        """
+        self.add_test_events([
+            {
+                "id": "event-prefix",
+                "user": "0xAlice",
+                "set_cid": "set-repeated",
+                "object_cid": "obj-same",
+                "chain_id": 1,
+                "timestamp": 500,  # extra element at head
+            },
+            *[
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-repeated",
+                    "object_cid": "obj-same",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ],
+        ])
+
+        service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
+        criteria = SetMatchingCriteria(
+            objects=[
+                SetMatchingCriteriaItem(object_cid="obj-same", timestamp=i * 1000)
+                for i in range(1, 6)
+            ]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        self.assertEqual(len(matches), 1)
+        # The insertion of the prefix element shifts the covered window forward:
+        # matched_length = 5 + 1 insertion = 6, so as_of_timestamp must be
+        # the 6th element (ts=5000), not the 5th (ts=4000).
+        self.assertEqual(matches[0].as_of_timestamp, 5000)
+
     def test_as_of_timestamp_accounts_for_deletions(self) -> None:
         """Test that as_of_timestamp moves back when candidate elements are deleted."""
         self.add_test_events([
