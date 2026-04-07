@@ -343,7 +343,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         if not criteria.objects:
             return []
 
-        required_matches = max(1, int(len(criteria.objects) * (1.0 - tolerance)))
+        required_matches = max(1, math.ceil(len(criteria.objects) * (1.0 - tolerance)))
 
         # Collect all criteria CIDs
         criteria_cids = [obj.object_cid for obj in criteria.objects]
