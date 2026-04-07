@@ -2,8 +2,6 @@
 Head-based set matching service implementation.
 """
 
-from dataclasses import dataclass
-
 from sqlalchemy import and_, or_
 from sqlmodel import Session, create_engine, select
 
@@ -69,7 +67,12 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             last_batch_statement = select(LastBatchProcessingTime).order_by(
                 LastBatchProcessingTime.timestamp.desc()
             )
-            last_batch = session.exec(last_batch_statement).first().timestamp
+            last_batch_record = session.exec(last_batch_statement).first()
+            if last_batch_record is None:
+                raise ValueError(
+                    "No LastBatchProcessingTime records found; cannot determine the last batch processing time."
+                )
+            last_batch = last_batch_record.timestamp
 
             # get narrow selection of most promising candidate sets
             candidate_keys = self._get_candidates(session, ordered_criteria)
@@ -127,7 +130,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         candidate: ObjectSetData,
         criteria: SetMatchingCriteria,
     ) -> float:
-        """"Get a distance for a candidate set based on how well its head matches the criteria.
+        """Get a distance for a candidate set based on how well its head matches the criteria.
         If it doesn't match by CIDs - returns -1. Otherwise, returns the sum of absolute timestamp differences between
         the candidate set and the criteria for the head elements.
         """
