@@ -5,7 +5,6 @@ Base class for set matching strategies.
 from abc import ABC, abstractmethod
 
 from vbase.core.set_matching.types import SetMatching, SetMatchingCriteria
-
 class BaseSetMatchingService(ABC):
     """
     Abstract base class for set matching strategies.

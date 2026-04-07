@@ -17,13 +17,13 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
     Abstract base class for unit tests of set matching services.
     
     Provides:
-    - In-memory SQLite database setup and teardown
+    - Temporary file-backed SQLite database setup and teardown
     - Helper method to add test EventAddSetObject records
     - Database URL for passing to matching service constructors
     """
 
     def setUp(self) -> None:
-        """Create in-memory database and initialize schema."""
+        """Create a temporary file-backed SQLite database and initialize schema."""
         super().setUp()
         self.db_url, self.db_engine, self.db_file = self.create_db()
 
