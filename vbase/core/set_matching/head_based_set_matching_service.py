@@ -60,8 +60,10 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             return []
 
         # make sure that the criteria objects are ordered by timestamp, which simplifies head matching
-        criteria.objects = sorted(criteria.objects, key=lambda item: item.timestamp)
-        
+        ordered_criteria = SetMatchingCriteria(
+            objects=sorted(criteria.objects, key=lambda item: item.timestamp)
+        )
+
         with Session(self.db_engine) as session:
 
             last_batch_statement = select(LastBatchProcessingTime).order_by(
@@ -70,7 +72,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             last_batch = session.exec(last_batch_statement).first().timestamp
 
             # get narrow selection of most promising candidate sets
-            candidate_keys = self._get_candidates(session, criteria)
+            candidate_keys = self._get_candidates(session, ordered_criteria)
 
             if not candidate_keys:
                 return []
@@ -101,7 +103,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         
         candidate_sets: list[ObjectSetData] = list(candidate_sets_dict.values())
         for candidate_set in candidate_sets:
-            candidate_set.rank = self._get_distance(candidate_set, criteria)
+            candidate_set.rank = self._get_distance(candidate_set, ordered_criteria)
 
         # take everything that matches by CIDs (rank != -1) and sort by rank (lower is better)
         matching_sets = [s for s in candidate_sets if s.rank != -1]
@@ -115,8 +117,8 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             rank= 1 - (s.rank / max_rank if max_rank > 0 else 0.0),  # normalize rank to [0 - worst match, 1 - best match] 
             set_cid=s.key.set_cid,
             user=s.key.user,
-            as_of_timestamp=s.objects[len(criteria.objects) - 1].timestamp,  # timestamp of the last matching element
-            is_full_match=s.set_length == len(criteria.objects),  # case when the head is full set
+            as_of_timestamp=s.objects[len(ordered_criteria.objects) - 1].timestamp,  # timestamp of the last matching element
+            is_full_match=s.set_length == len(ordered_criteria.objects),  # case when the head is full set
             data_freshness_timestamp=last_batch
         ) for s in matching_sets[:5]]
 
