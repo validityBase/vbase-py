@@ -207,11 +207,25 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 # The candidate list is now narrow enough for deeper processing,
                 # which loads all elements for the remaining sets.
                 # At this point, that is likely cheaper than continuing to intersect.
-                return candidate_keys
+                return sorted(
+                    candidate_keys,
+                    key=lambda candidate_key: (
+                        candidate_key.chain_id,
+                        candidate_key.user,
+                        candidate_key.set_cid,
+                    ),
+                )
 
         if candidate_keys is None:
             return []
 
-        return candidate_keys
+        return sorted(
+            candidate_keys,
+            key=lambda candidate_key: (
+                candidate_key.chain_id,
+                candidate_key.user,
+                candidate_key.set_cid,
+            ),
+        )[:5]
 
 

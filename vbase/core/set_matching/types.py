@@ -3,8 +3,8 @@ Core types for indexing and matching strategies.
 """
 
 from dataclasses import dataclass
-from vbase.core.models import EventAddSetObject
 
+from vbase.core.models import EventAddSetObject
 @dataclass
 class SetMatchingCriteriaItem:
     """Pair of object_cid and its timestamp criteria."""
