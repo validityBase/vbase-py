@@ -208,12 +208,25 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             criteria_cids, candidate_cids
         )
 
-        if lev_result.distance > max_allowed_distance:
+        projected_last_element_index = len(ordered_criteria) - 1;
+
+        for op, idx in lev_result.operations:
+            if op == 'D' and idx <= projected_last_element_index:
+                projected_last_element_index += 1
+            elif op == 'I' and idx <= projected_last_element_index:
+                projected_last_element_index -= 1
+
+        # take number of oprations befrore projected_last_element_index 
+        head_distance = sum(
+            1 for op, idx in lev_result.operations if idx <= projected_last_element_index
+        ) 
+
+        if head_distance > max_allowed_distance:
             return -1, lev_result
 
         # Calculate rank as distance normalized by criteria length
         # Perfect match (distance=0) gets rank=1.0, higher distance gets lower rank
-        rank = 1 - lev_result.distance / len(ordered_criteria)
+        rank = 1 - head_distance / len(ordered_criteria)
         return rank, lev_result
 
     @staticmethod
