@@ -381,6 +381,78 @@ class TestLevenshteinDistance(unittest.TestCase):
             )
 
 
+    # ========== Operations List Tests ==========
+
+    def test_operations_both_empty(self) -> None:
+        """Test that empty sequences produce an empty operations list."""
+        result = FuzzySetMatchingService._levenshtein_distance([], [])
+        self.assertEqual(result.operations, [])
+
+    def test_operations_single_insertion_at_end(self) -> None:
+        """Test that a single insertion at the end is recorded at the correct position."""
+        result = FuzzySetMatchingService._levenshtein_distance(["a"], ["a", "b"])
+        self.assertEqual(result.operations, [("I", 1)])
+
+    def test_operations_single_insertion_at_beginning(self) -> None:
+        """Test that a single insertion at the beginning is recorded at position 0."""
+        result = FuzzySetMatchingService._levenshtein_distance(["b"], ["a", "b"])
+        self.assertEqual(result.operations, [("I", 0)])
+
+    def test_operations_single_deletion_at_end(self) -> None:
+        """Test that a single deletion at the end is recorded at the correct position."""
+        result = FuzzySetMatchingService._levenshtein_distance(["a", "b"], ["a"])
+        self.assertEqual(result.operations, [("D", 1)])
+
+    def test_operations_single_deletion_at_beginning(self) -> None:
+        """Test that a single deletion at the beginning is recorded at position 0."""
+        result = FuzzySetMatchingService._levenshtein_distance(["x", "b"], ["b"])
+        self.assertEqual(result.operations, [("D", 0)])
+
+    def test_operations_single_substitution(self) -> None:
+        """Test that a single substitution is recorded at the correct position."""
+        result = FuzzySetMatchingService._levenshtein_distance(
+            ["a", "b", "c"], ["a", "x", "c"]
+        )
+        self.assertEqual(result.operations, [("S", 1)])
+
+    def test_operations_only_insertions(self) -> None:
+        """Test that multiple insertions from an empty first sequence record correct positions."""
+        result = FuzzySetMatchingService._levenshtein_distance([], ["a", "b"])
+        self.assertEqual(result.operations, [("I", 0), ("I", 1)])
+
+    def test_operations_only_deletions(self) -> None:
+        """Test that multiple deletions to an empty second sequence record correct positions."""
+        result = FuzzySetMatchingService._levenshtein_distance(["a", "b"], [])
+        self.assertEqual(result.operations, [("D", 0), ("D", 1)])
+
+    def test_operations_mixed_kitten_sitting(self) -> None:
+        """Test mixed operations for kitten->sitting are recorded correctly."""
+        result = FuzzySetMatchingService._levenshtein_distance(
+            ["k", "i", "t", "t", "e", "n"],
+            ["s", "i", "t", "t", "i", "n", "g"],
+        )
+        self.assertEqual(result.operations, [("S", 0), ("S", 4), ("I", 6)])
+
+    def test_operations_length_matches_distance(self) -> None:
+        """Test that the number of recorded operations always equals the total distance."""
+        test_cases = [
+            ([], []),
+            (["a"], ["b"]),
+            (["a", "b"], ["a", "b", "c"]),
+            (["a", "b", "c"], ["a"]),
+            (["a", "b", "c"], ["x", "y", "z"]),
+            (["a", "b", "c", "d"], ["a", "x", "c", "y"]),
+        ]
+        for seq1, seq2 in test_cases:
+            result = FuzzySetMatchingService._levenshtein_distance(seq1, seq2)
+            self.assertEqual(
+                len(result.operations),
+                result.distance,
+                f"Failed for {seq1} -> {seq2}: "
+                f"len(operations)={len(result.operations)}, distance={result.distance}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
 

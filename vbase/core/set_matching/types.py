@@ -2,7 +2,7 @@
 Core types for indexing and matching strategies.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from vbase.core.models import EventAddSetObject
 @dataclass
@@ -68,6 +68,9 @@ class LevenshteinDistance:
     deletions: int  # Number of deletion operations
     substitutions: int  # Number of substitution operations
     distance: int  # Total edit distance (insertions + deletions + substitutions)
+    # Per-operation record in forward order: each tuple is (op_type, position).
+    # 'I'=insertion at position in seq2; 'D'=deletion at position in seq1; 'S'=substitution at position in seq1.
+    operations: list[tuple[str, int]] = field(default_factory=list)
 
 
 @dataclass

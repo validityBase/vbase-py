@@ -255,27 +255,31 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                         dp[i - 1][j - 1]   # substitution
                     )
 
-        # Backtrack to count operation types
+        # Backtrack to count operation types and record positions
         insertions = 0
         deletions = 0
         substitutions = 0
+        ops: list[tuple[str, int]] = []
         i, j = len1, len2
-        
+
         while i > 0 or j > 0:
             if i == 0:
                 # Only insertions left
+                for k in range(j, 0, -1):
+                    ops.append(('I', k - 1))
                 insertions += j
                 break
             if j == 0:
                 # Only deletions left
+                for k in range(i, 0, -1):
+                    ops.append(('D', k - 1))
                 deletions += i
                 break
-            
+
             current = dp[i][j]
             diagonal = dp[i - 1][j - 1]
             left = dp[i][j - 1]
-            up = dp[i - 1][j]
-            
+
             if seq1[i - 1] == seq2[j - 1]:
                 # No operation needed, move diagonally
                 i -= 1
@@ -283,23 +287,28 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             elif current == diagonal + 1:
                 # Substitution
                 substitutions += 1
+                ops.append(('S', i - 1))
                 i -= 1
                 j -= 1
             elif current == left + 1:
                 # Insertion
                 insertions += 1
+                ops.append(('I', j - 1))
                 j -= 1
             else:
                 # Deletion
                 deletions += 1
+                ops.append(('D', i - 1))
                 i -= 1
-        
+
+        ops.reverse()
         total_distance = insertions + deletions + substitutions
         return LevenshteinDistance(
             insertions=insertions,
             deletions=deletions,
             substitutions=substitutions,
-            distance=total_distance
+            distance=total_distance,
+            operations=ops,
         )
 
     @staticmethod
