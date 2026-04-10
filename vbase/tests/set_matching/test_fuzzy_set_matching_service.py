@@ -22,6 +22,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     Tests for FuzzySetMatchingService using in-memory database.
     """
 
+    def setUp(self) -> None:
+        super().setUp()
+        # FuzzySetMatchingService queries LastBatchProcessingTime; seed one record.
+        self.add_last_batch_processing_time(timestamp=9999999)
+
     # ========== Test Exact Match for Small Criteria (< 5 elements) ==========
 
     def test_small_criteria_requires_exact_match(self) -> None:
@@ -788,7 +793,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
             ]
         )
 
-        candidate.rank, candidate.lev_result = FuzzySetMatchingService._rank_candidate(
+        candidate.rank, candidate.lev_result, _ = FuzzySetMatchingService._rank_candidate(
             candidate, criteria, tolerance=0.2
         )
 

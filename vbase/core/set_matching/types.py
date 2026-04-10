@@ -78,4 +78,5 @@ class FuzzyCheckObjectSetData(ObjectSetData):
     """
     Holds fuzzy match evaluation data for a set of objects.
     """
-    lev_result: LevenshteinDistance | None = None
+    lev_result: LevenshteinDistance | None = None,
+    projected_last_element_index: int | None = None
