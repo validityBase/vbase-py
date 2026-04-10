@@ -11,7 +11,6 @@ import unittest
 from vbase.core.set_matching.fuzzy_set_matching_service import (
     FuzzySetMatchingService,
 )
-from vbase.core.set_matching.types import LevenshteinDistance
 
 
 class TestLevenshteinDistance(unittest.TestCase):
