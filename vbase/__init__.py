@@ -51,7 +51,7 @@ __all__ = [
     "IndexingService",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
-    
+
     "ChainSetMatchingService",
     "HeadBasedSetMatchingService",
     "FuzzySetMatchingService",

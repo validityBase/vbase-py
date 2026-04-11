@@ -258,7 +258,7 @@ class SQLIndexingService(IndexingService):
             )
             last_batch = session.exec(statement).first()
             if last_batch is None:
-                raise Exception(
+                raise RuntimeError(
                     "No batch processing time found. Indexing might not have started."
                 )
 
@@ -267,7 +267,7 @@ class SQLIndexingService(IndexingService):
             if (
                 current_time - last_time
             ).total_seconds() > self.indexing_stale_threshold_seconds:
-                raise Exception(
+                raise RuntimeError(
                     f"Indexing is stale. "
                     f"Last batch processing time: {last_time} by {last_batch.id}, "
                     f"current time: {current_time}. "

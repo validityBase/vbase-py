@@ -27,10 +27,10 @@ class FailoverIndexingService(IndexingService):
         for service in self.services:
             try:
                 return getattr(service, method_name)(*args, **kwargs)
-            except Exception as e:
-                _LOG.error(f"Service {service} failed with error: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                _LOG.error("Service %s failed with error: %s", service, e)
 
-        raise Exception("All services failed to execute the method.")
+        raise RuntimeError("All services failed to execute the method.")
 
     def find_user_sets(self, user: str) -> list[dict]:
         return self._execute_with_failover("find_user_sets", user)

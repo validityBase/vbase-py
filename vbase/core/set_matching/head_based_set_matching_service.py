@@ -2,10 +2,9 @@
 Head-based set matching service implementation.
 """
 
-from sqlalchemy import and_, or_
 from sqlmodel import Session, create_engine, select
 
-from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
+from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import ObjectSetData, SetKey, SetMatching, SetMatchingCriteria
 
@@ -44,55 +43,33 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
 
         Algorithm:
             - Find all sets that start with the first object in the criteria.
-            - For each candidate set, check whether the subsequent objects in the criteria
-              match the subsequent objects in the set.
-            - Use timestamps only to determine element ordering, not to filter out matches.
+            - For each candidate set, check whether the subsequent objects in the
+              criteria match the subsequent objects in the set.
+            - Use timestamps only to determine element ordering, not to filter
+              out matches.
 
         Corner Cases:
             - Empty search criteria: return an empty list.
-            - Multiple matches: return the first five matches, ranked by how well the
-              element timestamps align.
-        
+            - Multiple matches: return the first five matches, ranked by how well
+              the element timestamps align.
         """
         if not criteria.objects:
             return []
 
-        # make sure that the criteria objects are ordered by timestamp, which simplifies head matching
+        # Make sure that the criteria objects are ordered by timestamp
         ordered_criteria = SetMatchingCriteria(
             objects=sorted(criteria.objects, key=lambda item: item.timestamp)
         )
 
         with Session(self.db_engine) as session:
-
-            last_batch_statement = select(LastBatchProcessingTime).order_by(
-                LastBatchProcessingTime.timestamp.desc()
-            )
-            last_batch_record = session.exec(last_batch_statement).first()
-            if last_batch_record is None:
-                raise ValueError(
-                    "No LastBatchProcessingTime records found; cannot determine the last batch processing time."
-                )
-            last_batch = last_batch_record.timestamp
-
-            # get narrow selection of most promising candidate sets
+            last_batch = self._fetch_last_batch_timestamp(session)
             candidate_keys = self._get_candidates(session, ordered_criteria)
-
             if not candidate_keys:
                 return []
-
-            # at this point we have up to 5 candidates
-            # we load all their elements and perform the in memory final ranking
-            # based on head matching and timestamp alignment
-            event_rows = session.exec(
-                select(EventAddSetObject)
-                .where(self._build_candidate_filters(candidate_keys))
-                .order_by(EventAddSetObject.timestamp)
-            ).all()
+            event_rows = self._load_candidate_events(session, candidate_keys)
 
 
-        # build ObjectSetData from the event_rows
-        # as event rows are ordered by timestamp,
-        # objects in the resulting sets will also be ordered by timestamp, which simplifies head matching
+        # Build ObjectSetData from event_rows (already ordered by timestamp)
         candidate_sets_dict: dict[SetKey, ObjectSetData] = {}
         for event_row in event_rows:
             set_key = SetKey(event_row.set_cid, event_row.user, event_row.chain_id)
@@ -100,39 +77,45 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
             candidate_sets_dict[set_key].objects.append(event_row)
 
-        # update set_length for each candidate set
+        # Update set_length for each candidate set
         for candidate_set in candidate_sets_dict.values():
             candidate_set.set_length = len(candidate_set.objects)
-        
+
         candidate_sets: list[ObjectSetData] = list(candidate_sets_dict.values())
         for candidate_set in candidate_sets:
             candidate_set.rank = self._get_distance(candidate_set, ordered_criteria)
 
-        # take everything that matches by CIDs (rank != -1) and sort by rank (lower is better)
+        # Take everything that matches by CIDs (rank != -1), sort by rank (lower is better)
         matching_sets = [s for s in candidate_sets if s.rank != -1]
         matching_sets.sort(key=lambda s: s.rank)
 
-        # take the max rank to calculate a score as a percentage of the max rank, so that the best match will have score 1.0 and the worst will have score close to 0.0
+        # Normalise rank: best match → 1.0, worst → near 0.0
         max_rank = max(s.rank for s in matching_sets) if matching_sets else 1.0
+        last_idx = len(ordered_criteria.objects) - 1
 
-        # convert to SetMatching and return the top 5
-        return [SetMatching(
-            rank= 1 - (s.rank / max_rank if max_rank > 0 else 0.0),  # normalize rank to [0 - worst match, 1 - best match] 
-            set_cid=s.key.set_cid,
-            user=s.key.user,
-            as_of_timestamp=s.objects[len(ordered_criteria.objects) - 1].timestamp,  # timestamp of the last matching element
-            is_full_match=s.set_length == len(ordered_criteria.objects),  # case when the head is full set
-            data_freshness_timestamp=last_batch
-        ) for s in matching_sets[:5]]
+        return [
+            SetMatching(
+                rank=1 - (s.rank / max_rank if max_rank > 0 else 0.0),
+                set_cid=s.key.set_cid,
+                user=s.key.user,
+                # Timestamp of the last criteria-matching element
+                as_of_timestamp=s.objects[last_idx].timestamp,
+                # Full match when the head covers the entire set
+                is_full_match=s.set_length == len(ordered_criteria.objects),
+                data_freshness_timestamp=last_batch,
+            )
+            for s in matching_sets[:5]
+        ]
 
     @staticmethod
     def _get_distance(
         candidate: ObjectSetData,
         criteria: SetMatchingCriteria,
     ) -> float:
-        """Get a distance for a candidate set based on how well its head matches the criteria.
-        If it doesn't match by CIDs - returns -1. Otherwise, returns the sum of absolute timestamp differences between
-        the candidate set and the criteria for the head elements.
+        """
+        Return a distance for a candidate set based on how well its head matches
+        the criteria. Returns -1 if CIDs do not match; otherwise returns the sum
+        of absolute timestamp differences for the head elements.
         """
         ordered_criteria = sorted(criteria.objects, key=lambda item: item.timestamp)
 
@@ -149,22 +132,6 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         return sum(
             abs(event_row.timestamp - criteria_item.timestamp)
             for event_row, criteria_item in zip(candidate_head, ordered_criteria)
-        )
-
-    @staticmethod
-    def _build_candidate_filters(
-        candidate_keys: list[SetKey],
-    ):
-        """Builds SQLAlchemy filters to find all events belonging to any of the candidate sets."""
-        return or_(
-            *[
-                and_(
-                    EventAddSetObject.set_cid == candidate_key.set_cid,
-                    EventAddSetObject.user == candidate_key.user,
-                    EventAddSetObject.chain_id == candidate_key.chain_id,
-                )
-                for candidate_key in candidate_keys
-            ]
         )
 
     def _get_candidates(
@@ -227,5 +194,3 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 candidate_key.set_cid,
             ),
         )[:5]
-
-
