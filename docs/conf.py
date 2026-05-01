@@ -50,6 +50,13 @@ myst_heading_anchors = 2
 class CustomMarkdownTranslator(MarkdownTranslatorBase):
     """Override desc headings for markdown output."""
 
+    def visit_desc_annotation(self, node):
+        # Suppress italic wrapping around "class", type annotations, etc.
+        pass
+
+    def depart_desc_annotation(self, node):
+        pass
+
     @pushing_context
     def visit_desc_signature(self, node):
         if self.config.markdown_anchor_signatures:
