@@ -55,6 +55,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         """
         self.db_url = db_url
         self.db_engine = create_engine(db_url)
+        if tolerance < 0.0 or tolerance > 1.0:
+            raise ValueError("tolerance must be between 0.0 and 1.0 inclusive")
         self.tolerance = tolerance
 
     def find_matching_sets(
