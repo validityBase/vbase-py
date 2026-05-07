@@ -11,31 +11,14 @@ permissions:
 
 jobs:
   update-main-docs:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        # v5
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-
-      - name: Set up Python
-        # v6
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        uses: ./.github/actions/setup-python-deps
-        with:
-          install-docs-first: "true"
-
-      - name: Build Sphinx Markdown docs
-        run: |
-          sphinx-build -b markdown docs/ docs/_build/markdown
-
-      - name: Publish Documents
-        # main @ validityBase/docs (pin composite action path)
-        uses: validityBase/docs/publish-docs-action@dae3fa92603ea55c2081dcb6d15aa0ad1a6355cd
-        with:
-          docs-repo-access-token: ${{ secrets.DOCS_REPO_ACCESS_TOKEN }}
-          source-docs-path: "docs/_build/markdown"
+    uses: validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1
+    with:
+      python-version: "3.11"
+      requirements-files: |
+        docs/requirements.txt
+        requirements.txt
+      pre-publish-command: sphinx-build -b markdown docs/ docs/_build/markdown
+      source-docs-path: docs/_build/markdown
+      target-repository-branch: main
+    secrets:
+      DOCS_REPO_ACCESS_TOKEN: ${{ secrets.DOCS_REPO_ACCESS_TOKEN }}

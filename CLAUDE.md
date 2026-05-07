@@ -106,3 +106,7 @@ Three GitHub Actions workflows:
 - `test-localhost.yml` — Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` Docker image, runs Ethereum test node, runs localhost test suite. Triggers on PRs and pushes to `main`/`dev`.
 - `test-forwarder-pub-dev.yml` — Same flow against public forwarder service.
 - `update-main-docs.yml` — Builds and publishes Sphinx docs. Requires `DOCS_REPO_ACCESS_TOKEN` secret.
+
+GitHub Actions use shared `validityBase/vbase-github-actions` actions and
+reusable workflows by reviewed `@v1` refs. Python dependency setup uses
+`setup-python-deps@v1`; docs publishing uses `publish-docs.yml@v1`.
