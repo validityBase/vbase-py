@@ -143,6 +143,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 rank=s.rank,
                 set_cid=s.key.set_cid,
                 user=s.key.user,
+                chain_id=s.key.chain_id,
                 as_of_timestamp=s.objects[s.projected_last_element_index].timestamp,
                 data_freshness_timestamp=last_batch,
                 is_full_match=(

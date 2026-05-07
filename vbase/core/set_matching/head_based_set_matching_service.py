@@ -8,6 +8,7 @@ from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import ObjectSetData, SetKey, SetMatching, SetMatchingCriteria
 
+
 class HeadBasedSetMatchingService(BaseSetMatchingService):
     """
     Service for performing head-based set matching.
@@ -98,6 +99,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 rank=1 - (s.rank / max_rank if max_rank > 0 else 0.0),
                 set_cid=s.key.set_cid,
                 user=s.key.user,
+                chain_id=s.key.chain_id,
                 # Timestamp of the last criteria-matching element
                 as_of_timestamp=s.objects[last_idx].timestamp,
                 # Full match when the head covers the entire set

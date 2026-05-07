@@ -30,6 +30,7 @@ class TestChainSetMatchingService(unittest.TestCase):
             rank=0.9,
             set_cid="set-a",
             user="alice",
+            chain_id=1,
             as_of_timestamp=1700000002,
             is_full_match=False,
         )
@@ -37,6 +38,7 @@ class TestChainSetMatchingService(unittest.TestCase):
             rank=0.8,
             set_cid="set-b",
             user="bob",
+            chain_id=1,
             as_of_timestamp=1700000004,
             is_full_match=False,
         )

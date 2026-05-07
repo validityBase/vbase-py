@@ -69,7 +69,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
-        # Search with 4 elements that match exactly
+        # Search with 2 elements that match exactly
         criteria = SetMatchingCriteria(
             objects=[
                 SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
@@ -83,6 +83,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-small")
         self.assertEqual(matches[0].user, "0xAlice")
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertEqual(matches[0].rank, 1.0)  # Perfect match
         self.assertEqual(matches[0].as_of_timestamp, 2000)
 
@@ -172,6 +173,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Should find exact match
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-large")
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertEqual(matches[0].rank, 1.0)  # Perfect match
 
     def test_large_criteria_fuzzy_match_within_tolerance(self) -> None:
@@ -552,6 +554,8 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 2)
         users = {m.user for m in matches}
         self.assertEqual(users, {"0xAlice", "0xBob"})
+        # Both on chain 1
+        self.assertTrue(all(m.chain_id == 1 for m in matches))
 
     def test_different_chains_are_separate(self) -> None:
         """Test that sets from different chains are kept separate."""
@@ -604,10 +608,20 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         # Should find both sets as separate matches (different chain IDs)
         self.assertEqual(len(matches), 2)
+        chain_ids = {m.chain_id for m in matches}
+        self.assertEqual(chain_ids, {1, 2})
+        # Both matches refer to the same user and set_cid
+        self.assertTrue(all(m.user == "0xAlice" for m in matches))
+        self.assertTrue(all(m.set_cid == "set-multichain" for m in matches))
 
     def test_multiple_matches_ranked_by_quality(self) -> None:
-        """Test that multiple matches are ranked by quality (fewer mismatches + better timestamp alignment)."""
-        # Add two sets: one with perfect timestamps, one with offset timestamps
+        """Test that multiple sets matching the same CID sequence are both returned with rank 1.0.
+
+        Fuzzy ranking is based solely on CID edit distance; timestamp values are
+        not used in scoring. Both sets here share the same CID sequence so both
+        receive a perfect rank regardless of their actual timestamps.
+        """
+        # Add two sets: one with timestamps matching the criteria, one with offset timestamps
         self.add_test_events([
             # Set 1: Perfect timestamp match
             {
@@ -675,12 +689,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         # Should find both matches
         self.assertEqual(len(matches), 2)
-        # First match should be the perfect one (lower score)
-        self.assertEqual(matches[0].set_cid, "set-perfect")
-        self.assertEqual(matches[0].rank, 1.0)  # Perfect match
-        # Second match should have higher score due to timestamp differences
-        self.assertEqual(matches[1].set_cid, "set-offset")
-        self.assertEqual(matches[1].rank, 1.0)  # perfect match in terms of object order
+        # Both sets match the CID sequence exactly → both rank 1.0
+        # Ordering between equal-ranked results is not guaranteed
+        set_cids = {m.set_cid for m in matches}
+        self.assertEqual(set_cids, {"set-perfect", "set-offset"})
+        self.assertTrue(all(m.rank == 1.0 for m in matches))
 
     def test_max_5_results_returned(self) -> None:
         """Test that at most 5 matches are returned."""
@@ -764,6 +777,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-missing-first")
         self.assertEqual(matches[0].user, "0xAlice")
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertAlmostEqual(matches[0].rank, 0.875, delta=0.1)
 
     def test_rank_candidate_returns_levenshtein_result(self) -> None:

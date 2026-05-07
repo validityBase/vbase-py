@@ -68,6 +68,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-abc")
         self.assertEqual(matches[0].user, "0xAlice")
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertEqual(matches[0].rank, 1.0)  # perfect match, no timestamp differences
         self.assertEqual(matches[0].as_of_timestamp, 2000)  # timestamp of last matching element
         self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
@@ -138,6 +139,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 2)
         users = {m.user for m in matches}
         self.assertEqual(users, {"0xAlice", "0xBob"})
+        # Both on chain 1
+        self.assertTrue(all(m.chain_id == 1 for m in matches))
 
     def test_matches_by_cid_despite_timestamp_differences(self) -> None:
         """Test that service matches by CID order even when timestamps differ."""
@@ -185,6 +188,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-xyz")
         self.assertEqual(matches[0].user, "0xAlice")
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertLess(matches[0].rank, 1.0)  # rank should be less than 1.0 due to timestamp differences
         self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
 
@@ -274,6 +278,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         matches = service.find_matching_sets(criteria)
 
         self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertTrue(matches[0].is_full_match)
 
     def test_is_full_match_false_when_set_longer_than_criteria(self) -> None:
@@ -318,7 +323,47 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         matches = service.find_matching_sets(criteria)
 
         self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].chain_id, 1)
         self.assertFalse(matches[0].is_full_match)
+
+    # ========== Test multi-chain disambiguation ==========
+
+    def test_distinguishes_same_set_on_different_chains(self) -> None:
+        """Test that the same (user, set_cid) on different chains returns distinct matches."""
+        self.add_test_events([
+            {
+                "id": "event-1",
+                "user": "0xAlice",
+                "set_cid": "set-multi",
+                "object_cid": "obj-1",
+                "chain_id": 1,
+                "timestamp": 1000,
+            },
+            {
+                "id": "event-2",
+                "user": "0xAlice",
+                "set_cid": "set-multi",
+                "object_cid": "obj-1",
+                "chain_id": 2,
+                "timestamp": 1000,
+            },
+        ])
+
+        service = HeadBasedSetMatchingService(db_url=self.db_url)
+
+        criteria = SetMatchingCriteria(
+            objects=[SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000)]
+        )
+
+        matches = service.find_matching_sets(criteria)
+
+        # Both matches must be returned and distinguishable by chain_id
+        self.assertEqual(len(matches), 2)
+        chain_ids = {m.chain_id for m in matches}
+        self.assertEqual(chain_ids, {1, 2})
+        # Both matches refer to the same user and set_cid
+        self.assertTrue(all(m.user == "0xAlice" for m in matches))
+        self.assertTrue(all(m.set_cid == "set-multi" for m in matches))
 
 
 if __name__ == "__main__":
