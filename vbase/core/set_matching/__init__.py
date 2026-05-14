@@ -15,7 +15,7 @@ from vbase.core.set_matching.types import (
     LevenshteinDistance,
     SetMatch,
     SetMatchingCriteria,
-    SetMatchingCriteriaItem,
+    TimestampedCid,
 )
 
 __all__ = [
@@ -26,5 +26,5 @@ __all__ = [
     "LevenshteinDistance",
     "SetMatch",
     "SetMatchingCriteria",
-    "SetMatchingCriteriaItem",
+    "TimestampedCid",
 ]

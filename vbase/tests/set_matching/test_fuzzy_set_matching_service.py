@@ -14,7 +14,7 @@ from vbase.core.set_matching.types import (
     FuzzyCheckObjectSetData,
     SetIdentifier,
     SetMatchingCriteria,
-    SetMatchingCriteriaItem,
+    TimestampedCid,
 )
 from vbase.tests.set_matching.base_sql_matching_test import BaseSQLMatchingTest
 
@@ -74,8 +74,8 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 2 elements that match exactly
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=1500),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=1500),
             ]
         )
 
@@ -131,10 +131,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 4 elements where last one differs
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-DIFFERENT", timestamp=4000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-DIFFERENT", timestamp=4000),
             ]
         )
 
@@ -164,7 +164,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -196,11 +196,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 5 elements where 1 differs (20% tolerance)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-4", timestamp=4000),
-                SetMatchingCriteriaItem(object_cid="obj-DIFFERENT", timestamp=5000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-4", timestamp=4000),
+                TimestampedCid(object_cid="obj-DIFFERENT", timestamp=5000),
             ]
         )
 
@@ -230,11 +230,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 5 elements where 2 differ (40% tolerance, beyond 20%)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-DIFF1", timestamp=4000),
-                SetMatchingCriteriaItem(object_cid="obj-DIFF2", timestamp=5000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-DIFF1", timestamp=4000),
+                TimestampedCid(object_cid="obj-DIFF2", timestamp=5000),
             ]
         )
 
@@ -263,7 +263,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 10 elements where exactly 2 differ (20% tolerance boundary)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid=(f"obj-{i}" if i <= 8 else f"obj-DIFF{i}"),
                     timestamp=i * 1000,
                 )
@@ -300,7 +300,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # 1 mismatch out of 6 (16.7%) — must match
         criteria_one_diff = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid=f"obj-{i}" if i < 6 else "obj-DIFF",
                     timestamp=i * 1000,
                 )
@@ -314,7 +314,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # 2 mismatches out of 6 (33.3%) — must NOT match (exceeds 20% tolerance)
         criteria_two_diff = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid=f"obj-{i}" if i < 5 else f"obj-DIFF{i}",
                     timestamp=i * 1000,
                 )
@@ -372,10 +372,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # These are DIFFERENT orderings
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-b", timestamp=1000),  # Will be first
-                SetMatchingCriteriaItem(object_cid="obj-a", timestamp=2000),  # Will be second
-                SetMatchingCriteriaItem(object_cid="obj-c", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-d", timestamp=4000),
+                TimestampedCid(object_cid="obj-b", timestamp=1000),  # Will be first
+                TimestampedCid(object_cid="obj-a", timestamp=2000),  # Will be second
+                TimestampedCid(object_cid="obj-c", timestamp=3000),
+                TimestampedCid(object_cid="obj-d", timestamp=4000),
             ]
         )
 
@@ -419,9 +419,9 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Criteria in chronological timestamp order
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-a", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-b", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-c", timestamp=3000),
+                TimestampedCid(object_cid="obj-a", timestamp=1000),
+                TimestampedCid(object_cid="obj-b", timestamp=2000),
+                TimestampedCid(object_cid="obj-c", timestamp=3000),
             ]
         )
 
@@ -463,7 +463,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 5 elements
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -493,7 +493,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with first 5 elements
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -546,8 +546,8 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
             ]
         )
 
@@ -591,7 +591,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -669,9 +669,9 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
             ]
         )
 
@@ -720,9 +720,9 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
             ]
         )
 
@@ -751,7 +751,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 8 elements (e1 through e8)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"e{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"e{i}", timestamp=i * 1000)
                 for i in range(1, 9)  # e1 through e8
             ]
         )
@@ -788,11 +788,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         )
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-4", timestamp=4000),
-                SetMatchingCriteriaItem(object_cid="obj-different", timestamp=5000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-4", timestamp=4000),
+                TimestampedCid(object_cid="obj-different", timestamp=5000),
             ]
         )
 
@@ -866,7 +866,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -910,7 +910,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-same", timestamp=i * 1000)
+                TimestampedCid(object_cid="obj-same", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -963,7 +963,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.25)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -994,7 +994,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Criteria has exactly 5 elements, same CIDs as the set
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -1023,7 +1023,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Criteria has only 5 elements; set has 8
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                TimestampedCid(object_cid=f"obj-{i}", timestamp=i * 1000)
                 for i in range(1, 6)
             ]
         )
@@ -1052,11 +1052,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Criteria has same size (5) but last CID differs → lev distance = 1
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
-                SetMatchingCriteriaItem(object_cid="obj-3", timestamp=3000),
-                SetMatchingCriteriaItem(object_cid="obj-4", timestamp=4000),
-                SetMatchingCriteriaItem(object_cid="obj-DIFFERENT", timestamp=5000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-3", timestamp=3000),
+                TimestampedCid(object_cid="obj-4", timestamp=4000),
+                TimestampedCid(object_cid="obj-DIFFERENT", timestamp=5000),
             ]
         )
 

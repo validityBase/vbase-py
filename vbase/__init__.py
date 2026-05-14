@@ -24,7 +24,7 @@ from vbase.core.set_matching import (
     HeadBasedSetMatchingService,
     SetMatch,
     SetMatchingCriteria,
-    SetMatchingCriteriaItem,
+    TimestampedCid,
 )
 from vbase.core.vbase_object import (
     VBaseBytesObject,
@@ -58,7 +58,7 @@ __all__ = [
     "BaseSetMatchingService",
     "SetMatch",
     "SetMatchingCriteria",
-    "SetMatchingCriteriaItem",
+    "TimestampedCid",
 
     "FailoverIndexingService",
     "AggregateIndexingService",

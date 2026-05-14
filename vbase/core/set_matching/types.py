@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from vbase.core.models import EventAddSetObject
 @dataclass
-class SetMatchingCriteriaItem:
+class TimestampedCid:
     """Pair of object_cid and its timestamp criteria."""
 
     object_cid: str
@@ -21,7 +21,7 @@ class SetMatchingCriteria:
     with its timestamp.
     """
 
-    objects: list[SetMatchingCriteriaItem]
+    objects: list[TimestampedCid]
 
 @dataclass(frozen=True)
 class SetMatch:

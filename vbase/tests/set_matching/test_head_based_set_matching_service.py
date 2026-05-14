@@ -7,7 +7,7 @@ import unittest
 from vbase.core.set_matching.head_based_set_matching_service import (
     HeadBasedSetMatchingService,
 )
-from vbase.core.set_matching.types import SetMatchingCriteria, SetMatchingCriteriaItem
+from vbase.core.set_matching.types import SetMatchingCriteria, TimestampedCid
 from vbase.tests.set_matching.base_sql_matching_test import BaseSQLMatchingTest
 
 
@@ -57,8 +57,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Search for head match (first 2 objects)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
             ]
         )
 
@@ -91,7 +91,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
         criteria = SetMatchingCriteria(
-            objects=[SetMatchingCriteriaItem(object_cid="obj-different", timestamp=1000)]
+            objects=[TimestampedCid(object_cid="obj-different", timestamp=1000)]
         )
 
         matches = service.find_matching_sets(criteria)
@@ -133,7 +133,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
         criteria = SetMatchingCriteria(
-            objects=[SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000)]
+            objects=[TimestampedCid(object_cid="obj-1", timestamp=1000)]
         )
 
         matches = service.find_matching_sets(criteria)
@@ -178,10 +178,10 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Search with same CIDs but different timestamps (will be sorted by timestamp anyway)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid="obj-1", timestamp=1500
                 ),  # Different from stored 1000
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid="obj-2", timestamp=2500
                 ),  # Different from stored 2000
             ]
@@ -235,10 +235,10 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # This order is DIFFERENT from DB order: obj-1 (ts=1000), obj-2 (ts=2000)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid="obj-1", timestamp=2000
                 ),  # Will be second after sorting
-                SetMatchingCriteriaItem(
+                TimestampedCid(
                     object_cid="obj-2", timestamp=1000
                 ),  # Will be first after sorting
             ]
@@ -280,8 +280,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Criteria has exactly 2 elements, same as the set
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
             ]
         )
 
@@ -324,8 +324,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Criteria has only 2 elements but the set has 3
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
             ]
         )
 
@@ -361,8 +361,8 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                TimestampedCid(object_cid="obj-1", timestamp=1000),
+                TimestampedCid(object_cid="obj-2", timestamp=2000),
             ]
         )
 

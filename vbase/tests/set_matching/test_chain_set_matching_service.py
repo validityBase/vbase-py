@@ -9,7 +9,7 @@ from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingSer
 from vbase.core.set_matching.types import (
     SetMatch,
     SetMatchingCriteria,
-    SetMatchingCriteriaItem,
+    TimestampedCid,
 )
 
 
@@ -31,7 +31,7 @@ class TestChainSetMatchingService(unittest.TestCase):
     def setUp(self) -> None:
         """Create shared criteria and match fixtures."""
         self.criteria = SetMatchingCriteria(
-            objects=[SetMatchingCriteriaItem(object_cid="cid-1", timestamp=1700000000)]
+            objects=[TimestampedCid(object_cid="cid-1", timestamp=1700000000)]
         )
         self.match_a = SetMatch(
             rank=0.9,
