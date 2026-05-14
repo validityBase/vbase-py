@@ -60,7 +60,6 @@ class BaseSetMatchingService(ABC):
                 and_(
                     EventAddSetObject.set_cid == candidate_key.set_cid,
                     EventAddSetObject.user == candidate_key.user,
-                    EventAddSetObject.chain_id == candidate_key.chain_id,
                 )
                 for candidate_key in candidate_keys
             ]

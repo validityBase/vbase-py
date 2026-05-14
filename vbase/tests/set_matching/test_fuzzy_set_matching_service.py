@@ -83,7 +83,6 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-small")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].chain_id, 1)
         self.assertEqual(matches[0].rank, 1.0)  # Perfect match
         self.assertEqual(matches[0].as_of_timestamp, 2000)
 
@@ -173,7 +172,6 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Should find exact match
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-large")
-        self.assertEqual(matches[0].chain_id, 1)
         self.assertEqual(matches[0].rank, 1.0)  # Perfect match
 
     def test_large_criteria_fuzzy_match_within_tolerance(self) -> None:
@@ -554,65 +552,52 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 2)
         users = {m.user for m in matches}
         self.assertEqual(users, {"0xAlice", "0xBob"})
-        # Both on chain 1
-        self.assertTrue(all(m.chain_id == 1 for m in matches))
 
-    def test_different_chains_are_separate(self) -> None:
-        """Test that sets from different chains are kept separate."""
-        # Add same set_cid on two different chains
+    def test_distributed_set_spans_multiple_chains(self) -> None:
+        """Test that elements from different chains are merged into a single distributed set."""
         self.add_test_events([
-            {
-                "id": "event-chain1-1",
-                "user": "0xAlice",
-                "set_cid": "set-multichain",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-chain1-2",
-                "user": "0xAlice",
-                "set_cid": "set-multichain",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-chain2-1",
-                "user": "0xAlice",
-                "set_cid": "set-multichain",
-                "object_cid": "obj-1",
-                "chain_id": 2,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-chain2-2",
-                "user": "0xAlice",
-                "set_cid": "set-multichain",
-                "object_cid": "obj-2",
-                "chain_id": 2,
-                "timestamp": 2000,
-            },
+            # First 3 elements on chain 1
+            *[
+                {
+                    "id": f"event-chain1-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-distributed",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 4)
+            ],
+            # Last 2 elements on chain 2
+            *[
+                {
+                    "id": f"event-chain2-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-distributed",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 2,
+                    "timestamp": i * 1000,
+                }
+                for i in range(4, 6)
+            ],
         ])
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1000),
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2000),
+                SetMatchingCriteriaItem(object_cid=f"obj-{i}", timestamp=i * 1000)
+                for i in range(1, 6)
             ]
         )
 
         matches = service.find_matching_sets(criteria)
 
-        # Should find both sets as separate matches (different chain IDs)
-        self.assertEqual(len(matches), 2)
-        chain_ids = {m.chain_id for m in matches}
-        self.assertEqual(chain_ids, {1, 2})
-        # Both matches refer to the same user and set_cid
-        self.assertTrue(all(m.user == "0xAlice" for m in matches))
-        self.assertTrue(all(m.set_cid == "set-multichain" for m in matches))
+        # All elements from both chains merge into a single distributed set
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].set_cid, "set-distributed")
+        self.assertEqual(matches[0].user, "0xAlice")
+        self.assertEqual(matches[0].rank, 1.0)
 
     def test_multiple_matches_ranked_by_quality(self) -> None:
         """Test that multiple sets matching the same CID sequence are both returned with rank 1.0.
@@ -777,13 +762,12 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-missing-first")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].chain_id, 1)
         self.assertAlmostEqual(matches[0].rank, 0.875, delta=0.1)
 
     def test_rank_candidate_returns_levenshtein_result(self) -> None:
         """Test that fuzzy ranking returns both the rank and Levenshtein details."""
         candidate = FuzzyCheckObjectSetData(
-            key=SetKey(set_cid="set-fuzzy", user="0xAlice", chain_id=1),
+            key=SetKey(set_cid="set-fuzzy", user="0xAlice"),
             objects=[
                 EventAddSetObject(
                     id=f"event-{i}",

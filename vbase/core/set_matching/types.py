@@ -34,7 +34,6 @@ class SetMatching:
     rank: float
     set_cid: str
     user: str
-    chain_id: int
     as_of_timestamp: int
     #: Whether the match is a full match (all criteria objects are in the set and all
     #: set objects are in the criteria), or a partial match where extra objects are in
@@ -46,11 +45,11 @@ class SetMatching:
 @dataclass(frozen=True)
 class SetKey:
     """
-    Unique identifier for a set, based on its set_cid, user, and chain_id.
+    Unique identifier for a set, based on its set_cid and user.
+    Sets can span multiple chains (distributed sets).
     """
     set_cid: str
     user: str
-    chain_id: int
 
 
 @dataclass

@@ -25,15 +25,14 @@ class FuzzySetMatchingService(BaseSetMatchingService):
     Searches the blockchain index SQL table of EventAddSetObject events with the
     following columns:
 
-    - chainId
     - set_cid
     - user
     - object_cid
     - timestamp
 
-    Each set is identified by its set_cid, user, and chainId, and consists of all
-    objects with the same set_cid ordered by timestamp.
-    Sets belonging to different users or chains are not mixed together.
+    Each set is identified by its set_cid and user, and consists of all objects with
+    the same set_cid ordered by timestamp. Elements may come from multiple chains
+    (distributed sets).
 
     Unlike HeadBasedSetMatchingService which requires exact head matching, this
     service allows a configurable percentage of CIDs to differ.
@@ -108,7 +107,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         # Build FuzzyCheckObjectSetData from the event_rows
         candidate_sets_dict: dict[SetKey, FuzzyCheckObjectSetData] = {}
         for event_row in event_rows:
-            set_key = SetKey(event_row.set_cid, event_row.user, event_row.chain_id)
+            set_key = SetKey(event_row.set_cid, event_row.user)
             if set_key not in candidate_sets_dict:
                 candidate_sets_dict[set_key] = FuzzyCheckObjectSetData(
                     key=set_key,
@@ -143,7 +142,6 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 rank=s.rank,
                 set_cid=s.key.set_cid,
                 user=s.key.user,
-                chain_id=s.key.chain_id,
                 as_of_timestamp=s.objects[s.projected_last_element_index].timestamp,
                 data_freshness_timestamp=last_batch,
                 is_full_match=(
@@ -339,12 +337,11 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             select(
                 EventAddSetObject.set_cid,
                 EventAddSetObject.user,
-                EventAddSetObject.chain_id,
             ).where(EventAddSetObject.object_cid.in_(criteria_cids))
         ).all()
 
         counts: Counter[SetKey] = Counter(
-            SetKey(row.set_cid, row.user, row.chain_id) for row in rows
+            SetKey(row.set_cid, row.user) for row in rows
         )
 
         return [

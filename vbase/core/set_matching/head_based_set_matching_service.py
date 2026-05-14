@@ -15,15 +15,14 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
     Finds sets whose head (first elements) matches the elements specified in the criteria.
     Searches the blockchain index SQL table of EventAddSetObject events with the following columns:
 
-    - chainId
     - set_cid
     - user
     - object_cid
     - timestamp
 
-    Each set is identified by its set_cid, user, and chainId, and consists of all
-    objects with the same set_cid ordered by timestamp.
-    Sets belonging to different users or chains are not mixed together.
+    Each set is identified by its set_cid and user, and consists of all objects with
+    the same set_cid ordered by timestamp. Elements may come from multiple chains
+    (distributed sets).
     """
 
     def __init__(
@@ -73,7 +72,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         # Build ObjectSetData from event_rows (already ordered by timestamp)
         candidate_sets_dict: dict[SetKey, ObjectSetData] = {}
         for event_row in event_rows:
-            set_key = SetKey(event_row.set_cid, event_row.user, event_row.chain_id)
+            set_key = SetKey(event_row.set_cid, event_row.user)
             if set_key not in candidate_sets_dict:
                 candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
             candidate_sets_dict[set_key].objects.append(event_row)
@@ -99,7 +98,6 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 rank=1 - (s.rank / max_rank if max_rank > 0 else 0.0),
                 set_cid=s.key.set_cid,
                 user=s.key.user,
-                chain_id=s.key.chain_id,
                 # Timestamp of the last criteria-matching element
                 as_of_timestamp=s.objects[last_idx].timestamp,
                 # Full match when the head covers the entire set
@@ -153,11 +151,10 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             candidate_stmt = select(
                 EventAddSetObject.set_cid,
                 EventAddSetObject.user,
-                EventAddSetObject.chain_id,
             ).where(EventAddSetObject.object_cid == criteria_object.object_cid)
 
             object_candidate_keys = {
-                SetKey(row.set_cid, row.user, row.chain_id)
+                SetKey(row.set_cid, row.user)
                 for row in session.exec(candidate_stmt).all()
             }
 
@@ -179,7 +176,6 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
                 return sorted(
                     candidate_keys,
                     key=lambda candidate_key: (
-                        candidate_key.chain_id,
                         candidate_key.user,
                         candidate_key.set_cid,
                     ),
@@ -191,7 +187,6 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         return sorted(
             candidate_keys,
             key=lambda candidate_key: (
-                candidate_key.chain_id,
                 candidate_key.user,
                 candidate_key.set_cid,
             ),
