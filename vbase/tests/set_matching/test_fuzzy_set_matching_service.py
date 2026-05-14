@@ -2,6 +2,8 @@
 Unit tests for FuzzySetMatchingService.
 """
 
+# pylint: disable=protected-access,too-many-public-methods,too-many-lines
+
 import unittest
 
 from vbase.core.models import EventAddSetObject
@@ -30,7 +32,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     # ========== Test Exact Match for Small Criteria (< 5 elements) ==========
 
     def test_small_criteria_requires_exact_match(self) -> None:
-        """Test that criteria with < 5 elements uses tolerance=0 (exact matching)."""
+        """Test that criteria with fewer than 5 elements use exact matching."""
         # Add a set with 4 objects
         self.add_test_events([
             {
@@ -261,7 +263,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         # Search with 10 elements where exactly 2 differ (20% tolerance boundary)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid=f"obj-{i}" if i <= 8 else f"obj-DIFF{i}", timestamp=i * 1000)
+                SetMatchingCriteriaItem(
+                    object_cid=(f"obj-{i}" if i <= 8 else f"obj-DIFF{i}"),
+                    timestamp=i * 1000,
+                )
                 for i in range(1, 11)
             ]
         )
@@ -554,7 +559,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(users, {"0xAlice", "0xBob"})
 
     def test_distributed_set_spans_multiple_chains(self) -> None:
-        """Test that elements from different chains are merged into a single distributed set."""
+        """Test that elements from different chains merge into one distributed set."""
         self.add_test_events([
             # First 3 elements on chain 1
             *[
@@ -791,8 +796,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
             ]
         )
 
-        candidate.rank, candidate.lev_result, _ = FuzzySetMatchingService._rank_candidate(
-            candidate, criteria, tolerance=0.2
+        candidate.rank, candidate.lev_result, _ = (
+            FuzzySetMatchingService._rank_candidate(
+                candidate, criteria, tolerance=0.2
+            )
         )
 
         self.assertEqual(candidate.rank, 0.8)
@@ -804,7 +811,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(candidate.lev_result.distance, 1)
 
     def test_last_matching_element_timestamp_accounts_for_insertions(self) -> None:
-        """Test that last_matching_element_timestamp advances when Levenshtein inserts extra candidate elements."""
+        """Test that inserted candidate elements advance the last matching timestamp."""
         self.add_test_events([
             {
                 "id": "event-0",
@@ -869,10 +876,10 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].last_matching_element_timestamp, 5000)
 
-    def test_insertion_at_head_with_repeated_cids_uses_correct_last_matching_element_timestamp(self) -> None:
-        """Regression test: when all CIDs are identical, an extra element at the head
-        must be detected as an insertion (not a substitution), so last_matching_element_timestamp
-        points to the last covered element, not one position too early.
+    def test_insertion_at_head_with_repeated_cids_uses_correct_last_matching_element_timestamp(
+        self,
+    ) -> None:
+        """Regression test for repeated CIDs with an inserted head element.
 
         The old code truncated the candidate to len(criteria), producing equal-length
         sequences where Levenshtein prefers substitution over insert+delete.
@@ -917,7 +924,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(matches[0].last_matching_element_timestamp, 5000)
 
     def test_last_matching_element_timestamp_accounts_for_deletions(self) -> None:
-        """Test that last_matching_element_timestamp moves back when candidate elements are deleted."""
+        """Test that deleted candidate elements move back the last matching timestamp."""
         self.add_test_events([
             {
                 "id": "event-1",
@@ -969,7 +976,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     # ========== Test is_full_match ==========
 
     def test_is_full_match_true_when_perfect_match_and_same_size(self) -> None:
-        """Test that is_full_match is True when criteria exactly equals the set (same elements, same size)."""
+        """Test that is_full_match is true for an exact same-size match."""
         self.add_test_events([
             {
                 "id": f"event-{i}",
@@ -1027,7 +1034,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertFalse(matches[0].is_full_match)
 
     def test_is_full_match_false_when_same_size_but_substitution(self) -> None:
-        """Test that is_full_match is False when sizes match but a CID differs (lev distance > 0)."""
+        """Test that is_full_match is false when sizes match but one CID differs."""
         self.add_test_events([
             {
                 "id": f"event-{i}",

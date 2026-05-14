@@ -1,3 +1,5 @@
+"""Unit tests for ChainSetMatchingService."""
+
 import unittest
 
 from vbase.core.set_matching.chain_set_matching_service import (
@@ -12,6 +14,8 @@ from vbase.core.set_matching.types import (
 
 
 class StubSetMatchingService(BaseSetMatchingService):
+    """Stub strategy that records calls and returns a fixed result."""
+
     def __init__(self, matches: list[SetMatch]):
         self.matches = matches
         self.call_count = 0
@@ -22,7 +26,10 @@ class StubSetMatchingService(BaseSetMatchingService):
 
 
 class TestChainSetMatchingService(unittest.TestCase):
+    """Tests for sequential strategy evaluation in ChainSetMatchingService."""
+
     def setUp(self) -> None:
+        """Create shared criteria and match fixtures."""
         self.criteria = SetMatchingCriteria(
             objects=[SetMatchingCriteriaItem(object_cid="cid-1", timestamp=1700000000)]
         )
@@ -42,6 +49,7 @@ class TestChainSetMatchingService(unittest.TestCase):
         )
 
     def test_returns_first_non_empty_and_stops(self) -> None:
+        """Return the first non-empty strategy result and stop evaluating."""
         first = StubSetMatchingService([self.match_a])
         second = StubSetMatchingService([self.match_b])
         service = ChainSetMatchingService([first, second])
@@ -53,6 +61,7 @@ class TestChainSetMatchingService(unittest.TestCase):
         self.assertEqual(second.call_count, 0)
 
     def test_returns_first_non_empty_after_skipping_empty(self) -> None:
+        """Skip empty strategies until a non-empty strategy returns matches."""
         empty = StubSetMatchingService([])
         second = StubSetMatchingService([self.match_b])
         service = ChainSetMatchingService([empty, second])
@@ -64,6 +73,7 @@ class TestChainSetMatchingService(unittest.TestCase):
         self.assertEqual(second.call_count, 1)
 
     def test_returns_empty_when_no_strategies_match(self) -> None:
+        """Return an empty list when all strategies return no matches."""
         strategies = [StubSetMatchingService([]), StubSetMatchingService([])]
         service = ChainSetMatchingService(strategies)
 

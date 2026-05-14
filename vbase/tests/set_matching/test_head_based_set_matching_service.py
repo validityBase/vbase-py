@@ -68,8 +68,12 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-abc")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertEqual(matches[0].rank, 1.0)  # perfect match, no timestamp differences
-        self.assertEqual(matches[0].last_matching_element_timestamp, 2000)  # timestamp of last matching element
+        self.assertEqual(
+            matches[0].rank, 1.0
+        )  # perfect match, no timestamp differences
+        self.assertEqual(
+            matches[0].last_matching_element_timestamp, 2000
+        )  # timestamp of last matching element
         self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
         self.assertEqual(matches[0].data_freshness_timestamp, 9999999)
 
@@ -174,8 +178,12 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Search with same CIDs but different timestamps (will be sorted by timestamp anyway)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=1500),  # Different from stored 1000
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=2500),  # Different from stored 2000
+                SetMatchingCriteriaItem(
+                    object_cid="obj-1", timestamp=1500
+                ),  # Different from stored 1000
+                SetMatchingCriteriaItem(
+                    object_cid="obj-2", timestamp=2500
+                ),  # Different from stored 2000
             ]
         )
 
@@ -185,7 +193,9 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].set_cid, "set-xyz")
         self.assertEqual(matches[0].user, "0xAlice")
-        self.assertLess(matches[0].rank, 1.0)  # rank should be less than 1.0 due to timestamp differences
+        self.assertLess(
+            matches[0].rank, 1.0
+        )  # rank should be less than 1.0 due to timestamp differences
         self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
 
     def test_no_match_when_timestamp_order_differs(self) -> None:
@@ -225,8 +235,12 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # This order is DIFFERENT from DB order: obj-1 (ts=1000), obj-2 (ts=2000)
         criteria = SetMatchingCriteria(
             objects=[
-                SetMatchingCriteriaItem(object_cid="obj-1", timestamp=2000),  # Will be second after sorting
-                SetMatchingCriteriaItem(object_cid="obj-2", timestamp=1000),  # Will be first after sorting
+                SetMatchingCriteriaItem(
+                    object_cid="obj-1", timestamp=2000
+                ),  # Will be second after sorting
+                SetMatchingCriteriaItem(
+                    object_cid="obj-2", timestamp=1000
+                ),  # Will be first after sorting
             ]
         )
 
@@ -323,7 +337,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     # ========== Test multi-chain disambiguation ==========
 
     def test_merges_same_set_from_different_chains(self) -> None:
-        """Test that the same (user, set_cid) on different chains is treated as one distributed set."""
+        """Test that the same set on different chains is treated as one set."""
         self.add_test_events([
             {
                 "id": "event-chain1",

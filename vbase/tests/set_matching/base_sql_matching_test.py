@@ -15,7 +15,7 @@ from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
 class BaseSQLMatchingTest(unittest.TestCase, ABC):
     """
     Abstract base class for unit tests of set matching services.
-    
+
     Provides:
     - Temporary file-backed SQLite database setup and teardown
     - Helper method to add test EventAddSetObject records
@@ -35,14 +35,14 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
         if self.db_file and os.path.exists(self.db_file):
             try:
                 os.unlink(self.db_file)
-            except Exception:
+            except OSError:
                 pass  # Best effort cleanup
 
     @staticmethod
     def create_db() -> tuple[str, object, str | None]:
         """
         Create a temporary SQLite database for testing.
-        
+
         Returns:
             tuple: (db_url, db_engine, db_file) - URL string, SQLAlchemy engine instance,
                    and temp file path. The db_url can be passed to matching service constructors.
@@ -50,13 +50,13 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
         # Create a temporary file for the database
         fd, db_file = tempfile.mkstemp(suffix=".db")
         os.close(fd)  # Close the file descriptor, SQLite will open it
-        
+
         db_url = f"sqlite:///{db_file}"
         engine = create_engine(db_url)
-        
+
         # Create all tables defined in SQLModel (including EventAddSetObject)
         SQLModel.metadata.create_all(engine)
-        
+
         return db_url, engine, db_file
 
     def add_test_event(
@@ -90,12 +90,14 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
             transaction_hash=transaction_hash,
             timestamp=timestamp,
         )
-        
+
         with Session(self.db_engine) as session:
             session.add(event)
             session.commit()
 
-    def add_last_batch_processing_time(self, timestamp: int, record_id: str = "batch-1") -> None:
+    def add_last_batch_processing_time(
+        self, timestamp: int, record_id: str = "batch-1"
+    ) -> None:
         """Add a LastBatchProcessingTime record to the test database."""
         record = LastBatchProcessingTime(id=record_id, timestamp=timestamp)
         with Session(self.db_engine) as session:
@@ -105,7 +107,7 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
     def add_test_events(self, events: list[dict]) -> None:
         """
         Add multiple EventAddSetObject records to the test database.
-        
+
         Args:
             events: List of dictionaries, each containing event fields:
                    - id: str
@@ -128,7 +130,7 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
             )
             for e in events
         ]
-        
+
         with Session(self.db_engine) as session:
             for event in event_objects:
                 session.add(event)

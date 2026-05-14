@@ -6,6 +6,8 @@ The Levenshtein distance is the minimum number of single-element edits
 into another.
 """
 
+# pylint: disable=protected-access,too-many-public-methods
+
 import unittest
 
 from vbase.core.set_matching.fuzzy_set_matching_service import (
@@ -136,7 +138,7 @@ class TestLevenshteinDistance(unittest.TestCase):
         # k→s (substitution), e→i (substitution), insert g
         distance = FuzzySetMatchingService._levenshtein_distance(
             ["k", "i", "t", "t", "e", "n"],
-            ["s", "i", "t", "t", "i", "n", "g"]
+            ["s", "i", "t", "t", "i", "n", "g"],
         )
         self.assertEqual(distance.distance, 3)
 
@@ -236,15 +238,15 @@ class TestLevenshteinDistance(unittest.TestCase):
     # ========== Triangle Inequality Tests ==========
 
     def test_triangle_inequality(self) -> None:
-        """Test that distance satisfies triangle inequality: d(A,C) <= d(A,B) + d(B,C)."""
+        """Test that distance satisfies triangle inequality."""
         seq_a = ["a", "b", "c"]
         seq_b = ["a", "x", "c"]
         seq_c = ["a", "x", "y"]
-        
+
         dist_ac = FuzzySetMatchingService._levenshtein_distance(seq_a, seq_c)
         dist_ab = FuzzySetMatchingService._levenshtein_distance(seq_a, seq_b)
         dist_bc = FuzzySetMatchingService._levenshtein_distance(seq_b, seq_c)
-        
+
         self.assertLessEqual(dist_ac.distance, dist_ab.distance + dist_bc.distance)
 
     # ========== Real-World Examples ==========
@@ -258,7 +260,7 @@ class TestLevenshteinDistance(unittest.TestCase):
         self.assertEqual(distance.distance, 1)
 
     def test_real_world_missing_head_element(self) -> None:
-        """Test scenario where first element is missing (as in test_levenshtein_missing_first_element)."""
+        """Test a realistic case where the first element is missing."""
         # This simulates the scenario tested in the fuzzy matching service
         seq_with_all = ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8"]
         seq_missing_first = ["e2", "e3", "e4", "e5", "e6", "e7", "e8"]
@@ -323,7 +325,7 @@ class TestLevenshteinDistance(unittest.TestCase):
         self.assertEqual(result.distance, 2)
 
     def test_operation_counts_only_substitutions(self) -> None:
-        """Test that only substitutions are counted when sequences have same length but differ."""
+        """Test that only substitutions are counted for equal-length differences."""
         result = FuzzySetMatchingService._levenshtein_distance(
             ["a", "b", "c"], ["x", "y", "z"]
         )
@@ -350,7 +352,7 @@ class TestLevenshteinDistance(unittest.TestCase):
         # k→s (sub), i→i, t→t, t→t, e→i (sub), n→n, insert g
         result = FuzzySetMatchingService._levenshtein_distance(
             ["k", "i", "t", "t", "e", "n"],
-            ["s", "i", "t", "t", "i", "n", "g"]
+            ["s", "i", "t", "t", "i", "n", "g"],
         )
         # Expected: 2 substitutions (k→s, e→i) and 1 insertion (g)
         self.assertEqual(result.substitutions, 2)
@@ -368,17 +370,18 @@ class TestLevenshteinDistance(unittest.TestCase):
             (["a", "b", "c"], ["x", "y", "z"]),
             (["a", "b", "c", "d"], ["a", "x", "c", "y"]),
         ]
-        
+
         for seq1, seq2 in test_cases:
             result = FuzzySetMatchingService._levenshtein_distance(seq1, seq2)
-            computed_distance = result.insertions + result.deletions + result.substitutions
+            computed_distance = (
+                result.insertions + result.deletions + result.substitutions
+            )
             self.assertEqual(
-                result.distance, 
+                result.distance,
                 computed_distance,
                 f"Failed for {seq1} -> {seq2}: distance={result.distance}, "
                 f"but ins+del+sub={computed_distance}"
             )
-
 
     # ========== Operations List Tests ==========
 
@@ -450,8 +453,5 @@ class TestLevenshteinDistance(unittest.TestCase):
                 f"Failed for {seq1} -> {seq2}: "
                 f"len(operations)={len(result.operations)}, distance={result.distance}",
             )
-
-
 if __name__ == "__main__":
     unittest.main()
-
