@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
-from vbase.core.set_matching.types import SetKey, SetMatching, SetMatchingCriteria
+from vbase.core.set_matching.types import SetIdentifier, SetMatch, SetMatchingCriteria
 
 
 class BaseSetMatchingService(ABC):
@@ -23,7 +23,7 @@ class BaseSetMatchingService(ABC):
     def find_matching_sets(
         self,
         criteria: SetMatchingCriteria,
-    ) -> list[SetMatching]:
+    ) -> list[SetMatch]:
         """
         Find committed sets that best match the provided criteria.
 
@@ -53,7 +53,7 @@ class BaseSetMatchingService(ABC):
         return record.timestamp
 
     @staticmethod
-    def _build_candidate_filters(candidate_keys: list[SetKey]):
+    def _build_candidate_filters(candidate_keys: list[SetIdentifier]):
         """Build a SQLAlchemy filter matching any of the given set keys."""
         return or_(
             *[
@@ -67,7 +67,7 @@ class BaseSetMatchingService(ABC):
 
     @staticmethod
     def _load_candidate_events(
-        session: Session, candidate_keys: list[SetKey]
+        session: Session, candidate_keys: list[SetIdentifier]
     ) -> list[EventAddSetObject]:
         """Load all EventAddSetObject rows for the given candidate keys, ordered by timestamp."""
         return session.exec(

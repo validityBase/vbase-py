@@ -69,7 +69,7 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(matches[0].set_cid, "set-abc")
         self.assertEqual(matches[0].user, "0xAlice")
         self.assertEqual(matches[0].rank, 1.0)  # perfect match, no timestamp differences
-        self.assertEqual(matches[0].as_of_timestamp, 2000)  # timestamp of last matching element
+        self.assertEqual(matches[0].last_matching_element_timestamp, 2000)  # timestamp of last matching element
         self.assertFalse(matches[0].is_full_match)  # set has 3 objects, criteria has 2
         self.assertEqual(matches[0].data_freshness_timestamp, 9999999)
 

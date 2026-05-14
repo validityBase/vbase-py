@@ -12,8 +12,8 @@ from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingSer
 from vbase.core.set_matching.types import (
     FuzzyCheckObjectSetData,
     LevenshteinDistance,
-    SetKey,
-    SetMatching,
+    SetIdentifier,
+    SetMatch,
     SetMatchingCriteria,
 )
 
@@ -61,7 +61,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
     def find_matching_sets(
         self,
         criteria: SetMatchingCriteria,
-    ) -> list[SetMatching]:
+    ) -> list[SetMatch]:
         """
         Scans the blockchain index SQL table of EventAddSetObject events to find sets
         whose elements match the criteria within the configured tolerance.
@@ -105,9 +105,9 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             event_rows = self._load_candidate_events(session, candidate_keys)
 
         # Build FuzzyCheckObjectSetData from the event_rows
-        candidate_sets_dict: dict[SetKey, FuzzyCheckObjectSetData] = {}
+        candidate_sets_dict: dict[SetIdentifier, FuzzyCheckObjectSetData] = {}
         for event_row in event_rows:
-            set_key = SetKey(event_row.set_cid, event_row.user)
+            set_key = SetIdentifier(event_row.set_cid, event_row.user)
             if set_key not in candidate_sets_dict:
                 candidate_sets_dict[set_key] = FuzzyCheckObjectSetData(
                     key=set_key,
@@ -138,11 +138,11 @@ class FuzzySetMatchingService(BaseSetMatchingService):
 
         # Return the top 5 matches
         return [
-            SetMatching(
+            SetMatch(
                 rank=s.rank,
                 set_cid=s.key.set_cid,
                 user=s.key.user,
-                as_of_timestamp=s.objects[s.projected_last_element_index].timestamp,
+                last_matching_element_timestamp=s.objects[s.projected_last_element_index].timestamp,
                 data_freshness_timestamp=last_batch,
                 is_full_match=(
                     s.set_length == len(sorted_criteria.objects)
@@ -186,7 +186,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         # Levenshtein can detect head insertions correctly. Truncating to exactly
         # len(criteria_cids) forces equal-length sequences, where Levenshtein
         # prefers substitutions over insert+delete, hiding true insertions and
-        # producing incorrect as_of_timestamp values.
+        # producing incorrect last_matching_element_timestamp values.
         if len(candidate_cids) > len(criteria_cids) + max_allowed_distance:
             candidate_cids = candidate_cids[: len(criteria_cids) + max_allowed_distance]
 
@@ -313,7 +313,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         session: Session,
         criteria: SetMatchingCriteria,
         tolerance: float,
-    ) -> list[SetKey]:
+    ) -> list[SetIdentifier]:
         """
         Find high-probability candidate sets for the given criteria with tolerance.
 
@@ -340,8 +340,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
             ).where(EventAddSetObject.object_cid.in_(criteria_cids))
         ).all()
 
-        counts: Counter[SetKey] = Counter(
-            SetKey(row.set_cid, row.user) for row in rows
+        counts: Counter[SetIdentifier] = Counter(
+            SetIdentifier(row.set_cid, row.user) for row in rows
         )
 
         return [

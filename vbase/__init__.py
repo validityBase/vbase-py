@@ -22,7 +22,7 @@ from vbase.core.set_matching import (
     BaseSetMatchingService,
     FuzzySetMatchingService,
     HeadBasedSetMatchingService,
-    SetMatching,
+    SetMatch,
     SetMatchingCriteria,
     SetMatchingCriteriaItem,
 )
@@ -56,7 +56,7 @@ __all__ = [
     "HeadBasedSetMatchingService",
     "FuzzySetMatchingService",
     "BaseSetMatchingService",
-    "SetMatching",
+    "SetMatch",
     "SetMatchingCriteria",
     "SetMatchingCriteriaItem",
 

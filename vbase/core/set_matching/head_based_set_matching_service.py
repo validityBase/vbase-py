@@ -6,7 +6,7 @@ from sqlmodel import Session, create_engine, select
 
 from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
-from vbase.core.set_matching.types import ObjectSetData, SetKey, SetMatching, SetMatchingCriteria
+from vbase.core.set_matching.types import ObjectSetData, SetIdentifier, SetMatch, SetMatchingCriteria
 
 
 class HeadBasedSetMatchingService(BaseSetMatchingService):
@@ -35,7 +35,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
     def find_matching_sets(
         self,
         criteria: SetMatchingCriteria,
-    ) -> list[SetMatching]:
+    ) -> list[SetMatch]:
         """
         Scans the blockchain index SQL table of EventAddSetObject events to find sets
         whose head (first elements) matches the elements specified in the criteria.
@@ -70,9 +70,9 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
 
 
         # Build ObjectSetData from event_rows (already ordered by timestamp)
-        candidate_sets_dict: dict[SetKey, ObjectSetData] = {}
+        candidate_sets_dict: dict[SetIdentifier, ObjectSetData] = {}
         for event_row in event_rows:
-            set_key = SetKey(event_row.set_cid, event_row.user)
+            set_key = SetIdentifier(event_row.set_cid, event_row.user)
             if set_key not in candidate_sets_dict:
                 candidate_sets_dict[set_key] = ObjectSetData(key=set_key, objects=[])
             candidate_sets_dict[set_key].objects.append(event_row)
@@ -94,12 +94,12 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         last_idx = len(ordered_criteria.objects) - 1
 
         return [
-            SetMatching(
+            SetMatch(
                 rank=1 - (s.rank / max_rank if max_rank > 0 else 0.0),
                 set_cid=s.key.set_cid,
                 user=s.key.user,
                 # Timestamp of the last criteria-matching element
-                as_of_timestamp=s.objects[last_idx].timestamp,
+                last_matching_element_timestamp=s.objects[last_idx].timestamp,
                 # Full match when the head covers the entire set
                 is_full_match=s.set_length == len(ordered_criteria.objects),
                 data_freshness_timestamp=last_batch,
@@ -138,13 +138,13 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
         self,
         session: Session,
         criteria: SetMatchingCriteria,
-    ) -> list[SetKey]:
+    ) -> list[SetIdentifier]:
         """Find high-probability candidate sets for the given criteria.
 
         Returns up to five candidate sets that contain the most CIDs from the
         criteria. Element ordering is not considered at this stage.
         """
-        candidate_keys: set[SetKey] | None = None
+        candidate_keys: set[SetIdentifier] | None = None
 
         for criteria_object in criteria.objects:
             # Find all sets that contain the current criteria object.
@@ -154,7 +154,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             ).where(EventAddSetObject.object_cid == criteria_object.object_cid)
 
             object_candidate_keys = {
-                SetKey(row.set_cid, row.user)
+                SetIdentifier(row.set_cid, row.user)
                 for row in session.exec(candidate_stmt).all()
             }
 

@@ -24,7 +24,7 @@ class SetMatchingCriteria:
     objects: list[SetMatchingCriteriaItem]
 
 @dataclass(frozen=True)
-class SetMatching:
+class SetMatch:
     """
     Represents a successful match of a set of objects to a set on the blockchain,
     along with metadata about the match.
@@ -34,7 +34,7 @@ class SetMatching:
     rank: float
     set_cid: str
     user: str
-    as_of_timestamp: int
+    last_matching_element_timestamp: int
     #: Whether the match is a full match (all criteria objects are in the set and all
     #: set objects are in the criteria), or a partial match where extra objects are in
     #: the set.
@@ -43,7 +43,7 @@ class SetMatching:
 
 
 @dataclass(frozen=True)
-class SetKey:
+class SetIdentifier:
     """
     Unique identifier for a set, based on its set_cid and user.
     Sets can span multiple chains (distributed sets).
@@ -59,7 +59,7 @@ class ObjectSetData:
     and a rank for matching purposes.
     """
 
-    key: SetKey
+    key: SetIdentifier
     objects: list[EventAddSetObject]
     rank: float | None = None
     # Length of the complete chain of events for this set, used for tie-breaking.

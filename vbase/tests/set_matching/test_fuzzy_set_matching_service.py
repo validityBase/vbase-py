@@ -10,7 +10,7 @@ from vbase.core.set_matching.fuzzy_set_matching_service import (
 )
 from vbase.core.set_matching.types import (
     FuzzyCheckObjectSetData,
-    SetKey,
+    SetIdentifier,
     SetMatchingCriteria,
     SetMatchingCriteriaItem,
 )
@@ -84,7 +84,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(matches[0].set_cid, "set-small")
         self.assertEqual(matches[0].user, "0xAlice")
         self.assertEqual(matches[0].rank, 1.0)  # Perfect match
-        self.assertEqual(matches[0].as_of_timestamp, 2000)
+        self.assertEqual(matches[0].last_matching_element_timestamp, 2000)
 
     def test_small_criteria_no_match_if_one_position_differs(self) -> None:
         """Test that small criteria (< 5) does not match if even 1 position differs."""
@@ -767,7 +767,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_rank_candidate_returns_levenshtein_result(self) -> None:
         """Test that fuzzy ranking returns both the rank and Levenshtein details."""
         candidate = FuzzyCheckObjectSetData(
-            key=SetKey(set_cid="set-fuzzy", user="0xAlice"),
+            key=SetIdentifier(set_cid="set-fuzzy", user="0xAlice"),
             objects=[
                 EventAddSetObject(
                     id=f"event-{i}",
@@ -803,8 +803,8 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         self.assertEqual(candidate.lev_result.deletions, 0)
         self.assertEqual(candidate.lev_result.distance, 1)
 
-    def test_as_of_timestamp_accounts_for_insertions(self) -> None:
-        """Test that as_of_timestamp advances when Levenshtein inserts extra candidate elements."""
+    def test_last_matching_element_timestamp_accounts_for_insertions(self) -> None:
+        """Test that last_matching_element_timestamp advances when Levenshtein inserts extra candidate elements."""
         self.add_test_events([
             {
                 "id": "event-0",
@@ -867,11 +867,11 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         matches = service.find_matching_sets(criteria)
 
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].as_of_timestamp, 5000)
+        self.assertEqual(matches[0].last_matching_element_timestamp, 5000)
 
-    def test_insertion_at_head_with_repeated_cids_uses_correct_as_of_timestamp(self) -> None:
+    def test_insertion_at_head_with_repeated_cids_uses_correct_last_matching_element_timestamp(self) -> None:
         """Regression test: when all CIDs are identical, an extra element at the head
-        must be detected as an insertion (not a substitution), so as_of_timestamp
+        must be detected as an insertion (not a substitution), so last_matching_element_timestamp
         points to the last covered element, not one position too early.
 
         The old code truncated the candidate to len(criteria), producing equal-length
@@ -912,12 +912,12 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
         self.assertEqual(len(matches), 1)
         # The insertion of the prefix element shifts the covered window forward:
-        # matched_length = 5 + 1 insertion = 6, so as_of_timestamp must be
+        # matched_length = 5 + 1 insertion = 6, so last_matching_element_timestamp must be
         # the 6th element (ts=5000), not the 5th (ts=4000).
-        self.assertEqual(matches[0].as_of_timestamp, 5000)
+        self.assertEqual(matches[0].last_matching_element_timestamp, 5000)
 
-    def test_as_of_timestamp_accounts_for_deletions(self) -> None:
-        """Test that as_of_timestamp moves back when candidate elements are deleted."""
+    def test_last_matching_element_timestamp_accounts_for_deletions(self) -> None:
+        """Test that last_matching_element_timestamp moves back when candidate elements are deleted."""
         self.add_test_events([
             {
                 "id": "event-1",
@@ -964,7 +964,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         matches = service.find_matching_sets(criteria)
 
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].as_of_timestamp, 4000)
+        self.assertEqual(matches[0].last_matching_element_timestamp, 4000)
 
     # ========== Test is_full_match ==========
 

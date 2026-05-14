@@ -5,18 +5,18 @@ from vbase.core.set_matching.chain_set_matching_service import (
 )
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import (
-    SetMatching,
+    SetMatch,
     SetMatchingCriteria,
     SetMatchingCriteriaItem,
 )
 
 
 class StubSetMatchingService(BaseSetMatchingService):
-    def __init__(self, matches: list[SetMatching]):
+    def __init__(self, matches: list[SetMatch]):
         self.matches = matches
         self.call_count = 0
 
-    def find_matching_sets(self, criteria: SetMatchingCriteria) -> list[SetMatching]:
+    def find_matching_sets(self, criteria: SetMatchingCriteria) -> list[SetMatch]:
         self.call_count += 1
         return self.matches
 
@@ -26,18 +26,18 @@ class TestChainSetMatchingService(unittest.TestCase):
         self.criteria = SetMatchingCriteria(
             objects=[SetMatchingCriteriaItem(object_cid="cid-1", timestamp=1700000000)]
         )
-        self.match_a = SetMatching(
+        self.match_a = SetMatch(
             rank=0.9,
             set_cid="set-a",
             user="alice",
-            as_of_timestamp=1700000002,
+            last_matching_element_timestamp=1700000002,
             is_full_match=False,
         )
-        self.match_b = SetMatching(
+        self.match_b = SetMatch(
             rank=0.8,
             set_cid="set-b",
             user="bob",
-            as_of_timestamp=1700000004,
+            last_matching_element_timestamp=1700000004,
             is_full_match=False,
         )
 

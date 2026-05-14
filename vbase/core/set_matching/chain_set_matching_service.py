@@ -4,7 +4,7 @@ Aggregate set matching strategies.
 
 
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
-from vbase.core.set_matching.types import SetMatching, SetMatchingCriteria
+from vbase.core.set_matching.types import SetMatch, SetMatchingCriteria
 
 
 class ChainSetMatchingService(BaseSetMatchingService):
@@ -22,7 +22,7 @@ class ChainSetMatchingService(BaseSetMatchingService):
     def find_matching_sets(
         self,
         criteria: SetMatchingCriteria,
-    ) -> list[SetMatching]:
+    ) -> list[SetMatch]:
         for service in self.matching_services:
             matches = service.find_matching_sets(criteria)
             if matches:
