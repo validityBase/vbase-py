@@ -17,8 +17,9 @@ CI install environment.
 - `docs/requirements.txt` is generated from `docs/requirements.in` and includes documentation build dependencies with hashes.
 
 Do not edit generated `.txt` lock files by hand.
-`setup.py` reads package runtime dependencies from `requirements.in`, so hashed
-lock syntax is never passed to `install_requires`.
+Runtime dependencies are configured through setuptools dynamic dependency
+metadata in `pyproject.toml`, which uses `requirements.in` as the source input,
+so hashed lock syntax is never passed to package metadata.
 
 ## Developer Workflow
 

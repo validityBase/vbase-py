@@ -11,7 +11,7 @@ matching utilities for auditable data provenance workflows.
 - Runtime, development, and documentation dependency inputs live in `requirements.in`, `requirements-dev.in`, and `docs/requirements.in`.
 - Generated lock files are `requirements.txt`, `requirements-dev.txt`, and `docs/requirements.txt`; they must include pinned versions and hashes.
 - Install generated lock files with `python -m pip install --require-hashes -r <file>`.
-- `setup.py` reads package runtime dependencies from `requirements.in`, not from the generated hashed lock.
+- `pyproject.toml` defines the package's dynamic runtime dependency source; `setup.py` is only a legacy shim and should not be treated as the source of truth.
 - Use the pinned `pip-tools` from `requirements-dev.txt` before regenerating lock files.
 - `.github/workflows/python-dependency-locks.yml` verifies lock freshness, hash installs, editable install, and `pip check`.
 
