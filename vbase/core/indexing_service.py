@@ -287,7 +287,7 @@ class Web3HTTPIndexingService(IndexingService):
         )
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
-        """Get the 'fromBlock' filter for event queries."""
+        """Get the 'from_block' filter for event queries."""
         if self.n_last_blocks is None:
             return 0
         block_number = commitment_service.w3.eth.block_number
@@ -301,7 +301,7 @@ class Web3HTTPIndexingService(IndexingService):
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
             event_filter = cast(ContractEvent, cs.csc.events.AddSet).create_filter(
-                fromBlock=self._get_from_block(cs),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -394,7 +394,7 @@ class Web3HTTPIndexingService(IndexingService):
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
             event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=self._get_from_block(cs),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -411,7 +411,7 @@ class Web3HTTPIndexingService(IndexingService):
                 event_filter = cast(
                     ContractEvent, cs.csc.events.AddSetObject
                 ).create_filter(
-                    fromBlock=self._get_from_block(cs),
+                    from_block=self._get_from_block(cs),
                     argument_filters={
                         "user": user,
                     },
@@ -433,7 +433,7 @@ class Web3HTTPIndexingService(IndexingService):
             event_filter = cast(
                 ContractEvent, cs.csc.events.AddSetObject
             ).create_filter(
-                fromBlock=self._get_from_block(cs),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                     "setCid": hex_str_to_bytes(set_cid),
@@ -466,7 +466,7 @@ class Web3HTTPIndexingService(IndexingService):
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
             event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=self._get_from_block(cs),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "objectCid": [
                         hex_str_to_bytes(object_cid) for object_cid in object_cids
@@ -485,7 +485,7 @@ class Web3HTTPIndexingService(IndexingService):
                 event_filter = cast(
                     ContractEvent, cs.csc.events.AddSetObject
                 ).create_filter(
-                    fromBlock=self._get_from_block(cs),
+                    from_block=self._get_from_block(cs),
                     argument_filters={
                         "objectCid": [
                             hex_str_to_bytes(object_cid) for object_cid in object_cids
