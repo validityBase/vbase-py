@@ -13,8 +13,6 @@ from .models import (
     EventAddSetObject,
     LastBatchProcessingTime,
 )
-from .set_matching_service import BaseMatchingService, SetMatchingService
-from .types import ObjectAtTime, SetCandidate, SetMatchingCriteria
 
 # Default staleness threshold: if the last indexed batch is older than this, all operations fail.
 # Allow enough time for the indexer container to restart.
@@ -29,7 +27,6 @@ class SQLIndexingService(IndexingService):
     def __init__(
         self,
         db_url: str,
-        matching_service: BaseMatchingService = None,
         indexing_stale_threshold_seconds: int = INDEXING_STALE_THRESHOLD_SECONDS,
     ):
         """
@@ -37,7 +34,6 @@ class SQLIndexingService(IndexingService):
 
         Args:
             db_url: SQLAlchemy database URL.
-            matching_service: Optional set matching service. Defaults to SetMatchingService.
             indexing_stale_threshold_seconds: How many seconds old the last indexed batch may be
                 before operations are rejected. Defaults to INDEXING_STALE_THRESHOLD_SECONDS.
                 Some applications are tolerant of stale index data — for example, portfolio
@@ -45,7 +41,6 @@ class SQLIndexingService(IndexingService):
                 Pass a larger value or ``math.inf`` (cast to int) to relax this constraint.
         """
         self.db_engine = create_engine(db_url)
-        self.best_match_service = matching_service or SetMatchingService(self.db_engine)
         self.indexing_stale_threshold_seconds = indexing_stale_threshold_seconds
 
     def find_user_sets(self, user: str) -> List[dict]:
@@ -263,7 +258,7 @@ class SQLIndexingService(IndexingService):
             )
             last_batch = session.exec(statement).first()
             if last_batch is None:
-                raise Exception(
+                raise RuntimeError(
                     "No batch processing time found. Indexing might not have started."
                 )
 
@@ -272,7 +267,7 @@ class SQLIndexingService(IndexingService):
             if (
                 current_time - last_time
             ).total_seconds() > self.indexing_stale_threshold_seconds:
-                raise Exception(
+                raise RuntimeError(
                     f"Indexing is stale. "
                     f"Last batch processing time: {last_time} by {last_batch.id}, "
                     f"current time: {current_time}. "
@@ -324,22 +319,3 @@ class SQLIndexingService(IndexingService):
                     receipt["setCid"] = set_cids[key]
 
         return cs_receipts
-
-    def find_matching_user_sets(
-        self,
-        objects: list[ObjectAtTime],
-        as_of: pd.Timestamp | int | None = None,
-    ) -> list[SetCandidate]:
-        """
-        Find the best sets that approximately match the query objects.
-        Args:
-            objects (list[ObjectAtTime]): List of objects with timestamps.
-            as_of (pd.Timestamp | int | None): Optional as_of timestamp.
-        Returns:
-            list[SetCandidate]: List of candidate sets matching the criteria.
-        """
-        criteria = SetMatchingCriteria(
-            objects=objects,
-            as_of=as_of,
-        )
-        return self.best_match_service.find_matching_user_sets(criteria)
