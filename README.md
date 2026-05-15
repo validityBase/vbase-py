@@ -29,6 +29,12 @@ With vBase, creating and consuming provably correct data is as easy as pressing 
 
 ## Installation
 
+Install the package from PyPI:
+
+```bash
+pip install vbase
+```
+
 See the [local installation](https://docs.vbase.com/getting-started/python-quickstart/local-installation) and the [cloud notebooks](https://docs.vbase.com/getting-started/python-quickstart/cloud-notebooks) guides to get started using vBase from Python.
 
 ## Development

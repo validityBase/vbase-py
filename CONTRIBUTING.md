@@ -34,3 +34,10 @@ Do not edit generated lock files by hand.
 
 See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
 for the exact commands.
+
+## Publishing Releases
+
+- Update the package version in `vbase/_version.py`.
+- For a test publish, run the `Publish Python Package to PyPI` workflow manually and choose `testpypi`.
+- For a production publish, create and publish a GitHub Release or run the same workflow manually and choose `pypi`.
+- Configure GitHub environments named `testpypi` and `pypi` and add matching trusted publishers in TestPyPI and PyPI before the first publish.

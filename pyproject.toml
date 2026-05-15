@@ -1,3 +1,39 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vbase"
+dynamic = ["version", "dependencies"]
+description = "vBase Python Software Development Kit (SDK)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+	{ name = "vBase", email = "tech@vbase.com" },
+]
+keywords = ["vbase", "blockchain", "provenance", "web3", "sdk"]
+classifiers = [
+	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/validityBase/vbase-py"
+Documentation = "https://docs.vbase.com/"
+Issues = "https://github.com/validityBase/vbase-py/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "vbase._version.__version__" }
+dependencies = { file = ["requirements.in"] }
+
+[tool.setuptools.packages.find]
+include = ["vbase*"]
+exclude = ["vbase.tests*"]
+
+[tool.setuptools.package-data]
+"vbase.core" = ["abi/*.json"]
+
 [tool.isort]
 # Avoid conflicts with black formatter.
 profile = "black"
