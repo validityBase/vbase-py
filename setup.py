@@ -1,30 +1,6 @@
-"""A Python library for interacting with the validityBase (vBase) platform"""
+"""Legacy setuptools entry point."""
 
-from setuptools import find_packages, setup
+from setuptools import setup
 
-with open("README.md", encoding="utf-8") as f:
-    long_description = f.read()
 
-with open("requirements.txt", encoding="utf-8") as f:
-    requirements = f.read().splitlines()
-
-setup(
-    name="vbase",
-    version="0.0.1",
-    author="PIT Labs, Inc.",
-    author_email="tech@vbase.com",
-    description="vBase Python Software Development Kit (SDK)",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/validityBase/vbase-py",
-    packages=find_packages(),
-    package_data={
-        "": ["../requirements.txt", "abi/*.json"],
-    },
-    install_requires=requirements,
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "Operating System :: OS Independent",
-    ],
-    python_requires=">=3.8",
-)
+setup()

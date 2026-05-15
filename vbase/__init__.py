@@ -3,6 +3,7 @@
 A Python library for interacting with the validityBase (vBase) platform
 """
 
+from vbase._version import __version__
 from vbase.core.aggregate_indexing_service import AggregateIndexingService
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
@@ -42,6 +43,7 @@ from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServi
 from vbase.utils.log import get_default_logger
 
 __all__ = [
+    "__version__",
     "VBaseClient",
     "VBaseClientTest",
     "Web3HTTPCommitmentService",
