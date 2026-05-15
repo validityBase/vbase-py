@@ -39,6 +39,7 @@ jobs:
           requirements-files: |
             requirements.txt
           python-version: "3.11"
+          require-hashes: "true"
 
       - name: Run vbase-py tests
         run: |

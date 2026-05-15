@@ -1,12 +1,23 @@
 """A Python library for interacting with the validityBase (vBase) platform"""
 
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
-with open("README.md", encoding="utf-8") as f:
-    long_description = f.read()
+ROOT_DIR = Path(__file__).parent
 
-with open("requirements.txt", encoding="utf-8") as f:
-    requirements = f.read().splitlines()
+
+def read_requirements(path):
+    """Read non-comment requirement lines from a human-edited input file."""
+    return [
+        line.strip()
+        for line in (ROOT_DIR / path).read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+long_description = (ROOT_DIR / "README.md").read_text(encoding="utf-8")
+requirements = read_requirements("requirements.in")
 
 setup(
     name="vbase",
@@ -19,7 +30,7 @@ setup(
     url="https://github.com/validityBase/vbase-py",
     packages=find_packages(),
     package_data={
-        "": ["../requirements.txt", "abi/*.json"],
+        "vbase.core": ["abi/*.json"],
     },
     install_requires=requirements,
     classifiers=[
