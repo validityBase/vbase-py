@@ -24,6 +24,17 @@ To contribute code or documentation, please do the following:
 - Submit a pull request for your change.
 Provide a detailed description of the changes and any supporting information.
 
+## Updating Python Dependencies
+
+Runtime, development, and documentation dependencies are managed through
+human-edited `.in` files and generated hash-locked `.txt` files. Edit the
+relevant `.in` file, regenerate the matching lock file with
+`pip-compile --generate-hashes`, and include both files in the pull request.
+Do not edit generated lock files by hand.
+
+See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
+for the exact commands.
+
 ## Publishing Releases
 
 - Update the package version in `vbase/_version.py`.

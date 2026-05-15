@@ -17,6 +17,7 @@ jobs:
       requirements-files: |
         docs/requirements.txt
         requirements.txt
+      require-hashes: true
       pre-publish-command: sphinx-build -b markdown docs/ docs/_build/markdown
       source-docs-path: docs/_build/markdown
       target-repository-branch: main

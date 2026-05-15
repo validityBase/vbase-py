@@ -36,3 +36,17 @@ pip install vbase
 ```
 
 See the [local installation](https://docs.vbase.com/getting-started/python-quickstart/local-installation) and the [cloud notebooks](https://docs.vbase.com/getting-started/python-quickstart/cloud-notebooks) guides to get started using vBase from Python.
+
+## Development
+
+Development and CI installs use generated requirements locks with pip
+hash-checking mode:
+
+```bash
+python -m pip install --require-hashes -r requirements-dev.txt
+python -m pip install --no-deps --no-build-isolation -e .
+```
+
+To update dependencies, edit the relevant `.in` file and regenerate the lock
+file with `pip-compile --generate-hashes`. See
+[internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md).

@@ -24,6 +24,7 @@ jobs:
           requirements-files: |
             requirements.txt
           python-version: "3.11"
+          require-hashes: "true"
 
       - name: Run vbase-py forwarder tests using the public dev service
         env:
