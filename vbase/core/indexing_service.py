@@ -15,21 +15,6 @@ from dotenv import load_dotenv
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
 
-# web3 v7 renamed the start-block kwarg on create_filter from 'fromBlock'
-# (camelCase, v6) to 'from_block' (snake_case, v7). Detect once at import.
-_CREATE_FILTER_FROM_BLOCK_KWARG = (
-    "from_block" if int(web3.__version__.split(".", 1)[0]) >= 7 else "fromBlock"
-)
-
-
-def _create_event_filter(event: ContractEvent, from_block: int, argument_filters: dict):
-    """Create an event filter, compatible with web3 v6 and v7."""
-    return event.create_filter(
-        argument_filters=argument_filters,
-        **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
-    )
-
-
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
@@ -44,6 +29,20 @@ from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+
+# web3 v7 renamed the start-block kwarg on create_filter from 'fromBlock'
+# (camelCase, v6) to 'from_block' (snake_case, v7). Detect once at import.
+_CREATE_FILTER_FROM_BLOCK_KWARG = (
+    "from_block" if int(web3.__version__.split(".", 1)[0]) >= 7 else "fromBlock"
+)
+
+
+def _create_event_filter(event: ContractEvent, from_block: int, argument_filters: dict):
+    """Create an event filter, compatible with web3 v6 and v7."""
+    return event.create_filter(
+        argument_filters=argument_filters,
+        **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
+    )
 
 
 # The indexing service will grow to have more features

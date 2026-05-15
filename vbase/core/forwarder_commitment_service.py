@@ -315,7 +315,9 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 request_type=RequestType.POST,
                 data={
                     "forwardRequest": forward_request,
-                    "signature": signature.signature.hex(),
+                    # hexbytes 1.x (shipped with web3 v7) dropped the '0x' prefix from
+                    # HexBytes.hex(); the forwarder requires it, so prepend explicitly.
+                    "signature": "0x" + bytes(signature.signature).hex(),
                 },
             )
             if receipt is None:
