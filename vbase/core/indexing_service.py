@@ -10,6 +10,7 @@ import pprint
 from abc import ABC
 from typing import List, Union, cast
 
+import web3
 from dotenv import load_dotenv
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
@@ -28,6 +29,20 @@ from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+
+# web3 v7 renamed the start-block kwarg on create_filter from 'fromBlock'
+# (camelCase, v6) to 'from_block' (snake_case, v7). Detect once at import.
+_CREATE_FILTER_FROM_BLOCK_KWARG = (
+    "from_block" if int(web3.__version__.split(".", 1)[0]) >= 7 else "fromBlock"
+)
+
+
+def _create_event_filter(event: ContractEvent, from_block: int, argument_filters: dict):
+    """Create an event filter, compatible with web3 v6 and v7."""
+    return event.create_filter(
+        argument_filters=argument_filters,
+        **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
+    )
 
 
 # The indexing service will grow to have more features
@@ -287,7 +302,7 @@ class Web3HTTPIndexingService(IndexingService):
         )
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
-        """Get the 'fromBlock' filter for event queries."""
+        """Get the 'from_block' filter for event queries."""
         if self.n_last_blocks is None:
             return 0
         block_number = commitment_service.w3.eth.block_number
@@ -300,8 +315,9 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cast(ContractEvent, cs.csc.events.AddSet).create_filter(
-                fromBlock=self._get_from_block(cs),
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddSet),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -393,8 +409,9 @@ class Web3HTTPIndexingService(IndexingService):
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
-            event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=self._get_from_block(cs),
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddObject),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
@@ -408,10 +425,9 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cast(
-                    ContractEvent, cs.csc.events.AddSetObject
-                ).create_filter(
-                    fromBlock=self._get_from_block(cs),
+                event_filter = _create_event_filter(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
+                    from_block=self._get_from_block(cs),
                     argument_filters={
                         "user": user,
                     },
@@ -430,10 +446,9 @@ class Web3HTTPIndexingService(IndexingService):
 
         receipts = []
         for cs in self.commitment_services:
-            event_filter = cast(
-                ContractEvent, cs.csc.events.AddSetObject
-            ).create_filter(
-                fromBlock=self._get_from_block(cs),
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddSetObject),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                     "setCid": hex_str_to_bytes(set_cid),
@@ -465,8 +480,9 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
-                fromBlock=self._get_from_block(cs),
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddObject),
+                from_block=self._get_from_block(cs),
                 argument_filters={
                     "objectCid": [
                         hex_str_to_bytes(object_cid) for object_cid in object_cids
@@ -482,10 +498,9 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cast(
-                    ContractEvent, cs.csc.events.AddSetObject
-                ).create_filter(
-                    fromBlock=self._get_from_block(cs),
+                event_filter = _create_event_filter(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
+                    from_block=self._get_from_block(cs),
                     argument_filters={
                         "objectCid": [
                             hex_str_to_bytes(object_cid) for object_cid in object_cids
