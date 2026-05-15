@@ -10,9 +10,25 @@ import pprint
 from abc import ABC
 from typing import List, Union, cast
 
+import web3
 from dotenv import load_dotenv
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
+
+# web3 v7 renamed the start-block kwarg on create_filter from 'fromBlock'
+# (camelCase, v6) to 'from_block' (snake_case, v7). Detect once at import.
+_CREATE_FILTER_FROM_BLOCK_KWARG = (
+    "from_block" if int(web3.__version__.split(".", 1)[0]) >= 7 else "fromBlock"
+)
+
+
+def _create_event_filter(event: ContractEvent, from_block: int, argument_filters: dict):
+    """Create an event filter, compatible with web3 v6 and v7."""
+    return event.create_filter(
+        argument_filters=argument_filters,
+        **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
+    )
+
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
@@ -300,7 +316,8 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddSetObject events.
             # For some reason Web3 does not convert set_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cast(ContractEvent, cs.csc.events.AddSet).create_filter(
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddSet),
                 from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
@@ -393,7 +410,8 @@ class Web3HTTPIndexingService(IndexingService):
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
             # Create the event filter for AddObject events.
-            event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddObject),
                 from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
@@ -408,9 +426,8 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cast(
-                    ContractEvent, cs.csc.events.AddSetObject
-                ).create_filter(
+                event_filter = _create_event_filter(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
                     from_block=self._get_from_block(cs),
                     argument_filters={
                         "user": user,
@@ -430,9 +447,8 @@ class Web3HTTPIndexingService(IndexingService):
 
         receipts = []
         for cs in self.commitment_services:
-            event_filter = cast(
-                ContractEvent, cs.csc.events.AddSetObject
-            ).create_filter(
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddSetObject),
                 from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
@@ -465,7 +481,8 @@ class Web3HTTPIndexingService(IndexingService):
             # Create the event filter for AddObject events.
             # For some reason Web3 does not convert object_cid to a byte strings,
             # so we must convert it explicitly.
-            event_filter = cast(ContractEvent, cs.csc.events.AddObject).create_filter(
+            event_filter = _create_event_filter(
+                cast(ContractEvent, cs.csc.events.AddObject),
                 from_block=self._get_from_block(cs),
                 argument_filters={
                     "objectCid": [
@@ -482,9 +499,8 @@ class Web3HTTPIndexingService(IndexingService):
             # Find set commitments across all commitment services.
             # This is a substantially similar loop to the one above.
             for cs in self.commitment_services:
-                event_filter = cast(
-                    ContractEvent, cs.csc.events.AddSetObject
-                ).create_filter(
+                event_filter = _create_event_filter(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
                     from_block=self._get_from_block(cs),
                     argument_filters={
                         "objectCid": [
