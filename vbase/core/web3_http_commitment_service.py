@@ -12,11 +12,23 @@ from typing import List, Optional, Union
 
 from dotenv import load_dotenv
 from web3 import Web3
-from web3.middleware import (
-    buffered_gas_estimate_middleware,
-    construct_sign_and_send_raw_middleware,
-    geth_poa_middleware,
-)
+
+try:
+    # web3.py v7 middleware names
+    from web3.middleware import (
+        BufferedGasEstimateMiddleware as buffered_gas_estimate_middleware_compat,
+    )
+    from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware_compat
+    from web3.middleware import SignAndSendRawMiddlewareBuilder
+
+    sign_and_send_raw_middleware_compat = SignAndSendRawMiddlewareBuilder.build
+except ImportError:
+    # web3.py v6 middleware names
+    from web3.middleware import (
+        buffered_gas_estimate_middleware as buffered_gas_estimate_middleware_compat,
+        construct_sign_and_send_raw_middleware as sign_and_send_raw_middleware_compat,
+        geth_poa_middleware as geth_poa_middleware_compat,
+    )
 
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
@@ -71,7 +83,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             such as hosted node services.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
-        :param inject_geth_poa_middleware: True if geth_poa_middleware W3 option
+        :param inject_geth_poa_middleware: True if geth_poa_middleware or
+            ExtraDataToPOAMiddleware W3 option
             is required to connect to the network.
             This option is required for Polygon PoS, BNB, and other chains:
             https://web3py.readthedocs.io/en/stable/middleware.html#proof-of-authority
@@ -109,7 +122,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             )
 
         if inject_geth_poa_middleware:
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            w3.middleware_onion.inject(geth_poa_middleware_compat, layer=0)
 
         # Initialize the account, if necessary.
         # If the account is not initialized, transaction will be sent using eth_sendTransaction.
@@ -118,7 +131,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # using eth_sendRawTransaction.
         if private_key:
             acct = w3.eth.account.from_key(private_key)
-            w3.middleware_onion.add(construct_sign_and_send_raw_middleware(acct))
+            w3.middleware_onion.add(sign_and_send_raw_middleware_compat(acct))
             w3.eth.default_account = acct.address
 
         # Add gas buffer middleware to ensure txs do not run out of gas
@@ -127,7 +140,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # Gas estimate middleware needs to run before signing.
         # Currently, Web3 has a number of bugs in middleware paths.
         # We work around them by adding middleware after signing.
-        w3.middleware_onion.add(buffered_gas_estimate_middleware)
+        w3.middleware_onion.add(buffered_gas_estimate_middleware_compat)
 
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.

@@ -25,7 +25,7 @@ Issues = "https://github.com/validityBase/vbase-py/issues"
 
 [tool.setuptools.dynamic]
 version = { attr = "vbase._version.__version__" }
-dependencies = { file = ["requirements.txt"] }
+dependencies = { file = ["requirements.in"] }
 
 [tool.setuptools.packages.find]
 include = ["vbase*"]
