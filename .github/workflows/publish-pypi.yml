@@ -4,15 +4,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-    inputs:
-      repository:
-        description: Repository to publish to
-        required: true
-        default: testpypi
-        type: choice
-        options:
-          - testpypi
-          - pypi
 
 permissions:
   contents: read
@@ -47,34 +38,8 @@ jobs:
           name: python-package-distributions
           path: dist/
 
-  publish-to-testpypi:
-    name: Publish to TestPyPI
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.repository == 'testpypi'
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/vbase
-    permissions:
-      id-token: write
-      actions: read
-
-    steps:
-      - name: Download all the dists
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-        with:
-          name: python-package-distributions
-          path: dist/
-
-      - name: Publish distribution to TestPyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
   publish-to-pypi:
     name: Publish to PyPI
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.repository == 'pypi')
     needs:
       - build
     runs-on: ubuntu-latest
