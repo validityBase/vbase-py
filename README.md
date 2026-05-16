@@ -8,7 +8,7 @@ vBase Python Software Development Kit (SDK)
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE.txt](LICENSE.txt) file for details.
+This project is licensed under the Apache 2.0 License - see the [LICENSE.txt](https://github.com/validityBase/vbase-py/blob/main/LICENSE.txt) file for details.
 
 ## Introduction
 
@@ -35,7 +35,7 @@ Install the package from PyPI:
 pip install vbase
 ```
 
-See the [local installation](https://docs.vbase.com/getting-started/python-quickstart/local-installation) and the [cloud notebooks](https://docs.vbase.com/getting-started/python-quickstart/cloud-notebooks) guides to get started using vBase from Python.
+See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart-1) and the [cloud notebooks](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart) guides to get started using vBase from Python.
 
 ## Development
 
@@ -49,4 +49,4 @@ python -m pip install --no-deps --no-build-isolation -e .
 
 To update dependencies, edit the relevant `.in` file and regenerate the lock
 file with `pip-compile --generate-hashes`. See
-[internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md).
+[internal/specs/python-dependency-hashes.md](https://github.com/validityBase/vbase-py/blob/main/internal/specs/python-dependency-hashes.md).
