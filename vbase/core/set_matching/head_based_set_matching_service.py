@@ -6,7 +6,12 @@ from sqlmodel import Session, create_engine, select
 
 from vbase.core.models import EventAddSetObject
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
-from vbase.core.set_matching.types import ObjectSetData, SetIdentifier, SetMatch, SetMatchingCriteria
+from vbase.core.set_matching.types import (
+    ObjectSetData,
+    SetIdentifier,
+    SetMatch,
+    SetMatchingCriteria,
+)
 
 
 class HeadBasedSetMatchingService(BaseSetMatchingService):
@@ -25,10 +30,7 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
     (distributed sets).
     """
 
-    def __init__(
-        self,
-        db_url: str
-    ):
+    def __init__(self, db_url: str):
         self.db_url = db_url
         self.db_engine = create_engine(db_url)
 
@@ -67,7 +69,6 @@ class HeadBasedSetMatchingService(BaseSetMatchingService):
             if not candidate_keys:
                 return []
             event_rows = self._load_candidate_events(session, candidate_keys)
-
 
         # Build ObjectSetData from event_rows (already ordered by timestamp)
         candidate_sets_dict: dict[SetIdentifier, ObjectSetData] = {}

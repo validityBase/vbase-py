@@ -71,7 +71,7 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
     ) -> None:
         """
         Add a single EventAddSetObject record to the test database.
-        
+
         Args:
             event_id: Unique identifier for this event
             user: User address (e.g., "0xABC...")

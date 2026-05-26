@@ -142,7 +142,9 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                 rank=s.rank,
                 set_cid=s.key.set_cid,
                 user=s.key.user,
-                last_matching_element_timestamp=s.objects[s.projected_last_element_index].timestamp,
+                last_matching_element_timestamp=s.objects[
+                    s.projected_last_element_index
+                ].timestamp,
                 data_freshness_timestamp=last_batch,
                 is_full_match=(
                     s.set_length == len(sorted_criteria.objects)
@@ -292,8 +294,8 @@ class FuzzySetMatchingService(BaseSetMatchingService):
                     dp[i][j] = dp[i - 1][j - 1]
                 else:
                     dp[i][j] = 1 + min(
-                        dp[i - 1][j],      # deletion
-                        dp[i][j - 1],      # insertion
+                        dp[i - 1][j],  # deletion
+                        dp[i][j - 1],  # insertion
                         dp[i - 1][j - 1],  # substitution
                     )
 
@@ -325,9 +327,7 @@ class FuzzySetMatchingService(BaseSetMatchingService):
         if not criteria.objects:
             return []
 
-        required_matches = max(
-            1, math.ceil(len(criteria.objects) * (1.0 - tolerance))
-        )
+        required_matches = max(1, math.ceil(len(criteria.objects) * (1.0 - tolerance)))
 
         # Collect all criteria CIDs
         criteria_cids = [obj.object_cid for obj in criteria.objects]
