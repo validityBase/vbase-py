@@ -2,7 +2,6 @@
 Aggregate set matching strategies.
 """
 
-
 from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingService
 from vbase.core.set_matching.types import SetMatch, SetMatchingCriteria
 

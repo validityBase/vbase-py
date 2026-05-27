@@ -10,9 +10,7 @@ into another.
 
 import unittest
 
-from vbase.core.set_matching.fuzzy_set_matching_service import (
-    FuzzySetMatchingService,
-)
+from vbase.core.set_matching.fuzzy_set_matching_service import FuzzySetMatchingService
 
 
 class TestLevenshteinDistance(unittest.TestCase):
@@ -192,9 +190,7 @@ class TestLevenshteinDistance(unittest.TestCase):
 
     def test_numeric_sequences(self) -> None:
         """Test with numeric sequences."""
-        distance = FuzzySetMatchingService._levenshtein_distance(
-            [1, 2, 3], [1, 5, 3]
-        )
+        distance = FuzzySetMatchingService._levenshtein_distance([1, 2, 3], [1, 5, 3])
         self.assertEqual(distance.distance, 1)
 
     def test_mixed_type_sequences(self) -> None:
@@ -306,9 +302,7 @@ class TestLevenshteinDistance(unittest.TestCase):
 
     def test_operation_counts_only_insertions(self) -> None:
         """Test that only insertions are counted when second sequence is longer."""
-        result = FuzzySetMatchingService._levenshtein_distance(
-            ["a"], ["a", "b", "c"]
-        )
+        result = FuzzySetMatchingService._levenshtein_distance(["a"], ["a", "b", "c"])
         self.assertEqual(result.insertions, 2)
         self.assertEqual(result.deletions, 0)
         self.assertEqual(result.substitutions, 0)
@@ -316,9 +310,7 @@ class TestLevenshteinDistance(unittest.TestCase):
 
     def test_operation_counts_only_deletions(self) -> None:
         """Test that only deletions are counted when first sequence is longer."""
-        result = FuzzySetMatchingService._levenshtein_distance(
-            ["a", "b", "c"], ["a"]
-        )
+        result = FuzzySetMatchingService._levenshtein_distance(["a", "b", "c"], ["a"])
         self.assertEqual(result.insertions, 0)
         self.assertEqual(result.deletions, 2)
         self.assertEqual(result.substitutions, 0)
@@ -380,7 +372,7 @@ class TestLevenshteinDistance(unittest.TestCase):
                 result.distance,
                 computed_distance,
                 f"Failed for {seq1} -> {seq2}: distance={result.distance}, "
-                f"but ins+del+sub={computed_distance}"
+                f"but ins+del+sub={computed_distance}",
             )
 
     # ========== Operations List Tests ==========
@@ -453,5 +445,7 @@ class TestLevenshteinDistance(unittest.TestCase):
                 f"Failed for {seq1} -> {seq2}: "
                 f"len(operations)={len(result.operations)}, distance={result.distance}",
             )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,32 @@
+name: Run Pylint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  run-pylint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Install dependencies
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
+        with:
+          requirements-files: |
+            requirements-dev.txt
+          python-version: "3.11"
+          require-hashes: "true"
+
+      - name: Run pylint
+        run: |
+          pylint vbase/

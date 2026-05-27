@@ -24,32 +24,34 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     def test_finds_exact_head_match(self) -> None:
         """Test that service finds a set when head objects match exactly."""
         # Add test data: a set with 3 objects
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-abc",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-abc",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-abc",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-abc",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-abc",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-abc",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+            ]
+        )
 
         # Create service with in-memory database
         service = HeadBasedSetMatchingService(db_url=self.db_url)
@@ -111,24 +113,26 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     def test_distinguishes_different_users(self) -> None:
         """Test that sets from different users are kept separate."""
         # Add same set_cid for two different users
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-abc",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xBob",
-                "set_cid": "set-abc",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-abc",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xBob",
+                    "set_cid": "set-abc",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
@@ -146,32 +150,34 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     def test_matches_by_cid_despite_timestamp_differences(self) -> None:
         """Test that service matches by CID order even when timestamps differ."""
         # Add test data: a set with objects in a specific timestamp order
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
@@ -201,32 +207,34 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
     def test_no_match_when_timestamp_order_differs(self) -> None:
         """Test that service returns empty when CIDs match but timestamp order differs."""
         # Add test data: DB has obj-1 (ts=1000), obj-2 (ts=2000), obj-3 (ts=3000)
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-xyz",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-xyz",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
@@ -251,29 +259,30 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
         # Criteria order (after sorting): obj-2, obj-1
         self.assertEqual(len(matches), 0)
 
-
     # ========== Test is_full_match ==========
 
     def test_is_full_match_true_when_criteria_equals_set_size(self) -> None:
         """Test that is_full_match is True when criteria length equals the set length."""
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-full",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-full",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-full",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-full",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
@@ -292,32 +301,34 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
 
     def test_is_full_match_false_when_set_longer_than_criteria(self) -> None:
         """Test that is_full_match is False when the set has more objects than criteria."""
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-partial",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-partial",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-partial",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-partial",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-partial",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-partial",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 
@@ -338,24 +349,26 @@ class TestHeadBasedSetMatchingService(BaseSQLMatchingTest):
 
     def test_merges_same_set_from_different_chains(self) -> None:
         """Test that the same set on different chains is treated as one set."""
-        self.add_test_events([
-            {
-                "id": "event-chain1",
-                "user": "0xAlice",
-                "set_cid": "set-distributed",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-chain2",
-                "user": "0xAlice",
-                "set_cid": "set-distributed",
-                "object_cid": "obj-2",
-                "chain_id": 2,
-                "timestamp": 2000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-chain1",
+                    "user": "0xAlice",
+                    "set_cid": "set-distributed",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-chain2",
+                    "user": "0xAlice",
+                    "set_cid": "set-distributed",
+                    "object_cid": "obj-2",
+                    "chain_id": 2,
+                    "timestamp": 2000,
+                },
+            ]
+        )
 
         service = HeadBasedSetMatchingService(db_url=self.db_url)
 

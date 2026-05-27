@@ -7,9 +7,7 @@ Unit tests for FuzzySetMatchingService.
 import unittest
 
 from vbase.core.models import EventAddSetObject
-from vbase.core.set_matching.fuzzy_set_matching_service import (
-    FuzzySetMatchingService,
-)
+from vbase.core.set_matching.fuzzy_set_matching_service import FuzzySetMatchingService
 from vbase.core.set_matching.types import (
     FuzzyCheckObjectSetData,
     SetIdentifier,
@@ -34,40 +32,42 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_small_criteria_requires_exact_match(self) -> None:
         """Test that criteria with fewer than 5 elements use exact matching."""
         # Add a set with 4 objects
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            {
-                "id": "event-4",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-4",
-                "chain_id": 1,
-                "timestamp": 4000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                {
+                    "id": "event-4",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-4",
+                    "chain_id": 1,
+                    "timestamp": 4000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -91,40 +91,42 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_small_criteria_no_match_if_one_position_differs(self) -> None:
         """Test that small criteria (< 5) does not match if even 1 position differs."""
         # Add a set with 4 objects
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            {
-                "id": "event-4",
-                "user": "0xAlice",
-                "set_cid": "set-small",
-                "object_cid": "obj-4",
-                "chain_id": 1,
-                "timestamp": 4000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                {
+                    "id": "event-4",
+                    "user": "0xAlice",
+                    "set_cid": "set-small",
+                    "object_cid": "obj-4",
+                    "chain_id": 1,
+                    "timestamp": 4000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -148,17 +150,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_large_criteria_exact_match(self) -> None:
         """Test that large criteria (≥ 5) with exact match returns result."""
         # Add a set with 5 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-large",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 6)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-large",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -179,17 +183,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_large_criteria_fuzzy_match_within_tolerance(self) -> None:
         """Test that large criteria matches when within 20% tolerance (1 out of 5 different)."""
         # Add a set with 5 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-fuzzy",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 6)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-fuzzy",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -213,17 +219,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_large_criteria_no_match_beyond_tolerance(self) -> None:
         """Test that large criteria does not match when > 20% positions differ."""
         # Add a set with 5 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-nofuzzy",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 6)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-nofuzzy",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -246,17 +254,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_boundary_exactly_20_percent_tolerance(self) -> None:
         """Test boundary case: exactly 20% different (2 out of 10)."""
         # Add a set with 10 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-boundary",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 11)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-boundary",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 11)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -283,17 +293,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         math.ceil(6 * 0.8) = 5, so max_allowed_distance = 1.
         1 mismatch (16.7%) must match; 2 mismatches (33.3%) must not.
         """
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-nonmultiple",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 7)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-nonmultiple",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 7)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -329,40 +341,42 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_position_order_matters(self) -> None:
         """Test that element ordering by timestamp matters (a,b,c != b,a,c)."""
         # Add a set with objects in order: obj-a (ts=1000), obj-b (ts=2000), obj-c (ts=3000)
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-order",
-                "object_cid": "obj-a",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-order",
-                "object_cid": "obj-b",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-order",
-                "object_cid": "obj-c",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            {
-                "id": "event-4",
-                "user": "0xAlice",
-                "set_cid": "set-order",
-                "object_cid": "obj-d",
-                "chain_id": 1,
-                "timestamp": 4000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-order",
+                    "object_cid": "obj-a",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-order",
+                    "object_cid": "obj-b",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-order",
+                    "object_cid": "obj-c",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                {
+                    "id": "event-4",
+                    "user": "0xAlice",
+                    "set_cid": "set-order",
+                    "object_cid": "obj-d",
+                    "chain_id": 1,
+                    "timestamp": 4000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.0)
 
@@ -387,32 +401,34 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_timestamp_determines_position_order(self) -> None:
         """Test that timestamps determine element ordering, not insertion order."""
         # Add objects in non-chronological insertion order
-        self.add_test_events([
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-ts",
-                "object_cid": "obj-c",
-                "chain_id": 1,
-                "timestamp": 3000,  # Third by timestamp
-            },
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-ts",
-                "object_cid": "obj-a",
-                "chain_id": 1,
-                "timestamp": 1000,  # First by timestamp
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-ts",
-                "object_cid": "obj-b",
-                "chain_id": 1,
-                "timestamp": 2000,  # Second by timestamp
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-ts",
+                    "object_cid": "obj-c",
+                    "chain_id": 1,
+                    "timestamp": 3000,  # Third by timestamp
+                },
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-ts",
+                    "object_cid": "obj-a",
+                    "chain_id": 1,
+                    "timestamp": 1000,  # First by timestamp
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-ts",
+                    "object_cid": "obj-b",
+                    "chain_id": 1,
+                    "timestamp": 2000,  # Second by timestamp
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.0)
 
@@ -446,17 +462,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_candidate_shorter_than_criteria(self) -> None:
         """Test handling when candidate set is shorter than criteria."""
         # Add a set with only 3 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-short",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 4)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-short",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 4)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -476,17 +494,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_candidate_longer_than_criteria(self) -> None:
         """Test handling when candidate set is longer than criteria."""
         # Add a set with 10 objects
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-long",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 11)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-long",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 11)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -507,40 +527,42 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_different_users_are_separate(self) -> None:
         """Test that sets from different users are kept separate."""
         # Add same set_cid for two different users
-        self.add_test_events([
-            {
-                "id": "event-alice-1",
-                "user": "0xAlice",
-                "set_cid": "set-shared",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-alice-2",
-                "user": "0xAlice",
-                "set_cid": "set-shared",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-bob-1",
-                "user": "0xBob",
-                "set_cid": "set-shared",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-bob-2",
-                "user": "0xBob",
-                "set_cid": "set-shared",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-alice-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-shared",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-alice-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-shared",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-bob-1",
+                    "user": "0xBob",
+                    "set_cid": "set-shared",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-bob-2",
+                    "user": "0xBob",
+                    "set_cid": "set-shared",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -560,32 +582,34 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_distributed_set_spans_multiple_chains(self) -> None:
         """Test that elements from different chains merge into one distributed set."""
-        self.add_test_events([
-            # First 3 elements on chain 1
-            *[
-                {
-                    "id": f"event-chain1-{i}",
-                    "user": "0xAlice",
-                    "set_cid": "set-distributed",
-                    "object_cid": f"obj-{i}",
-                    "chain_id": 1,
-                    "timestamp": i * 1000,
-                }
-                for i in range(1, 4)
-            ],
-            # Last 2 elements on chain 2
-            *[
-                {
-                    "id": f"event-chain2-{i}",
-                    "user": "0xAlice",
-                    "set_cid": "set-distributed",
-                    "object_cid": f"obj-{i}",
-                    "chain_id": 2,
-                    "timestamp": i * 1000,
-                }
-                for i in range(4, 6)
-            ],
-        ])
+        self.add_test_events(
+            [
+                # First 3 elements on chain 1
+                *[
+                    {
+                        "id": f"event-chain1-{i}",
+                        "user": "0xAlice",
+                        "set_cid": "set-distributed",
+                        "object_cid": f"obj-{i}",
+                        "chain_id": 1,
+                        "timestamp": i * 1000,
+                    }
+                    for i in range(1, 4)
+                ],
+                # Last 2 elements on chain 2
+                *[
+                    {
+                        "id": f"event-chain2-{i}",
+                        "user": "0xAlice",
+                        "set_cid": "set-distributed",
+                        "object_cid": f"obj-{i}",
+                        "chain_id": 2,
+                        "timestamp": i * 1000,
+                    }
+                    for i in range(4, 6)
+                ],
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -612,58 +636,60 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         receive a perfect rank regardless of their actual timestamps.
         """
         # Add two sets: one with timestamps matching the criteria, one with offset timestamps
-        self.add_test_events([
-            # Set 1: Perfect timestamp match
-            {
-                "id": "event-set1-1",
-                "user": "0xAlice",
-                "set_cid": "set-perfect",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-set1-2",
-                "user": "0xAlice",
-                "set_cid": "set-perfect",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-set1-3",
-                "user": "0xAlice",
-                "set_cid": "set-perfect",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            # Set 2: Slightly offset timestamps
-            {
-                "id": "event-set2-1",
-                "user": "0xBob",
-                "set_cid": "set-offset",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1500,
-            },
-            {
-                "id": "event-set2-2",
-                "user": "0xBob",
-                "set_cid": "set-offset",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2500,
-            },
-            {
-                "id": "event-set2-3",
-                "user": "0xBob",
-                "set_cid": "set-offset",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3500,
-            },
-        ])
+        self.add_test_events(
+            [
+                # Set 1: Perfect timestamp match
+                {
+                    "id": "event-set1-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-perfect",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-set1-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-perfect",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-set1-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-perfect",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                # Set 2: Slightly offset timestamps
+                {
+                    "id": "event-set2-1",
+                    "user": "0xBob",
+                    "set_cid": "set-offset",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1500,
+                },
+                {
+                    "id": "event-set2-2",
+                    "user": "0xBob",
+                    "set_cid": "set-offset",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2500,
+                },
+                {
+                    "id": "event-set2-3",
+                    "user": "0xBob",
+                    "set_cid": "set-offset",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3500,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -689,32 +715,34 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         """Test that at most 5 matches are returned."""
         # Add 10 sets with same objects
         for i in range(10):
-            self.add_test_events([
-                {
-                    "id": f"event-set{i}-1",
-                    "user": f"0xUser{i}",
-                    "set_cid": f"set-{i}",
-                    "object_cid": "obj-1",
-                    "chain_id": 1,
-                    "timestamp": 1000 + i * 10,
-                },
-                {
-                    "id": f"event-set{i}-2",
-                    "user": f"0xUser{i}",
-                    "set_cid": f"set-{i}",
-                    "object_cid": "obj-2",
-                    "chain_id": 1,
-                    "timestamp": 2000 + i * 10,
-                },
-                {
-                    "id": f"event-set{i}-3",
-                    "user": f"0xUser{i}",
-                    "set_cid": f"set-{i}",
-                    "object_cid": "obj-3",
-                    "chain_id": 1,
-                    "timestamp": 3000 + i * 10,
-                },
-            ])
+            self.add_test_events(
+                [
+                    {
+                        "id": f"event-set{i}-1",
+                        "user": f"0xUser{i}",
+                        "set_cid": f"set-{i}",
+                        "object_cid": "obj-1",
+                        "chain_id": 1,
+                        "timestamp": 1000 + i * 10,
+                    },
+                    {
+                        "id": f"event-set{i}-2",
+                        "user": f"0xUser{i}",
+                        "set_cid": f"set-{i}",
+                        "object_cid": "obj-2",
+                        "chain_id": 1,
+                        "timestamp": 2000 + i * 10,
+                    },
+                    {
+                        "id": f"event-set{i}-3",
+                        "user": f"0xUser{i}",
+                        "set_cid": f"set-{i}",
+                        "object_cid": "obj-3",
+                        "chain_id": 1,
+                        "timestamp": 3000 + i * 10,
+                    },
+                ]
+            )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -734,17 +762,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
     def test_levenshtein_missing_first_element(self) -> None:
         """Test Levenshtein distance when candidate is missing the first element."""
         # Add a set with 7 objects (e2 through e8)
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-missing-first",
-                "object_cid": f"e{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(2, 9)  # e2 through e8
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-missing-first",
+                    "object_cid": f"e{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(2, 9)  # e2 through e8
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -797,9 +827,7 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         )
 
         candidate.rank, candidate.lev_result, _ = (
-            FuzzySetMatchingService._rank_candidate(
-                candidate, criteria, tolerance=0.2
-            )
+            FuzzySetMatchingService._rank_candidate(candidate, criteria, tolerance=0.2)
         )
 
         self.assertEqual(candidate.rank, 0.8)
@@ -812,56 +840,58 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_last_matching_element_timestamp_accounts_for_insertions(self) -> None:
         """Test that inserted candidate elements advance the last matching timestamp."""
-        self.add_test_events([
-            {
-                "id": "event-0",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-prefix",
-                "chain_id": 1,
-                "timestamp": 500,
-            },
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            {
-                "id": "event-4",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-4",
-                "chain_id": 1,
-                "timestamp": 4000,
-            },
-            {
-                "id": "event-5",
-                "user": "0xAlice",
-                "set_cid": "set-inserted-prefix",
-                "object_cid": "obj-5",
-                "chain_id": 1,
-                "timestamp": 5000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-0",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-prefix",
+                    "chain_id": 1,
+                    "timestamp": 500,
+                },
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                {
+                    "id": "event-4",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-4",
+                    "chain_id": 1,
+                    "timestamp": 4000,
+                },
+                {
+                    "id": "event-5",
+                    "user": "0xAlice",
+                    "set_cid": "set-inserted-prefix",
+                    "object_cid": "obj-5",
+                    "chain_id": 1,
+                    "timestamp": 5000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
         criteria = SetMatchingCriteria(
@@ -885,27 +915,29 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
         sequences where Levenshtein prefers substitution over insert+delete.
         That caused insertions=0 and matched_length=5, giving the wrong timestamp.
         """
-        self.add_test_events([
-            {
-                "id": "event-prefix",
-                "user": "0xAlice",
-                "set_cid": "set-repeated",
-                "object_cid": "obj-same",
-                "chain_id": 1,
-                "timestamp": 500,  # extra element at head
-            },
-            *[
+        self.add_test_events(
+            [
                 {
-                    "id": f"event-{i}",
+                    "id": "event-prefix",
                     "user": "0xAlice",
                     "set_cid": "set-repeated",
                     "object_cid": "obj-same",
                     "chain_id": 1,
-                    "timestamp": i * 1000,
-                }
-                for i in range(1, 6)
-            ],
-        ])
+                    "timestamp": 500,  # extra element at head
+                },
+                *[
+                    {
+                        "id": f"event-{i}",
+                        "user": "0xAlice",
+                        "set_cid": "set-repeated",
+                        "object_cid": "obj-same",
+                        "chain_id": 1,
+                        "timestamp": i * 1000,
+                    }
+                    for i in range(1, 6)
+                ],
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
         criteria = SetMatchingCriteria(
@@ -925,40 +957,42 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_last_matching_element_timestamp_accounts_for_deletions(self) -> None:
         """Test that deleted candidate elements move back the last matching timestamp."""
-        self.add_test_events([
-            {
-                "id": "event-1",
-                "user": "0xAlice",
-                "set_cid": "set-missing-tail",
-                "object_cid": "obj-1",
-                "chain_id": 1,
-                "timestamp": 1000,
-            },
-            {
-                "id": "event-2",
-                "user": "0xAlice",
-                "set_cid": "set-missing-tail",
-                "object_cid": "obj-2",
-                "chain_id": 1,
-                "timestamp": 2000,
-            },
-            {
-                "id": "event-3",
-                "user": "0xAlice",
-                "set_cid": "set-missing-tail",
-                "object_cid": "obj-3",
-                "chain_id": 1,
-                "timestamp": 3000,
-            },
-            {
-                "id": "event-4",
-                "user": "0xAlice",
-                "set_cid": "set-missing-tail",
-                "object_cid": "obj-4",
-                "chain_id": 1,
-                "timestamp": 4000,
-            },
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": "event-1",
+                    "user": "0xAlice",
+                    "set_cid": "set-missing-tail",
+                    "object_cid": "obj-1",
+                    "chain_id": 1,
+                    "timestamp": 1000,
+                },
+                {
+                    "id": "event-2",
+                    "user": "0xAlice",
+                    "set_cid": "set-missing-tail",
+                    "object_cid": "obj-2",
+                    "chain_id": 1,
+                    "timestamp": 2000,
+                },
+                {
+                    "id": "event-3",
+                    "user": "0xAlice",
+                    "set_cid": "set-missing-tail",
+                    "object_cid": "obj-3",
+                    "chain_id": 1,
+                    "timestamp": 3000,
+                },
+                {
+                    "id": "event-4",
+                    "user": "0xAlice",
+                    "set_cid": "set-missing-tail",
+                    "object_cid": "obj-4",
+                    "chain_id": 1,
+                    "timestamp": 4000,
+                },
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.25)
         criteria = SetMatchingCriteria(
@@ -977,17 +1011,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_is_full_match_true_when_perfect_match_and_same_size(self) -> None:
         """Test that is_full_match is true for an exact same-size match."""
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-exact",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 6)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-exact",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -1006,17 +1042,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_is_full_match_false_when_set_longer_than_criteria(self) -> None:
         """Test that is_full_match is False when the set has more objects than criteria."""
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-longer",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 9)  # 8 objects in the set
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-longer",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 9)  # 8 objects in the set
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 
@@ -1035,17 +1073,19 @@ class TestFuzzySetMatchingService(BaseSQLMatchingTest):
 
     def test_is_full_match_false_when_same_size_but_substitution(self) -> None:
         """Test that is_full_match is false when sizes match but one CID differs."""
-        self.add_test_events([
-            {
-                "id": f"event-{i}",
-                "user": "0xAlice",
-                "set_cid": "set-sub",
-                "object_cid": f"obj-{i}",
-                "chain_id": 1,
-                "timestamp": i * 1000,
-            }
-            for i in range(1, 6)
-        ])
+        self.add_test_events(
+            [
+                {
+                    "id": f"event-{i}",
+                    "user": "0xAlice",
+                    "set_cid": "set-sub",
+                    "object_cid": f"obj-{i}",
+                    "chain_id": 1,
+                    "timestamp": i * 1000,
+                }
+                for i in range(1, 6)
+            ]
+        )
 
         service = FuzzySetMatchingService(db_url=self.db_url, tolerance=0.2)
 

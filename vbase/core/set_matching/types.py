@@ -5,6 +5,8 @@ Core types for indexing and matching strategies.
 from dataclasses import dataclass, field
 
 from vbase.core.models import EventAddSetObject
+
+
 @dataclass
 class TimestampedCid:
     """Pair of object_cid and its timestamp criteria."""
@@ -22,6 +24,7 @@ class SetMatchingCriteria:
     """
 
     objects: list[TimestampedCid]
+
 
 @dataclass(frozen=True)
 class SetMatch:
@@ -48,6 +51,7 @@ class SetIdentifier:
     Unique identifier for a set, based on its set_cid and user.
     Sets can span multiple chains (distributed sets).
     """
+
     set_cid: str
     user: str
 
