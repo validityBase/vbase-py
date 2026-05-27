@@ -48,5 +48,5 @@ python -m pip install --no-deps --no-build-isolation -e .
 ```
 
 To update dependencies, edit the relevant `.in` file and regenerate the lock
-file with `pip-compile --generate-hashes`. See
+file with `pip-compile --no-annotate --generate-hashes`. See
 [internal/specs/python-dependency-hashes.md](https://github.com/validityBase/vbase-py/blob/main/internal/specs/python-dependency-hashes.md).

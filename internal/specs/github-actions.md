@@ -13,10 +13,8 @@
 ### `.github/workflows/python-dependency-locks.yml`
 
 - Runs on pull requests, pushes to `main`, and manual `workflow_dispatch`.
-- Installs `requirements-dev.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Regenerates `requirements.txt`, `requirements-dev.txt`, and `docs/requirements.txt`; the workflow fails if the committed lock files differ.
-- Installs the package locally with `python -m pip install --no-deps --no-build-isolation -e .`.
-- Runs `python -m pip check`.
+- Installs `requirements-lock.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
+- Regenerates `requirements.txt`, `requirements-dev.txt`, `requirements-lock.txt`, and `docs/requirements.txt`; the workflow fails if the committed lock files differ.
 
 ### `.github/workflows/test-localhost.yml`
 
@@ -35,6 +33,6 @@
 
 - Runs on pushes to `main` and manual dispatch.
 - Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
-- Installs `docs/requirements.txt` before `requirements.txt` with `require-hashes: true`.
+- Installs `docs/requirements.txt` before `requirements.txt` with `require-hashes: "true"`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
