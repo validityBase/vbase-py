@@ -48,10 +48,13 @@ To add or update a development dependency:
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements-dev.txt requirements-dev.in
 ```
 
-To update the lock-generation tooling:
+To update the lock-generation tooling, edit the pinned `pip-tools==...`
+constraint in `requirements-lock.in`, then regenerate `requirements-lock.txt`.
+Re-running `pip-compile` without changing that pin will usually produce an
+identical lock file.
 
 ```bash
-# edit requirements-lock.in
+# edit the pip-tools==... pin in requirements-lock.in
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements-lock.txt requirements-lock.in
 ```
 
