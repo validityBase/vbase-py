@@ -18,7 +18,7 @@ from vbase.core.set_matching.types import (
 )
 
 
-class FuzzySetMatchingService(BaseSetMatchingService):
+class FuzzySetMatchingService(BaseSetMatchingService):  # pylint: disable=too-few-public-methods
     """
     Service for performing fuzzy set matching with tolerance.
     Finds sets whose elements match the criteria within a configurable tolerance.

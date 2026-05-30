@@ -8,3 +8,9 @@ good-names=cl, cr, cs, e, f, i, j, k, n, n1, mu, s, t, ts, tx, x, y, w3
 
 # W0511: fixme — suppress warnings for TODO/FIXME/HACK comments.
 disable=W0511
+
+[TYPECHECK]
+
+# SQLAlchemy / SQLModel attach column operators (desc, asc, in_, etc.) to field
+# descriptors at runtime; these are invisible to static analysis.
+generated-members=desc,asc,in_,notin_,between,like,ilike,contains,any_,startswith,endswith

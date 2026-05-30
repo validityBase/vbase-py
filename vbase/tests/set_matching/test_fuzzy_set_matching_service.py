@@ -2,7 +2,7 @@
 Unit tests for FuzzySetMatchingService.
 """
 
-# pylint: disable=protected-access,too-many-public-methods,too-many-lines
+# pylint: disable=protected-access,too-many-public-methods,too-many-lines,duplicate-code
 
 import unittest
 

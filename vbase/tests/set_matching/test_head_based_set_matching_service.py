@@ -2,6 +2,8 @@
 Unit tests for HeadBasedSetMatchingService.
 """
 
+# pylint: disable=duplicate-code
+
 import unittest
 
 from vbase.core.set_matching.head_based_set_matching_service import (

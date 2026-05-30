@@ -7,7 +7,7 @@ from vbase.core.set_matching.chain_set_matching_service import ChainSetMatchingS
 from vbase.core.set_matching.types import SetMatch, SetMatchingCriteria, TimestampedCid
 
 
-class StubSetMatchingService(BaseSetMatchingService):
+class StubSetMatchingService(BaseSetMatchingService):  # pylint: disable=too-few-public-methods
     """Stub strategy that records calls and returns a fixed result."""
 
     def __init__(self, matches: list[SetMatch]):
