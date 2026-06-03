@@ -9,18 +9,20 @@ CI install environment.
 
 ## Files
 
-- `requirements.in` is the human-edited runtime dependency input.
-- `requirements.txt` is generated from `requirements.in` and includes pinned versions plus hashes.
-- `requirements-dev.in` is the human-edited development dependency input.
-- `requirements-dev.txt` is generated from `requirements-dev.in` and includes runtime and development dependencies with hashes.
-- `requirements-lock.in` is the human-edited lock-regeneration tooling input.
-- `requirements-lock.txt` is generated from `requirements-lock.in` and includes the minimal `pip-tools` environment with hashes.
-- `docs/requirements.in` is the human-edited documentation dependency input.
-- `docs/requirements.txt` is generated from `docs/requirements.in` and includes documentation build dependencies with hashes.
+- `requirements/src/base.in` is the human-edited runtime dependency input.
+- `requirements/lock/base.txt` is generated from `requirements/src/base.in` and includes pinned versions plus hashes.
+- `requirements/src/dev.in` is the human-edited development dependency input.
+- `requirements/lock/dev.txt` is generated from `requirements/src/dev.in` and includes runtime and development dependencies with hashes.
+- `requirements/src/test.in` is the human-edited test dependency input.
+- `requirements/lock/test.txt` is generated from `requirements/src/test.in` and includes test runtime dependencies with hashes.
+- `requirements/src/docs.in` is the human-edited documentation dependency input.
+- `requirements/lock/docs.txt` is generated from `requirements/src/docs.in` and includes documentation build dependencies with hashes.
+- `requirements/src/tools.in` is the human-edited lock-regeneration tooling input.
+- `requirements/lock/tools.txt` is generated from `requirements/src/tools.in` and includes the minimal `pip-tools` environment with hashes.
 
 Do not edit generated `.txt` lock files by hand.
 Runtime dependencies are configured through setuptools dynamic dependency
-metadata in `pyproject.toml`, which uses `requirements.in` as the source input,
+metadata in `pyproject.toml`, which uses `requirements/src/base.in` as the source input,
 so hashed lock syntax is never passed to package metadata.
 
 ## Developer Workflow
@@ -30,45 +32,47 @@ Install pinned lock-generation tooling from the minimal lock before running
 because a different `pip-tools` version can produce a different lockfile.
 
 ```bash
-python -m pip install --require-hashes -r requirements-lock.txt
+python -m pip install --require-hashes -r requirements/lock/tools.txt
 ```
 
 To add or update a runtime dependency:
 
 ```bash
-# edit requirements.in
-pip-compile --strip-extras --no-annotate --generate-hashes -o requirements.txt requirements.in
-pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements-dev.txt requirements-dev.in
+# edit requirements/src/base.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/base.txt requirements/src/base.in
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/dev.txt requirements/src/dev.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/test.txt requirements/src/test.in
 ```
 
 To add or update a development dependency:
 
 ```bash
-# edit requirements-dev.in
-pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements-dev.txt requirements-dev.in
+# edit requirements/src/dev.in
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/dev.txt requirements/src/dev.in
 ```
 
 To update the lock-generation tooling, edit the pinned `pip-tools==...`
-constraint in `requirements-lock.in`, then regenerate `requirements-lock.txt`.
+constraint in `requirements/src/tools.in`, then regenerate
+`requirements/lock/tools.txt`.
 Re-running `pip-compile` without changing that pin will usually produce an
 identical lock file.
 
 ```bash
-# edit the pip-tools==... pin in requirements-lock.in
-pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements-lock.txt requirements-lock.in
+# edit the pip-tools==... pin in requirements/src/tools.in
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/tools.txt requirements/src/tools.in
 ```
 
 To add or update a docs dependency:
 
 ```bash
-# edit docs/requirements.in
-pip-compile --strip-extras --no-annotate --generate-hashes -o docs/requirements.txt docs/requirements.in
+# edit requirements/src/docs.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/docs.txt requirements/src/docs.in
 ```
 
 Install local development dependencies from the generated lock:
 
 ```bash
-python -m pip install --require-hashes -r requirements-dev.txt
+python -m pip install --require-hashes -r requirements/lock/dev.txt
 python -m pip install --no-deps --no-build-isolation -e .
 ```
 

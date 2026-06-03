@@ -1,4 +1,4 @@
--r requirements.in
+-r base.in
 
 black>=24.8.0
 pre-commit>=3.8.0
