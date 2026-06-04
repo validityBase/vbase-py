@@ -11,7 +11,7 @@ from vbase.core.models import EventAddSetObject, LastBatchProcessingTime
 from vbase.core.set_matching.types import SetIdentifier, SetMatch, SetMatchingCriteria
 
 
-class BaseSetMatchingService(ABC):
+class BaseSetMatchingService(ABC):  # pylint: disable=too-few-public-methods
     """
     Abstract base class for set matching strategies.
 

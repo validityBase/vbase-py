@@ -228,6 +228,7 @@ class TestLevenshteinDistance(unittest.TestCase):
         seq1 = ["a", "b", "c", "d"]
         seq2 = ["x", "b", "y", "d"]
         distance1 = FuzzySetMatchingService._levenshtein_distance(seq1, seq2)
+        # pylint: disable-next=arguments-out-of-order
         distance2 = FuzzySetMatchingService._levenshtein_distance(seq2, seq1)
         self.assertEqual(distance1.distance, distance2.distance)
 

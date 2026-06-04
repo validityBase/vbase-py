@@ -59,7 +59,7 @@ class BaseSQLMatchingTest(unittest.TestCase, ABC):
 
         return db_url, engine, db_file
 
-    def add_test_event(
+    def add_test_event(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         event_id: str,
         user: str,
