@@ -32,8 +32,8 @@ downstream applications. Development, test, documentation, and lock-tooling
 environments are managed through human-edited `.in` files under
 `requirements/src/` and generated hash-locked `.txt` files under
 `requirements/lock/`. Edit the relevant source file, regenerate the matching
-lock file with `pip-compile --generate-hashes`, and include both files in the
-pull request. Do not edit generated lock files by hand.
+lock file with the exact `pip-compile` command documented below, and include
+both files in the pull request. Do not edit generated lock files by hand.
 
 See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
 for the exact commands.

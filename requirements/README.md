@@ -8,7 +8,7 @@ Human-edited terminal environment inputs live in `requirements/src/`.
 Generated hash-locked terminal environment files live in `requirements/lock/`.
 
 Do not edit files in `requirements/lock/` by hand. Regenerate them with
-`pip-compile --generate-hashes`.
+the exact `pip-compile` command below.
 
 ## Regenerate Locks
 
