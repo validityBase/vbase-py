@@ -1,7 +1,11 @@
 # Python Requirements
 
-Human-edited dependency inputs live in `requirements/src/`.
-Generated hash-locked files live in `requirements/lock/`.
+Published package dependencies live in `../requirements.in` as abstract ranges.
+Do not generate a hash-locked base/runtime requirements file for package
+metadata.
+
+Human-edited terminal environment inputs live in `requirements/src/`.
+Generated hash-locked terminal environment files live in `requirements/lock/`.
 
 Do not edit files in `requirements/lock/` by hand. Regenerate them with
 `pip-compile --generate-hashes`.
@@ -14,10 +18,9 @@ Install the pinned lock tooling first:
 python -m pip install --require-hashes -r requirements/lock/tools.txt
 ```
 
-Regenerate all lock files:
+Regenerate terminal environment lock files:
 
 ```bash
-pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/base.txt requirements/src/base.in
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/dev.txt requirements/src/dev.in
 pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/test.txt requirements/src/test.in
 pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/docs.txt requirements/src/docs.in

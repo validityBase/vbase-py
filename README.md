@@ -39,15 +39,18 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 ## Development
 
-Development and CI installs use generated requirements locks with pip
-hash-checking mode:
+Published package dependencies are declared as abstract ranges in
+`requirements.in` so downstream applications can resolve them with their own
+dependency graph. Development and CI installs use generated requirements locks
+with pip hash-checking mode:
 
 ```bash
 python -m pip install --require-hashes -r requirements/lock/dev.txt
 python -m pip install --no-deps --no-build-isolation -e .
 ```
 
-To update dependencies, edit the relevant file under `requirements/src/` and
-regenerate the matching lock file under `requirements/lock/` with
+To update package dependencies, edit `requirements.in`. To update a terminal
+environment, edit the relevant file under `requirements/src/` and regenerate the
+matching lock file under `requirements/lock/` with
 `pip-compile --no-annotate --generate-hashes`. See
 [internal/specs/python-dependency-hashes.md](https://github.com/validityBase/vbase-py/blob/main/internal/specs/python-dependency-hashes.md).

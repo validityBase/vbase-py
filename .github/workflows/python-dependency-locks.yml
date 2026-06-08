@@ -29,9 +29,22 @@ jobs:
 
       - name: Verify generated lock files are current
         run: |
-          pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/base.txt requirements/src/base.in
           pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/dev.txt requirements/src/dev.in
           pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/test.txt requirements/src/test.in
           pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/docs.txt requirements/src/docs.in
           pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/tools.txt requirements/src/tools.in
-          git diff --exit-code -- requirements/lock/base.txt requirements/lock/dev.txt requirements/lock/test.txt requirements/lock/docs.txt requirements/lock/tools.txt
+          git diff --exit-code -- requirements/lock/dev.txt requirements/lock/test.txt requirements/lock/docs.txt requirements/lock/tools.txt
+
+      - name: Install test dependencies
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
+        with:
+          requirements-files: |
+            requirements/lock/test.txt
+          python-version: "3.11"
+          require-hashes: "true"
+
+      - name: Install package locally
+        run: python -m pip install --no-deps --no-build-isolation -e .
+
+      - name: Check installed dependencies
+        run: python -m pip check

@@ -5,7 +5,7 @@
 - Third-party actions are pinned by full commit SHA for reproducibility.
 - Shared vBase-owned actions and reusable workflows use `validityBase/vbase-github-actions` with reviewed release tags such as `@v1`.
 - Workflow permissions are declared explicitly and kept minimal.
-- Python installs use generated hash-locked requirements with `require-hashes` wherever requirements are installed.
+- Python installs for CI, tests, and docs use generated hash-locked terminal environment requirements with `require-hashes`.
 - Secrets must come from GitHub Secrets or deployment configuration, never from committed files or logs.
 
 ## Workflows
@@ -14,7 +14,8 @@
 
 - Runs on pull requests, pushes to `main`, and manual `workflow_dispatch`.
 - Installs `requirements/lock/tools.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Regenerates `requirements/lock/base.txt`, `requirements/lock/dev.txt`, `requirements/lock/test.txt`, `requirements/lock/docs.txt`, and `requirements/lock/tools.txt`; the workflow fails if the committed lock files differ.
+- Regenerates `requirements/lock/dev.txt`, `requirements/lock/test.txt`, `requirements/lock/docs.txt`, and `requirements/lock/tools.txt`; the workflow fails if the committed lock files differ.
+- Installs `requirements/lock/test.txt`, installs the package locally without dependency resolution, and runs `python -m pip check`.
 
 ### `.github/workflows/test-localhost.yml`
 
@@ -33,6 +34,6 @@
 
 - Runs on pushes to `main` and manual dispatch.
 - Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
-- Installs `requirements/lock/docs.txt` before `requirements/lock/base.txt` with `require-hashes: true`.
+- Installs `requirements/lock/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
