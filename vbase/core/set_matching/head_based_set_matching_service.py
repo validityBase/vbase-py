@@ -14,7 +14,9 @@ from vbase.core.set_matching.types import (
 )
 
 
-class HeadBasedSetMatchingService(BaseSetMatchingService):  # pylint: disable=too-few-public-methods
+class HeadBasedSetMatchingService(
+    BaseSetMatchingService
+):  # pylint: disable=too-few-public-methods
     """
     Service for performing head-based set matching.
     Finds sets whose head (first elements) matches the elements specified in the criteria.

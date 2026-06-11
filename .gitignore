@@ -52,5 +52,8 @@ docs/_*
 docs/generated/
 
 # Claude Code local settings
+.claude/settings.json
 .claude/settings.local.json
-filememory
+
+# Codex local settings
+.codex
