@@ -2,10 +2,11 @@
 
 Covers:
 - PostgreSQL driver importability (regression for missing psycopg2 dependency)
-- All public query methods against an in-process SQLite database
+- Core query methods against an in-process SQLite database
 - Stale-indexing and missing-heartbeat error paths
 """
 
+import importlib
 import os
 import tempfile
 import unittest
@@ -57,25 +58,19 @@ def _seed(url, rows):
 class TestPostgresDriverImportable(unittest.TestCase):
     """Regression test: psycopg2 must be installed.
 
-    SQLAlchemy imports the dialect driver inside create_engine() — before any connection
-    is made.  If psycopg2-binary is removed from requirements.in this test will fail
+    If psycopg2-binary is removed from requirements/src/test.in this test will fail
     immediately and visibly rather than silently breaking in production.
     """
 
     def test_postgresql_driver_importable(self):
+        """Ensure psycopg2 is installed so PostgreSQL URLs can be used."""
         try:
-            svc = SQLIndexingService(db_url="postgresql://fake/db")
-            svc.db_engine.dispose()
-        except ModuleNotFoundError as exc:
+            importlib.import_module("psycopg2")
+        except ImportError as exc:
             self.fail(
                 f"psycopg2 driver is not installed — ensure psycopg2-binary is in "
-                f"requirements.in: {exc}"
+                f"requirements/src/test.in: {exc}"
             )
-        except Exception:
-            # Any other error (OperationalError, etc.) is fine — no connection is
-            # attempted here, but some SQLAlchemy versions may raise on engine creation
-            # for other reasons.  We only care that the driver can be imported.
-            pass
 
 
 class TestSQLIndexingServiceQueries(unittest.TestCase):
@@ -92,11 +87,16 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
 
     def tearDown(self):
         self.svc.db_engine.dispose()
-        os.unlink(self._db_path)
+        if os.path.exists(self._db_path):
+            try:
+                os.unlink(self._db_path)
+            except OSError:
+                pass
 
     # --- find_user_sets ---
 
     def test_find_user_sets_returns_matching_row(self):
+        """Return a set row when the user has a matching EventAddSet record."""
         _seed(
             self._db_url,
             [
@@ -117,6 +117,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(results[0]["chainId"], _CHAIN_ID)
 
     def test_find_user_sets_lowercases_user(self):
+        """Match sets regardless of the caller's user address casing."""
         _seed(
             self._db_url,
             [
@@ -134,11 +135,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(len(results), 1)
 
     def test_find_user_sets_empty_for_unknown_user(self):
+        """Return an empty list when the user has no sets."""
         self.assertEqual(self.svc.find_user_sets("0xunknown"), [])
 
     # --- find_user_set_objects ---
 
     def test_find_user_set_objects_returns_matching_row(self):
+        """Return set-object rows for a known user and set CID."""
         _seed(
             self._db_url,
             [
@@ -159,11 +162,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(results[0]["setCid"], _SET_CID)
 
     def test_find_user_set_objects_empty_for_unknown_set(self):
+        """Return an empty list when the set CID is unknown."""
         self.assertEqual(self.svc.find_user_set_objects(_USER, "0xnosuchset"), [])
 
     # --- find_last_user_set_object ---
 
     def test_find_last_user_set_object_returns_most_recent(self):
+        """Return the most recently timestamped object for a user set."""
         _seed(
             self._db_url,
             [
@@ -192,11 +197,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(result["objectCid"], "0xobj_new")
 
     def test_find_last_user_set_object_none_when_empty(self):
+        """Return None when the user set has no objects."""
         self.assertIsNone(self.svc.find_last_user_set_object(_USER, "0xnosuchset"))
 
     # --- find_user_objects ---
 
     def test_find_user_objects_returns_matching_row(self):
+        """Return object rows for a user with EventAddObject records."""
         _seed(
             self._db_url,
             [
@@ -216,11 +223,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(results[0]["user"], _USER)
 
     def test_find_user_objects_empty_for_unknown_user(self):
+        """Return an empty list when the user has no objects."""
         self.assertEqual(self.svc.find_user_objects("0xunknown"), [])
 
     # --- find_objects / find_object ---
 
     def test_find_objects_by_cid(self):
+        """Return object rows when searching by object CID."""
         _seed(
             self._db_url,
             [
@@ -239,9 +248,11 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(results[0]["objectCid"], _OBJ_CID)
 
     def test_find_objects_empty_for_unknown_cid(self):
+        """Return an empty list when no objects match the CID."""
         self.assertEqual(self.svc.find_objects(["0xnosuchcid"]), [])
 
     def test_find_object_delegates_to_find_objects(self):
+        """Return the same result as find_objects for a single CID."""
         _seed(
             self._db_url,
             [
@@ -262,6 +273,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
     # --- find_last_object ---
 
     def test_find_last_object_returns_most_recent(self):
+        """Return the most recently timestamped record for an object CID."""
         _seed(
             self._db_url,
             [
@@ -288,6 +300,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         self.assertEqual(result["transactionHash"], "0xtx_new")
 
     def test_find_last_object_none_when_empty(self):
+        """Return None when no records exist for the object CID."""
         self.assertIsNone(self.svc.find_last_object("0xnosuchcid"))
 
 
@@ -295,6 +308,7 @@ class TestSQLIndexingServiceStaleDetection(unittest.TestCase):
     """Tests for _fail_if_indexing_stale."""
 
     def test_stale_timestamp_raises(self):
+        """Raise RuntimeError when the last batch timestamp is too old."""
         stale_ms = int(pd.Timestamp("2000-01-01", tz="UTC").timestamp() * 1000)
         db_path, db_url = _make_db(
             rows=[LastBatchProcessingTime(id="heartbeat", timestamp=stale_ms)]
@@ -305,9 +319,14 @@ class TestSQLIndexingServiceStaleDetection(unittest.TestCase):
                 svc.find_user_sets(_USER)
         finally:
             svc.db_engine.dispose()
-            os.unlink(db_path)
+            if os.path.exists(db_path):
+                try:
+                    os.unlink(db_path)
+                except OSError:
+                    pass
 
     def test_no_batch_time_raises(self):
+        """Raise RuntimeError when no LastBatchProcessingTime row exists."""
         db_path, db_url = _make_db()
         svc = SQLIndexingService(db_url=db_url, indexing_stale_threshold_seconds=60)
         try:
@@ -315,7 +334,11 @@ class TestSQLIndexingServiceStaleDetection(unittest.TestCase):
                 svc.find_user_sets(_USER)
         finally:
             svc.db_engine.dispose()
-            os.unlink(db_path)
+            if os.path.exists(db_path):
+                try:
+                    os.unlink(db_path)
+                except OSError:
+                    pass
 
 
 if __name__ == "__main__":

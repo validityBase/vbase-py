@@ -6,7 +6,9 @@ from vbase.core.set_matching.base_set_matching_service import BaseSetMatchingSer
 from vbase.core.set_matching.types import SetMatch, SetMatchingCriteria
 
 
-class ChainSetMatchingService(BaseSetMatchingService):  # pylint: disable=too-few-public-methods
+class ChainSetMatchingService(
+    BaseSetMatchingService
+):  # pylint: disable=too-few-public-methods
     """
     Aggregate multiple set matching strategies to return first non-empty result.
 
