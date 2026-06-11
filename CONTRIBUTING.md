@@ -26,11 +26,14 @@ Provide a detailed description of the changes and any supporting information.
 
 ## Updating Python Dependencies
 
-Runtime, development, and documentation dependencies are managed through
-human-edited `.in` files and generated hash-locked `.txt` files. Edit the
-relevant `.in` file, regenerate the matching lock file with
-`pip-compile --generate-hashes`, and include both files in the pull request.
-Do not edit generated lock files by hand.
+Published package dependencies are managed as abstract ranges in
+`requirements.in`; do not hash-lock them because this library is installed into
+downstream applications. Development, test, documentation, and lock-tooling
+environments are managed through human-edited `.in` files under
+`requirements/src/` and generated hash-locked `.txt` files under
+`requirements/lock/`. Edit the relevant source file, regenerate the matching
+lock file with the exact `pip-compile` command documented below, and include
+both files in the pull request. Do not edit generated lock files by hand.
 
 See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
 for the exact commands.

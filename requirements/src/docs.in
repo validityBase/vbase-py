@@ -1,0 +1,8 @@
+-r ../../requirements.in
+
+# SQLAlchemy requires greenlet on Linux. Keep it explicit in terminal locks so
+# hash-checked installs work across macOS lock regeneration and Ubuntu CI.
+greenlet>=3.2.0
+sphinx
+sphinx-markdown-builder
+sphinx_rtd_theme
