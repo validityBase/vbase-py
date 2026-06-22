@@ -4,9 +4,11 @@ This repository separates published package dependencies from terminal
 environment locks.
 
 `vbase-py` is an intermediate library installed into downstream applications, so
-published runtime dependencies must stay abstract and resolver-friendly. CI,
-tests, docs publishing, and lock tooling are terminal environments owned by this
-repo, so those installs use pip hash-checking mode for reproducibility.
+published runtime dependencies must stay abstract and resolver-friendly. Prefer
+lower bounds plus compatibility ceilings where safe, and reserve exact
+resolutions for terminal environment locks. CI, tests, docs publishing, and lock
+tooling are terminal environments owned by this repo, so those installs use pip
+hash-checking mode for reproducibility.
 
 Lock files are generated with Python 3.11 for CI parity. The package metadata
 may still support older Python versions, but the committed locks represent the
@@ -91,3 +93,9 @@ lock-generation tooling lock with `require-hashes: "true"`, regenerates terminal
 environment lock files, fails if generated files differ from committed files,
 then installs the test lock, installs the package locally without dependency
 resolution, and runs `python -m pip check`.
+
+`.github/workflows/run-setup-matrix.yaml` complements the Linux hash-locked
+checks by installing the published runtime ranges from `requirements.in` without
+hash checking across Ubuntu, macOS, and Windows for Python 3.11 and 3.12. This
+workflow validates resolver compatibility and package importability on supported
+setup targets without Docker, secrets, or external services.
