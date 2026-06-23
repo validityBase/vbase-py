@@ -9,6 +9,8 @@ matching utilities for auditable data provenance workflows.
 ## Dependency Locking
 
 - Published package runtime dependencies live in `requirements.in` as abstract ranges, not hash-locked pins.
+- Runtime dependency ranges should include compatibility ceilings where safe so
+  downstream resolvers avoid unreviewed major-version upgrades.
 - Development, test, documentation, and lock-tooling dependency inputs live under `requirements/src/`.
 - Generated terminal environment lock files live under `requirements/lock/`; they must include pinned versions and hashes.
 - Install generated lock files with `python -m pip install --require-hashes -r <file>`.
@@ -23,6 +25,8 @@ matching utilities for auditable data provenance workflows.
 - Python dependency setup uses `validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1`.
 - Documentation publishing delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
 - Test and docs workflows install hashed requirements with `require-hashes`.
+- `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
+  without hashes across Ubuntu, macOS, and Windows for Python 3.11 and 3.12.
 - `test-localhost.yml` requires `GHCR_PAT` to pull the localhost commitment service image.
 
 ## Documentation Layout
