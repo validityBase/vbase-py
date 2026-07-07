@@ -7,7 +7,7 @@ greenlet>=3.2.0
 # PostgreSQL driver required by SQLIndexingService. Not in requirements.in because
 # vbase is an intermediate library; downstream apps choose their own driver.
 psycopg2-binary>=2.9.0
-black>=24.8.0
+black==26.5.1
 pre-commit>=3.8.0
 PyYAML>=6.0.2
 pylint>=3.2.7
