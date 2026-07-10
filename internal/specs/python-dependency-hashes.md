@@ -37,9 +37,10 @@ Do not create a generated base/runtime lock for package metadata. Do not edit
 generated `.txt` lock files by hand.
 
 Dependabot is configured not to update generated `requirements/lock/` files
-directly. Security dependency updates must be applied to the source `.in` files
-first and then regenerated through the lock update workflow or the equivalent
-local `pip-compile` commands below.
+directly. Security dependency updates must be applied to the source requirement
+files (`requirements.in` and/or `requirements/src/*.in`) first and then
+regenerated through the lock update workflow or the equivalent local
+`pip-compile` commands below.
 
 ## Developer Workflow
 
@@ -101,9 +102,9 @@ resolution, and runs `python -m pip check`.
 
 `.github/workflows/update-python-dependency-locks.yml` creates source-first
 dependency update PRs. It can add or update a package constraint in selected
-`requirements/src/*.in` files, regenerates all terminal environment locks with
-the pinned `pip-tools` environment, and opens a PR containing both source and
-generated lock changes.
+requirement source files (`requirements.in` and/or `requirements/src/*.in`),
+regenerates all terminal environment locks with the pinned `pip-tools`
+environment, and opens a PR containing both source and generated lock changes.
 
 `.github/workflows/run-setup-matrix.yaml` complements the Linux hash-locked
 checks by installing the published runtime ranges from `requirements.in` without

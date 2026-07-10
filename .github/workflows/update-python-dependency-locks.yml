@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       source_files:
-        description: "Space-separated requirements/src/*.in files to update"
+        description: "Space-separated requirement source files to update (requirements.in and/or requirements/src/*.in)"
         required: true
         default: "requirements/src/dev.in requirements/src/test.in requirements/src/docs.in"
         type: string

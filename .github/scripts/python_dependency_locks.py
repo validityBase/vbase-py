@@ -100,12 +100,27 @@ def build_requirement(dependency: str, constraint: str) -> str:
 
 
 def validate_source_file(source_file: str) -> Path:
-    path = Path(source_file)
+    path = Path(source_file.strip())
 
+    if not source_file.strip():
+        sys.exit("Requirement source file path must not be empty")
+    if path.is_absolute() or any(part in {".", ".."} for part in path.parts):
+        sys.exit(f"Refusing to edit unsafe path: {source_file}")
+    if path == Path("requirements.in"):
+        if not path.exists():
+            sys.exit(f"Requirement source file does not exist: {source_file}")
+        return path
     if path.parts[:2] != ("requirements", "src") or path.suffix != ".in":
         sys.exit(f"Refusing to edit non-source requirement file: {source_file}")
     if not path.exists():
         sys.exit(f"Requirement source file does not exist: {source_file}")
+
+    source_root = (Path.cwd() / "requirements" / "src").resolve()
+    resolved_path = path.resolve()
+    try:
+        resolved_path.relative_to(source_root)
+    except ValueError:
+        sys.exit(f"Refusing to edit source file outside requirements/src: {source_file}")
 
     return path
 
@@ -171,7 +186,7 @@ def open_pr(args: argparse.Namespace) -> None:
         ]
     )
     run(["git", "checkout", "-b", branch])
-    run(["git", "add", "requirements/src", "requirements/lock"])
+    run(["git", "add", "requirements.in", "requirements/src", "requirements/lock"])
     run(["git", "commit", "-m", title])
     run(["git", "push", "--set-upstream", "origin", branch])
 
@@ -186,7 +201,7 @@ def open_pr(args: argparse.Namespace) -> None:
                     "",
                     "## Validation",
                     "",
-                    "- regenerated requirements/lock/*.txt from requirements/src/*.in",
+                    "- regenerated requirements/lock/*.txt from source requirements",
                     "",
                 )
             )
@@ -211,7 +226,15 @@ def open_pr(args: argparse.Namespace) -> None:
 
 def has_dependency_diff() -> bool:
     result = subprocess.run(
-        ["git", "diff", "--quiet", "--", "requirements/src", "requirements/lock"],
+        [
+            "git",
+            "diff",
+            "--quiet",
+            "--",
+            "requirements.in",
+            "requirements/src",
+            "requirements/lock",
+        ],
         check=False,
     )
     if result.returncode == 0:

@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: "weekly"
     # Generated pip-compile outputs must not be patched directly by Dependabot.
-    # Use the lock update workflow so requirements/src/*.in stays authoritative.
+    # Use the lock update workflow so source requirement files stay authoritative.
     ignore:
       - dependency-name: "*"
     open-pull-requests-limit: 0

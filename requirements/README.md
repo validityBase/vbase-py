@@ -11,8 +11,9 @@ Do not edit files in `requirements/lock/` by hand. Regenerate them with
 the exact `pip-compile` command below.
 
 Dependabot must not edit generated files in `requirements/lock/` directly. For
-security updates, use the `Update Python Dependency Locks` workflow so source
-files in `requirements/src/` are updated before locks are regenerated.
+security updates, use the `Update Python Dependency Locks` workflow so
+`requirements.in` and/or `requirements/src/*.in` are updated before locks are
+regenerated.
 
 ## Regenerate Locks
 
@@ -37,7 +38,9 @@ Run the `Update Python Dependency Locks` workflow from GitHub Actions with:
 
 - `dependency`: package name, for example `aiohttp`
 - `constraint`: lower-bound constraint, for example `>=3.14.1`
-- `source_files`: source requirement files to update, usually the default
+- `source_files`: requirement source files to update. For published runtime
+  dependencies include `requirements.in`; for terminal environment-only
+  dependencies use the default
   `requirements/src/dev.in requirements/src/test.in requirements/src/docs.in`
 
 The workflow opens a pull request containing both the source `.in` changes and
