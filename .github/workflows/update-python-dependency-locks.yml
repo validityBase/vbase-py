@@ -1,0 +1,72 @@
+name: Update Python Dependency Locks
+
+on:
+  workflow_dispatch:
+    inputs:
+      dependency:
+        description: "Package name to constrain, for example aiohttp"
+        required: false
+        type: string
+      constraint:
+        description: "Version constraint, for example >=3.14.1"
+        required: false
+        type: string
+      source_files:
+        description: "Space-separated requirements/src/*.in files to update"
+        required: true
+        default: "requirements/src/dev.in requirements/src/test.in requirements/src/docs.in"
+        type: string
+      upgrade:
+        description: "Pass --upgrade to pip-compile when regenerating locks"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-locks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        # actions/checkout v5.0.1
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Install lock tooling
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
+        with:
+          requirements-files: |
+            requirements/lock/tools.txt
+          python-version: "3.11"
+          require-hashes: "true"
+
+      - name: Update source requirement constraints
+        env:
+          DEPENDENCY: ${{ inputs.dependency }}
+          CONSTRAINT: ${{ inputs.constraint }}
+          SOURCE_FILES: ${{ inputs.source_files }}
+        run: >
+          python .github/scripts/python_dependency_locks.py update-sources
+          --dependency "$DEPENDENCY"
+          --constraint "$CONSTRAINT"
+          --source-files "$SOURCE_FILES"
+
+      - name: Regenerate lock files
+        env:
+          UPGRADE: ${{ inputs.upgrade }}
+        run: >
+          python .github/scripts/python_dependency_locks.py compile-locks
+          --upgrade "$UPGRADE"
+
+      - name: Open dependency lock pull request
+        env:
+          DEPENDENCY: ${{ inputs.dependency }}
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          python .github/scripts/python_dependency_locks.py open-pr
+          --dependency "$DEPENDENCY"
+          --base-branch "$GITHUB_REF_NAME"
+          --run-id "$GITHUB_RUN_ID"

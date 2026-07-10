@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/requirements/lock"
+    schedule:
+      interval: "weekly"
+    # Generated pip-compile outputs must not be patched directly by Dependabot.
+    # Use the lock update workflow so requirements/src/*.in stays authoritative.
+    ignore:
+      - dependency-name: "*"
+    open-pull-requests-limit: 0
