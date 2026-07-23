@@ -6,7 +6,7 @@ Use Python 3.11 for CI parity. The repository still declares package support for
 Python 3.8+, but generated lock files are maintained with Python 3.11.
 
 ```bash
-python -m pip install --require-hashes -r requirements/lock/dev.txt
+python -m pip install --require-hashes -r requirements/dev.txt
 python -m pip install --no-deps --no-build-isolation -e .
 pre-commit install
 ```
