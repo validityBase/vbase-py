@@ -2,7 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     # Test whether Dependabot can handle the pip-compile layout when it sees
-    # both requirements/src/*.in inputs and requirements/lock/*.txt outputs.
+    # both requirements/*.in inputs and requirements/*.txt outputs.
     directory: "/requirements"
     schedule:
       interval: "cron"

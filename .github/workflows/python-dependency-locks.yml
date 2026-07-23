@@ -23,23 +23,23 @@ jobs:
         uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
         with:
           requirements-files: |
-            requirements/lock/tools.txt
+            requirements/tools.txt
           python-version: "3.11"
           require-hashes: "true"
 
       - name: Verify generated lock files are current
         run: |
-          pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/dev.txt requirements/src/dev.in
-          pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/test.txt requirements/src/test.in
-          pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/lock/docs.txt requirements/src/docs.in
-          pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/lock/tools.txt requirements/src/tools.in
-          git diff --exit-code -- requirements/lock/dev.txt requirements/lock/test.txt requirements/lock/docs.txt requirements/lock/tools.txt
+          pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
+          pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/test.txt requirements/test.in
+          pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.txt requirements/docs.in
+          pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/tools.txt requirements/tools.in
+          git diff --exit-code -- requirements/dev.txt requirements/test.txt requirements/docs.txt requirements/tools.txt
 
       - name: Install test dependencies
         uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
         with:
           requirements-files: |
-            requirements/lock/test.txt
+            requirements/test.txt
           python-version: "3.11"
           require-hashes: "true"
 
