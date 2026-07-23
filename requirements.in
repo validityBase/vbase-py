@@ -1,6 +1,6 @@
 hexbytes>=1.2.0,<2
 numpy>=1.24.0,<3
-pandas>=2.0.0,<4
+pandas>=3.0.5,<4
 python-dotenv>=1.0.0,<2
 requests>=2.31.0,<3
 web3>=7.15.0,<8
