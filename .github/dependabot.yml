@@ -6,5 +6,4 @@ updates:
     directory: "/requirements"
     schedule:
       interval: "cron"
-      cronjob: "0 * * * *"
-
+      cronjob: "0 0 * * *"
