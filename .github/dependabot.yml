@@ -1,10 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: "pip"
-    # Test whether Dependabot can handle the pip-compile layout when it sees
-    # both requirements/src/*.in inputs and requirements/lock/*.txt outputs.
-    directory: "/requirements"
+    directory: "/requirements/lock"
     schedule:
-      interval: "cron"
-      cronjob: "0 * * * *"
-
+      interval: "weekly"
+    # Generated pip-compile outputs must not be patched directly by Dependabot.
+    # Use the lock update workflow so source requirement files stay authoritative.
+    ignore:
+      - dependency-name: "*"
+    open-pull-requests-limit: 0

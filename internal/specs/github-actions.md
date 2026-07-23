@@ -9,6 +9,9 @@
   environment requirements with `require-hashes`.
 - Cross-platform setup checks install from source requirement ranges because the
   generated lock hashes target Linux wheels.
+- Dependabot must not update generated `requirements/lock/` files directly;
+  Python dependency update PRs are created through the lock update workflow so
+  `requirements.in` and `requirements/src/*.in` remain authoritative.
 - Secrets must come from GitHub Secrets or deployment configuration, never from committed files or logs.
 
 ## Workflows
@@ -19,6 +22,16 @@
 - Installs `requirements/lock/tools.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Regenerates `requirements/lock/dev.txt`, `requirements/lock/test.txt`, `requirements/lock/docs.txt`, and `requirements/lock/tools.txt`; the workflow fails if the committed lock files differ.
 - Installs `requirements/lock/test.txt`, installs the package locally without dependency resolution, and runs `python -m pip check`.
+
+### `.github/workflows/update-python-dependency-locks.yml`
+
+- Runs manually through `workflow_dispatch`.
+- Accepts an optional dependency name, version constraint, requirement source
+  files, and `pip-compile --upgrade` flag.
+- Updates selected requirement source files (`requirements.in` and/or
+  `requirements/src/*.in`), regenerates all `requirements/lock/*.txt` files with
+  pinned lock tooling, and opens a pull request when the generated dependency
+  state changes.
 
 ### `.github/workflows/test-localhost.yml`
 
