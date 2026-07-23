@@ -1,6 +1,6 @@
 # Python Requirements
 
-Published package dependencies live in `../requirements.in` as abstract ranges.
+Published package dependencies live in `requirements.in` as abstract ranges.
 Do not generate a hash-locked base/runtime requirements file for package
 metadata.
 
