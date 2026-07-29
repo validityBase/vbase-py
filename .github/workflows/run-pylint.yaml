@@ -23,7 +23,7 @@ jobs:
         uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
         with:
           requirements-files: |
-            requirements/lock/dev.txt
+            requirements/dev.txt
           python-version: "3.11"
           require-hashes: "true"
 

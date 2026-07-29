@@ -58,7 +58,7 @@ def _seed(url, rows):
 class TestPostgresDriverImportable(unittest.TestCase):
     """Regression test: psycopg2 must be installed.
 
-    If psycopg2-binary is removed from requirements/src/test.in this test will fail
+    If psycopg2-binary is removed from requirements/test.in this test will fail
     immediately and visibly rather than silently breaking in production.
     """
 
@@ -69,7 +69,7 @@ class TestPostgresDriverImportable(unittest.TestCase):
         except ImportError as exc:
             self.fail(
                 f"psycopg2 driver is not installed — ensure psycopg2-binary is in "
-                f"requirements/src/test.in: {exc}"
+                f"requirements/test.in: {exc}"
             )
 
 

@@ -1,11 +1,23 @@
 version: 2
 updates:
   - package-ecosystem: "pip"
-    directory: "/requirements/lock"
+    # Dependabot scans the flat pip-compile layout when it sees both
+    # requirements/*.in inputs and requirements/*.txt outputs.
+    directory: "/requirements"
     schedule:
-      interval: "weekly"
-    # Generated pip-compile outputs must not be patched directly by Dependabot.
-    # Use the lock update workflow so source requirement files stay authoritative.
-    ignore:
-      - dependency-name: "*"
-    open-pull-requests-limit: 0
+      interval: "daily"
+      time: "00:00"
+      timezone: "Etc/UTC"
+    versioning-strategy: "increase-if-necessary"
+    groups:
+      pip-minor-patch-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      pip-security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"

@@ -12,9 +12,9 @@ on:
         required: false
         type: string
       source_files:
-        description: "Space-separated requirement source files to update (requirements.in and/or requirements/src/*.in)"
+        description: "Space-separated requirement source files to update (requirements.in and/or requirements/*.in)"
         required: true
-        default: "requirements/src/dev.in requirements/src/test.in requirements/src/docs.in"
+        default: "requirements/dev.in requirements/test.in requirements/docs.in"
         type: string
       upgrade:
         description: "Pass --upgrade to pip-compile when regenerating locks"
@@ -39,7 +39,7 @@ jobs:
         uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
         with:
           requirements-files: |
-            requirements/lock/tools.txt
+            requirements/tools.txt
           python-version: "3.11"
           require-hashes: "true"
 
@@ -69,4 +69,4 @@ jobs:
           python .github/scripts/python_dependency_locks.py open-pr
           --dependency "$DEPENDENCY"
           --base-branch "$GITHUB_REF_NAME"
-          --run-id "$GITHUB_RUN_ID"
+          --run-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"

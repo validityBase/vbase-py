@@ -11,11 +11,11 @@ matching utilities for auditable data provenance workflows.
 - Published package runtime dependencies live in `requirements.in` as abstract ranges, not hash-locked pins.
 - Runtime dependency ranges should include compatibility ceilings where safe so
   downstream resolvers avoid unreviewed major-version upgrades.
-- Development, test, documentation, and lock-tooling dependency inputs live under `requirements/src/`.
-- Generated terminal environment lock files live under `requirements/lock/`; they must include pinned versions and hashes.
+- Development, test, documentation, and lock-tooling dependency inputs live under `requirements/`.
+- Generated terminal environment lock files live under `requirements/`; they must include pinned versions and hashes.
 - Install generated lock files with `python -m pip install --require-hashes -r <file>`.
 - `pyproject.toml` defines the package's dynamic runtime dependency source; `setup.py` is only a legacy shim and should not be treated as the source of truth.
-- Use the minimal pinned `pip-tools` environment from `requirements/lock/tools.txt` before regenerating lock files.
+- Use the minimal pinned `pip-tools` environment from `requirements/tools.txt` before regenerating lock files.
 - `.github/workflows/python-dependency-locks.yml` verifies lock freshness with the minimal lock-tooling environment.
 
 ## GitHub Actions

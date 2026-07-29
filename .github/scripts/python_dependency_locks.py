@@ -13,23 +13,23 @@ from pathlib import Path
 LOCK_SPECS = (
     (
         ("--allow-unsafe",),
-        "requirements/lock/dev.txt",
-        "requirements/src/dev.in",
+        "requirements/dev.txt",
+        "requirements/dev.in",
     ),
     (
         (),
-        "requirements/lock/test.txt",
-        "requirements/src/test.in",
+        "requirements/test.txt",
+        "requirements/test.in",
     ),
     (
         (),
-        "requirements/lock/docs.txt",
-        "requirements/src/docs.in",
+        "requirements/docs.txt",
+        "requirements/docs.in",
     ),
     (
         ("--allow-unsafe",),
-        "requirements/lock/tools.txt",
-        "requirements/src/tools.in",
+        "requirements/tools.txt",
+        "requirements/tools.in",
     ),
 )
 
@@ -110,17 +110,21 @@ def validate_source_file(source_file: str) -> Path:
         if not path.exists():
             sys.exit(f"Requirement source file does not exist: {source_file}")
         return path
-    if path.parts[:2] != ("requirements", "src") or path.suffix != ".in":
+    if (
+        len(path.parts) != 2
+        or path.parts[0] != "requirements"
+        or path.suffix != ".in"
+    ):
         sys.exit(f"Refusing to edit non-source requirement file: {source_file}")
     if not path.exists():
         sys.exit(f"Requirement source file does not exist: {source_file}")
 
-    source_root = (Path.cwd() / "requirements" / "src").resolve()
+    source_root = (Path.cwd() / "requirements").resolve()
     resolved_path = path.resolve()
     try:
         resolved_path.relative_to(source_root)
     except ValueError:
-        sys.exit(f"Refusing to edit source file outside requirements/src: {source_file}")
+        sys.exit(f"Refusing to edit source file outside requirements: {source_file}")
 
     return path
 
@@ -186,7 +190,21 @@ def open_pr(args: argparse.Namespace) -> None:
         ]
     )
     run(["git", "checkout", "-b", branch])
-    run(["git", "add", "requirements.in", "requirements/src", "requirements/lock"])
+    run(
+        [
+            "git",
+            "add",
+            "requirements.in",
+            "requirements/dev.in",
+            "requirements/test.in",
+            "requirements/docs.in",
+            "requirements/tools.in",
+            "requirements/dev.txt",
+            "requirements/test.txt",
+            "requirements/docs.txt",
+            "requirements/tools.txt",
+        ]
+    )
     run(["git", "commit", "-m", title])
     run(["git", "push", "--set-upstream", "origin", branch])
 
@@ -201,7 +219,7 @@ def open_pr(args: argparse.Namespace) -> None:
                     "",
                     "## Validation",
                     "",
-                    "- regenerated requirements/lock/*.txt from source requirements",
+                    "- regenerated requirements/*.txt from source requirements",
                     "",
                 )
             )
@@ -232,8 +250,14 @@ def has_dependency_diff() -> bool:
             "--quiet",
             "--",
             "requirements.in",
-            "requirements/src",
-            "requirements/lock",
+            "requirements/dev.in",
+            "requirements/test.in",
+            "requirements/docs.in",
+            "requirements/tools.in",
+            "requirements/dev.txt",
+            "requirements/test.txt",
+            "requirements/docs.txt",
+            "requirements/tools.txt",
         ],
         check=False,
     )

@@ -16,7 +16,7 @@ Keep it short and move detailed, workflow-specific context into `internal/`.
 ## Common Commands
 
 ```bash
-python -m pip install --require-hashes -r requirements/lock/dev.txt
+python -m pip install --require-hashes -r requirements/dev.txt
 python -m pip install --no-deps --no-build-isolation -e .
 pre-commit run --all-files
 ```
