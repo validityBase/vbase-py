@@ -9,13 +9,10 @@ updates:
       cronjob: "0 0 * * *"
     versioning-strategy: "increase-if-necessary"
     groups:
-      pip-minor-patch-updates:
+      pip-version-updates:
         applies-to: "version-updates"
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
       pip-security-updates:
         applies-to: "security-updates"
         patterns:
