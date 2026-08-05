@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: test-forwarder-pub-dev
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
