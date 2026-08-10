@@ -11,6 +11,7 @@ import pathlib
 import pprint
 from abc import ABC
 from io import TextIOWrapper
+from time import sleep
 from typing import List, Optional, Type, Union
 
 import pandas as pd
@@ -25,6 +26,9 @@ from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+
+_USER_SET_CHECK_MAX_ATTEMPTS = 3
+_USER_SET_CHECK_RETRY_DELAY_SECONDS = 0.25
 
 
 class Web3CommitmentService(CommitmentService, ABC):
@@ -113,6 +117,15 @@ class Web3CommitmentService(CommitmentService, ABC):
             _LOG.error(msg)
             raise RuntimeError(msg)
 
+    def _user_set_exists_with_retry(self, user: str, set_cid: str) -> bool:
+        """Confirm set visibility with bounded exponential-backoff retries."""
+        for attempt in range(_USER_SET_CHECK_MAX_ATTEMPTS):
+            if self.user_set_exists(user, set_cid):
+                return True
+            if attempt < _USER_SET_CHECK_MAX_ATTEMPTS - 1:
+                sleep(_USER_SET_CHECK_RETRY_DELAY_SECONDS * (2**attempt))
+        return False
+
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
         """Process results of a addSect transaction.
 
@@ -132,6 +145,12 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl = dict(add_set_events[0]["args"])
             # Convert bytestrings to strings to allow serialization for upper layers.
             cl["setCid"] = bytes_to_hex_str(cl["setCid"])
+            if str(cl["user"]).lower() != self.get_default_user().lower():
+                raise RuntimeError("AddSet event user does not match requested user")
+            if cl["setCid"].lower() != set_cid.lower():
+                raise RuntimeError(
+                    "AddSet event set CID does not match requested set CID"
+                )
             cl["transactionHash"] = receipt["transactionHash"]
             # Expose committer as userAddress for API consumers.
             self._init_receipt_fields(cl)
@@ -147,14 +166,13 @@ class Web3CommitmentService(CommitmentService, ABC):
         else:
             # No event means addSet was a no-op (set already existed).
             cl = {}
-
-        # Confirm that the set exists following the completed commitment.
-        # This is useful for catching any transaction failures
-        # or errors in the node infrastructure to report failures properly.
-        # Note that this may be a forwarded transaction.
-        # In this case, the receipt["from"] is the forwarder/relayer address
-        # and cl["user"] is the user address for the commitment.
-        assert self.user_set_exists(self.get_default_user(), set_cid)
+            # Confirm that an eventless transaction was the expected idempotent no-op.
+            # A matching AddSet event is already authoritative proof of a new
+            # commitment and avoids a stale read from a different RPC backend.
+            if not self._user_set_exists_with_retry(self.get_default_user(), set_cid):
+                raise RuntimeError(
+                    "AddSet event not found and set commitment does not exist"
+                )
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
