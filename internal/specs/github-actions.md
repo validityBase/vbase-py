@@ -23,7 +23,7 @@
 ### `.github/workflows/test-localhost.yml`
 
 - Runs on pull requests and pushes to `main` and `dev`.
-- Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using `GHCR_PAT`.
+- Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
 
