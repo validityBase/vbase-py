@@ -65,7 +65,7 @@ class TestWeb3CommitmentService(unittest.TestCase):
         ):
             self.service._add_set_worker(self.set_cid, self.receipt)
 
-    @patch("vbase.core.web3_commitment_service.sleep", create=True)
+    @patch("retry.api.time.sleep")
     def test_add_set_retries_eventless_state_confirmation(self, sleep_mock):
         """An eventless add retries while commitment visibility catches up."""
         self.service.csc.events.AddSet.return_value.process_receipt.return_value = []
@@ -79,7 +79,7 @@ class TestWeb3CommitmentService(unittest.TestCase):
         self.assertEqual(sleep_mock.call_count, 2)
         sleep_mock.assert_has_calls([call(0.25), call(0.5)])
 
-    @patch("vbase.core.web3_commitment_service.sleep", create=True)
+    @patch("retry.api.time.sleep")
     def test_add_set_rejects_eventless_transaction_without_commitment(self, sleep_mock):
         """An eventless add fails when it did not create or find a commitment."""
         self.service.csc.events.AddSet.return_value.process_receipt.return_value = []

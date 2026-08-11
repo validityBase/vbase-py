@@ -11,10 +11,10 @@ import pathlib
 import pprint
 from abc import ABC
 from io import TextIOWrapper
-from time import sleep
 from typing import List, Optional, Type, Union
 
 import pandas as pd
+from retry.api import retry_call
 from web3 import Web3
 from web3.contract import Contract
 from web3.contract.base_contract import EventLogErrorFlags
@@ -27,14 +27,15 @@ from vbase.utils.log import get_default_logger
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
-_USER_SET_CHECK_MAX_ATTEMPTS = 3
-_USER_SET_CHECK_RETRY_DELAY_SECONDS = 0.25
-
 
 class Web3CommitmentService(CommitmentService, ABC):
     """Commitment service accessible using Web3 library
     either directly or via a forwarder.
     """
+
+    RETRY_TRIES = 3
+    RETRY_DELAY = 0.25
+    RETRY_BACKOFF = 2
 
     def __init__(
         self, w3: Web3, commitment_service_contract: Union[Type[Contract], Contract]
@@ -117,14 +118,23 @@ class Web3CommitmentService(CommitmentService, ABC):
             _LOG.error(msg)
             raise RuntimeError(msg)
 
-    def _user_set_exists_with_retry(self, user: str, set_cid: str) -> bool:
+    def _require_user_set_exists(self, user: str, set_cid: str) -> None:
+        """Raise if a set commitment is not visible for a user."""
+        if not self.user_set_exists(user, set_cid):
+            raise RuntimeError(
+                "AddSet event not found and set commitment does not exist"
+            )
+
+    def _user_set_exists_with_retry(self, user: str, set_cid: str) -> None:
         """Confirm set visibility with bounded exponential-backoff retries."""
-        for attempt in range(_USER_SET_CHECK_MAX_ATTEMPTS):
-            if self.user_set_exists(user, set_cid):
-                return True
-            if attempt < _USER_SET_CHECK_MAX_ATTEMPTS - 1:
-                sleep(_USER_SET_CHECK_RETRY_DELAY_SECONDS * (2**attempt))
-        return False
+        retry_call(
+            self._require_user_set_exists,
+            fargs=[user, set_cid],
+            tries=self.RETRY_TRIES,
+            delay=self.RETRY_DELAY,
+            backoff=self.RETRY_BACKOFF,
+            logger=_LOG,
+        )
 
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
         """Process results of a addSect transaction.
@@ -169,10 +179,7 @@ class Web3CommitmentService(CommitmentService, ABC):
             # Confirm that an eventless transaction was the expected idempotent no-op.
             # A matching AddSet event is already authoritative proof of a new
             # commitment and avoids a stale read from a different RPC backend.
-            if not self._user_set_exists_with_retry(self.get_default_user(), set_cid):
-                raise RuntimeError(
-                    "AddSet event not found and set commitment does not exist"
-                )
+            self._user_set_exists_with_retry(self.get_default_user(), set_cid)
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
