@@ -34,7 +34,7 @@ class Web3CommitmentService(CommitmentService, ABC):
     """
 
     RETRY_TRIES = 3
-    RETRY_DELAY = 0.25
+    RETRY_DELAY = 1
     RETRY_BACKOFF = 2
 
     def __init__(
