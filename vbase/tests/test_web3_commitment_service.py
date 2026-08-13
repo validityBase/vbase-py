@@ -77,7 +77,12 @@ class TestWeb3CommitmentService(unittest.TestCase):
         self.assertEqual(self.service.user_set_exists.call_count, 3)
         self.service.user_set_exists.assert_called_with(self.user, self.set_cid)
         self.assertEqual(sleep_mock.call_count, 2)
-        sleep_mock.assert_has_calls([call(0.25), call(0.5)])
+        sleep_mock.assert_has_calls(
+            [
+                call(self.service.RETRY_DELAY),
+                call(self.service.RETRY_DELAY * self.service.RETRY_BACKOFF),
+            ]
+        )
 
     @patch("retry.api.time.sleep")
     def test_add_set_rejects_eventless_transaction_without_commitment(self, sleep_mock):
