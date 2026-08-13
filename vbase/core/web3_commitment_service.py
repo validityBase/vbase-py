@@ -14,6 +14,7 @@ from io import TextIOWrapper
 from typing import List, Optional, Type, Union
 
 import pandas as pd
+from retry.api import retry_call
 from web3 import Web3
 from web3.contract import Contract
 from web3.contract.base_contract import EventLogErrorFlags
@@ -31,6 +32,10 @@ class Web3CommitmentService(CommitmentService, ABC):
     """Commitment service accessible using Web3 library
     either directly or via a forwarder.
     """
+
+    RETRY_TRIES = 3
+    RETRY_DELAY = 1
+    RETRY_BACKOFF = 2
 
     def __init__(
         self, w3: Web3, commitment_service_contract: Union[Type[Contract], Contract]
@@ -113,6 +118,24 @@ class Web3CommitmentService(CommitmentService, ABC):
             _LOG.error(msg)
             raise RuntimeError(msg)
 
+    def _require_user_set_exists(self, user: str, set_cid: str) -> None:
+        """Raise if a set commitment is not visible for a user."""
+        if not self.user_set_exists(user, set_cid):
+            raise RuntimeError(
+                "AddSet event not found and set commitment does not exist"
+            )
+
+    def _user_set_exists_with_retry(self, user: str, set_cid: str) -> None:
+        """Confirm set visibility with bounded exponential-backoff retries."""
+        retry_call(
+            self._require_user_set_exists,
+            fargs=[user, set_cid],
+            tries=self.RETRY_TRIES,
+            delay=self.RETRY_DELAY,
+            backoff=self.RETRY_BACKOFF,
+            logger=_LOG,
+        )
+
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
         """Process results of a addSect transaction.
 
@@ -132,6 +155,12 @@ class Web3CommitmentService(CommitmentService, ABC):
             cl = dict(add_set_events[0]["args"])
             # Convert bytestrings to strings to allow serialization for upper layers.
             cl["setCid"] = bytes_to_hex_str(cl["setCid"])
+            if str(cl["user"]).lower() != self.get_default_user().lower():
+                raise RuntimeError("AddSet event user does not match requested user")
+            if cl["setCid"].lower() != set_cid.lower():
+                raise RuntimeError(
+                    "AddSet event set CID does not match requested set CID"
+                )
             cl["transactionHash"] = receipt["transactionHash"]
             # Expose committer as userAddress for API consumers.
             self._init_receipt_fields(cl)
@@ -147,14 +176,10 @@ class Web3CommitmentService(CommitmentService, ABC):
         else:
             # No event means addSet was a no-op (set already existed).
             cl = {}
-
-        # Confirm that the set exists following the completed commitment.
-        # This is useful for catching any transaction failures
-        # or errors in the node infrastructure to report failures properly.
-        # Note that this may be a forwarded transaction.
-        # In this case, the receipt["from"] is the forwarder/relayer address
-        # and cl["user"] is the user address for the commitment.
-        assert self.user_set_exists(self.get_default_user(), set_cid)
+            # Confirm that an eventless transaction was the expected idempotent no-op.
+            # A matching AddSet event is already authoritative proof of a new
+            # commitment and avoids a stale read from a different RPC backend.
+            self._user_set_exists_with_retry(self.get_default_user(), set_cid)
 
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
