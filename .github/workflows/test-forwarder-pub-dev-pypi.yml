@@ -1,0 +1,75 @@
+name: Run PyPI vbase Tests Using a Public Dev Service
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# These tests use one forwarder account across all runners. Keep them in the
+# same concurrency group as the source-install workflow to avoid nonce races.
+concurrency:
+  group: test-forwarder-pub-dev
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / PyPI vbase
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Set up Python
+        # v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements/test.in
+            requirements.in
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/test.in
+
+      - name: Install latest vbase package from PyPI
+        run: python -m pip install --upgrade vbase
+
+      - name: Validate live forwarder secrets
+        env:
+          VBASE_API_KEY: ${{ secrets.VBASE_API_KEY }}
+          VBASE_COMMITMENT_SERVICE_PRIVATE_KEY: ${{ secrets.VBASE_COMMITMENT_SERVICE_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VBASE_API_KEY:-}" || {
+            echo "VBASE_API_KEY is required for public dev forwarder tests."
+            exit 1
+          }
+          test -n "${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:-}" || {
+            echo "VBASE_COMMITMENT_SERVICE_PRIVATE_KEY is required for public dev forwarder tests."
+            exit 1
+          }
+
+      - name: Run vbase-py forwarder tests using the public dev service
+        env:
+          VBASE_API_KEY: ${{ secrets.VBASE_API_KEY }}
+          VBASE_COMMITMENT_SERVICE_PRIVATE_KEY: ${{ secrets.VBASE_COMMITMENT_SERVICE_PRIVATE_KEY }}
+          VBASE_PACKAGE_SOURCE: pypi
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          bash "$GITHUB_WORKSPACE/vbase/tests/scripts/run_tests_forwarder_pub_dev.sh"

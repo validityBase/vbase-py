@@ -48,6 +48,20 @@
   public dev forwarder account at the same time. Serial execution avoids
   nonce/signature races when multiple runs share `VBASE_API_KEY`.
 
+### `.github/workflows/test-forwarder-pub-dev-pypi.yml`
+
+- Runs daily at 03:17 UTC and supports manual `workflow_dispatch`.
+- Uses a sequential Ubuntu, macOS, and Windows matrix to test the latest
+  published `vbase` package from PyPI against the public dev forwarder.
+- Installs cross-platform dependencies from `requirements/test.in`, then runs
+  `python -m pip install --upgrade vbase` so the job exercises the package
+  users install rather than the repository checkout.
+- Runs the same `test_vbase_client` and `test_indexing_service` modules as the
+  source-install forwarder workflow. The runner loads those test modules from
+  the checkout while keeping the imported `vbase` package in site-packages.
+- Shares the source-install workflow's concurrency group because all matrix
+  legs use the same forwarder account and must not race on transaction nonces.
+
 ### `.github/workflows/update-main-docs.yml`
 
 - Runs on pushes to `main` and manual dispatch.

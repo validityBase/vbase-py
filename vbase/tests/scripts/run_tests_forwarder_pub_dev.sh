@@ -1,8 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
+
+# Keep an explicitly supplied secret ahead of values in local dotenv fixtures.
+PRIVATE_KEY_FROM_ENV="${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:-}"
 
 set -a
-source config/.env.forwarder.pub.dev
+source "${REPO_ROOT}/config/.env.forwarder.pub.dev"
 set +a
 
-python3 -m unittest vbase.tests.test_vbase_client
-python3 -m unittest vbase.tests.test_indexing_service
+if [[ -n "${PRIVATE_KEY_FROM_ENV}" ]]; then
+    export VBASE_COMMITMENT_SERVICE_PRIVATE_KEY="${PRIVATE_KEY_FROM_ENV}"
+fi
+
+: "${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:?VBASE_COMMITMENT_SERVICE_PRIVATE_KEY must be supplied by the environment or a secret manager}"
+
+PYTHON_BIN="${PYTHON_BIN:-python}"
+"${PYTHON_BIN}" "${REPO_ROOT}/vbase/tests/scripts/run_forwarder_tests.py"
