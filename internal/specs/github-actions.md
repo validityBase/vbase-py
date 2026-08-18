@@ -42,7 +42,8 @@
 
 - Runs on pull requests and pushes to `main`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Runs the forwarder tests against the public dev service using `VBASE_API_KEY`.
+- Runs the forwarder tests against the public dev service using the GitHub
+  Actions secrets `VBASE_API_KEY` and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
 - Uses a workflow-level concurrency group with `cancel-in-progress: false` so
   independent pull request and `main` push runs do not execute against the same
   public dev forwarder account at the same time. Serial execution avoids

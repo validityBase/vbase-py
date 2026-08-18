@@ -33,6 +33,7 @@ jobs:
       - name: Run vbase-py forwarder tests using the public dev service
         env:
           VBASE_API_KEY: ${{ secrets.VBASE_API_KEY }}
+          VBASE_COMMITMENT_SERVICE_PRIVATE_KEY: ${{ secrets.VBASE_COMMITMENT_SERVICE_PRIVATE_KEY }}
         run: |
           chmod +x vbase/tests/scripts/run_tests_forwarder_pub_dev.sh
           vbase/tests/scripts/run_tests_forwarder_pub_dev.sh
