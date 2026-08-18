@@ -22,7 +22,12 @@ def _repo_root() -> Path:
 def _configure_test_package() -> ModuleType:
     """Load vbase from the installation and expose checkout-only test modules."""
     repo_root = _repo_root()
-    package_source = os.environ.get("VBASE_PACKAGE_SOURCE", "source")
+    package_source = os.environ.get("VBASE_PACKAGE_SOURCE", "source").strip().lower()
+    if package_source not in {"source", "pypi"}:
+        raise RuntimeError(
+            f"Unsupported VBASE_PACKAGE_SOURCE={package_source!r}; "
+            "expected 'source' or 'pypi'"
+        )
 
     # The runner is invoked by absolute path, so the checkout is not normally
     # on sys.path. Add it only for the source leg; the PyPI leg must import from
