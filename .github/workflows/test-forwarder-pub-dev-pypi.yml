@@ -2,6 +2,9 @@ name: Run PyPI vbase Tests Using a Public Dev Service
 
 on:
   pull_request:
+  push:
+    branches:
+      - VC-8-test-vbase-pypi-package
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
