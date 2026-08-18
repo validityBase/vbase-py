@@ -18,5 +18,15 @@ fi
 
 : "${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:?VBASE_COMMITMENT_SERVICE_PRIVATE_KEY must be supplied by the environment or a secret manager}"
 
-PYTHON_BIN="${PYTHON_BIN:-python}"
+if [[ -z "${PYTHON_BIN:-}" ]]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON_BIN=python3
+    elif command -v python >/dev/null 2>&1; then
+        PYTHON_BIN=python
+    else
+        echo "Neither python3 nor python was found." >&2
+        exit 1
+    fi
+fi
+
 "${PYTHON_BIN}" "${REPO_ROOT}/vbase/tests/scripts/run_forwarder_tests.py"
