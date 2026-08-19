@@ -30,7 +30,7 @@ forwarder, or localhost commitment service.
 
 ```bash
 ./vbase/tests/scripts/run_tests_localhost.sh
-./vbase/tests/scripts/run_tests_forwarder_pub_dev.sh
+./.github/scripts/run_tests_forwarder_pub_dev.sh
 source config/.env.localhost
 python3 -m unittest discover -s vbase/tests
 ```
