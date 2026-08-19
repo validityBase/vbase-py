@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 # Keep an explicitly supplied secret ahead of values in local dotenv fixtures.
 PRIVATE_KEY_FROM_ENV="${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:-}"
@@ -29,4 +29,4 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
     fi
 fi
 
-"${PYTHON_BIN}" "${REPO_ROOT}/vbase/tests/scripts/run_forwarder_tests.py"
+"${PYTHON_BIN}" "${REPO_ROOT}/.github/scripts/run_tests_forwarder_pub_dev.py"

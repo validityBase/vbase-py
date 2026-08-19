@@ -16,7 +16,7 @@ TEST_MODULES = (
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[2]
 
 
 def _package_source() -> str:

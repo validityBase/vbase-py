@@ -69,4 +69,4 @@ jobs:
         shell: bash
         run: |
           cd "$RUNNER_TEMP"
-          bash "$GITHUB_WORKSPACE/vbase/tests/scripts/run_tests_forwarder_pub_dev.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/run_tests_forwarder_pub_dev.sh"
