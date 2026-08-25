@@ -25,7 +25,7 @@ Tests require a configured commitment service or forwarder:
 
 ```bash
 ./vbase/tests/scripts/run_tests_localhost.sh
-./vbase/tests/scripts/run_tests_forwarder_pub_dev.sh
+./.github/scripts/run_tests_forwarder_pub_dev.sh
 ```
 
 ## Internal Documentation
