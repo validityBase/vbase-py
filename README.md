@@ -2,7 +2,7 @@
 
 vBase Python Software Development Kit (SDK)
 
-- Python 3.8+ support
+- Python 3.11+ support
 
 ---
 
