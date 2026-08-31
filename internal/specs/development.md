@@ -2,8 +2,8 @@
 
 ## Setup
 
-Use Python 3.11 for CI parity. The repository still declares package support for
-Python 3.8+, but generated lock files are maintained with Python 3.11.
+Python 3.11 is the minimum supported version. CI validates Python 3.11 and 3.12,
+and generated lock files are maintained with Python 3.11.
 
 ```bash
 python -m pip install --require-hashes -r requirements/dev.txt
@@ -45,3 +45,13 @@ Test environment files live under `config/`:
 
 Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 `VBASE_COMMITMENT_SERVICE_ADDRESS`, and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
+
+## Sensitive Logging
+
+- Never log complete API keys, private keys, access tokens, credentials, or RPC
+  URLs that may contain provider credentials.
+- API keys needed for diagnostic correlation use `vbase.utils.log.mask_api_key`,
+  which retains at most the first and last eight characters. Short keys are
+  fully redacted.
+- Log only whether private keys and RPC URLs are configured. Public contract
+  addresses may be logged directly.

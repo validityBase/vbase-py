@@ -2,9 +2,33 @@
 
 import logging
 
+REDACTED_LOG_VALUE = "[REDACTED]"
+_API_KEY_VISIBLE_CHARS = 8
+
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
 )
+
+
+def mask_api_key(api_key: str | None) -> str | None:
+    """Mask an API key for safe diagnostic logging.
+
+    Long keys retain eight characters at each end for correlation. Short keys
+    are fully redacted because showing both ends would reveal most or all of
+    the credential.
+
+    :param api_key: The API key to mask.
+    :return: The masked API key, or the original empty value.
+    """
+    if not api_key:
+        return api_key
+    if len(api_key) <= _API_KEY_VISIBLE_CHARS * 2:
+        return REDACTED_LOG_VALUE
+    return (
+        f"{api_key[:_API_KEY_VISIBLE_CHARS]}"
+        f"\N{HORIZONTAL ELLIPSIS}"
+        f"{api_key[-_API_KEY_VISIBLE_CHARS:]}"
+    )
 
 
 def get_default_logger(name: str) -> logging.Logger:
