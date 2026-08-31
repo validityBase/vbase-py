@@ -6,7 +6,6 @@ This implementation uses Web3.HTTPProvider.
 import json
 import logging
 import os
-import pprint
 import time
 from typing import List, Optional, Union
 
@@ -19,7 +18,9 @@ try:
         BufferedGasEstimateMiddleware as buffered_gas_estimate_middleware_compat,
     )
     from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware_compat
-    from web3.middleware import SignAndSendRawMiddlewareBuilder
+    from web3.middleware import (
+        SignAndSendRawMiddlewareBuilder,
+    )
 
     sign_and_send_raw_middleware_compat = SignAndSendRawMiddlewareBuilder.build
 except ImportError:
@@ -100,16 +101,16 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
                 if w3.is_connected():
                     _LOG.debug(
-                        "Web3HTTPCommitmentService.__init__(): Connected to %s",
-                        self.node_rpc_url,
+                        "Web3HTTPCommitmentService.__init__(): "
+                        "Connected to configured node RPC endpoint"
                     )
                     break
-                raise ConnectionError(f"Failed to connect to {self.node_rpc_url}")
+                raise ConnectionError(
+                    "Failed to connect to configured node RPC endpoint"
+                )
             except ConnectionError as e:
                 _LOG.error(
-                    "Web3HTTPCommitmentService.__init__(): "
-                    "Exception connecting to %s: %s",
-                    self.node_rpc_url,
+                    "Web3HTTPCommitmentService.__init__(): %s",
                     e,
                 )
                 retry_count += 1
@@ -118,7 +119,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
         if not w3.is_connected():
             raise ConnectionError(
-                f"Failed to connect to {self.node_rpc_url} after {retry_count} retries"
+                "Failed to connect to configured node RPC endpoint "
+                f"after {retry_count} retries"
             )
 
         if inject_geth_poa_middleware:
@@ -173,9 +175,15 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         }
         # Check for missing environment variables since these are unrecoverable.
         check_for_missing_env_vars(init_args)
+        safe_log_args = {
+            "node_rpc_url_configured": bool(init_args["node_rpc_url"]),
+            "commitment_service_address": init_args["commitment_service_address"],
+            "private_key_configured": bool(init_args["private_key"]),
+            "inject_geth_poa_middleware": init_args["inject_geth_poa_middleware"],
+        }
         _LOG.debug(
-            "Web3HTTPCommitmentService.get_init_args_from_env(): init_args =\n%s",
-            pprint.pformat(init_args),
+            "Web3HTTPCommitmentService.get_init_args_from_env(): config = %s",
+            safe_log_args,
         )
         return init_args
 

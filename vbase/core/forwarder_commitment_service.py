@@ -6,7 +6,6 @@ This implementation uses a forwarder to execute meta-transactions on a user's be
 import json
 import logging
 import os
-import pprint
 from enum import Enum
 from typing import List, Optional, Union
 
@@ -20,7 +19,7 @@ from web3 import Web3
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import get_default_logger, mask_api_key
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -115,9 +114,14 @@ class ForwarderCommitmentService(Web3CommitmentService):
         }
         # Check for missing environment variables since these are unrecoverable.
         check_for_missing_env_vars(init_args)
+        safe_log_args = {
+            "forwarder_url_configured": bool(init_args["forwarder_url"]),
+            "api_key": mask_api_key(init_args["api_key"]),
+            "private_key_configured": bool(init_args["private_key"]),
+        }
         _LOG.debug(
-            "ForwarderCommitmentService.get_init_args_from_env(): init_args =\n%s",
-            pprint.pformat(init_args),
+            "ForwarderCommitmentService.get_init_args_from_env(): config = %s",
+            safe_log_args,
         )
         return init_args
 
