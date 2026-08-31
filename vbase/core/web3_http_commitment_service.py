@@ -18,9 +18,7 @@ try:
         BufferedGasEstimateMiddleware as buffered_gas_estimate_middleware_compat,
     )
     from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware_compat
-    from web3.middleware import (
-        SignAndSendRawMiddlewareBuilder,
-    )
+    from web3.middleware import SignAndSendRawMiddlewareBuilder
 
     sign_and_send_raw_middleware_compat = SignAndSendRawMiddlewareBuilder.build
 except ImportError:

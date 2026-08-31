@@ -10,9 +10,8 @@ resolutions for terminal environment locks. CI, tests, docs publishing, and lock
 tooling are terminal environments owned by this repo, so those installs use pip
 hash-checking mode for reproducibility.
 
-Lock files are generated with Python 3.11 for CI parity. The package metadata
-may still support older Python versions, but the committed locks represent the
-CI install environment.
+Python 3.11 is the package minimum and is used to generate lock files for CI
+parity. The setup matrix also validates the published package on Python 3.12.
 
 ## Files
 
