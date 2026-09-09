@@ -48,9 +48,10 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             },
         )
 
-        with patch.object(
-            self.service, "get_default_user", return_value="0xuser"
-        ), patch("requests.post", return_value=response):
+        with (
+            patch.object(self.service, "get_default_user", return_value="0xuser"),
+            patch("requests.post", return_value=response),
+        ):
             with self.assertRaises(ForwarderAPIError) as raised:
                 self.service._call_forwarder_api(
                     "execute",
@@ -79,9 +80,10 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         response._content = b"Bad Gateway"
         response.request = requests.Request("POST", response.url).prepare()
 
-        with patch.object(
-            self.service, "get_default_user", return_value="0xuser"
-        ), patch("requests.post", return_value=response):
+        with (
+            patch.object(self.service, "get_default_user", return_value="0xuser"),
+            patch("requests.post", return_value=response),
+        ):
             with self.assertRaises(requests.HTTPError) as raised:
                 self.service._call_forwarder_api(
                     "execute",

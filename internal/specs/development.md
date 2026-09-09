@@ -2,8 +2,8 @@
 
 ## Setup
 
-Use Python 3.11 for CI parity. The repository still declares package support for
-Python 3.8+, but generated lock files are maintained with Python 3.11.
+Python 3.11 is the minimum supported version. CI validates Python 3.11 and 3.12,
+and generated lock files are maintained with Python 3.11.
 
 ```bash
 python -m pip install --require-hashes -r requirements/dev.txt
