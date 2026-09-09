@@ -35,6 +35,10 @@ source config/.env.localhost
 python3 -m unittest discover -s vbase/tests
 ```
 
+The public dev forwarder runner generates a fresh ephemeral signer key and
+address for every invocation. This prevents prior test history and nonce state
+from leaking into later runs; only `VBASE_API_KEY` must be supplied externally.
+
 ## Environment
 
 Test environment files live under `config/`:
