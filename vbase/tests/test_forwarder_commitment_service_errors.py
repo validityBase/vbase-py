@@ -85,6 +85,30 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         self.assertIn("Insufficient credits to execute the request.", str(error))
         self.assertIn('"availableCredits": 0', str(error))
 
+    def test_success_false_response_raises_request_exception(self):
+        """Reject an explicit application failure before extracting response data."""
+        response = self._make_response(
+            200,
+            {
+                "success": False,
+                "log": "Forwarder execution failed.",
+            },
+        )
+        response.headers["Content-Type"] = "application/json"
+
+        with (
+            patch.object(self.service, "get_default_user", return_value="0xuser"),
+            patch("requests.post", return_value=response),
+        ):
+            with self.assertRaisesRegex(
+                requests.RequestException,
+                "Forwarder execution failed.",
+            ):
+                self.service._call_forwarder_api(
+                    "execute",
+                    request_type=RequestType.POST,
+                )
+
     def test_unstructured_http_error_remains_requests_http_error(self):
         """Preserve requests behavior for non-JSON upstream failures."""
         response = requests.Response()

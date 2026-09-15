@@ -165,6 +165,10 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
+            if response_json.get("success") is False:
+                raise requests.RequestException(
+                    response_json.get("log", "Forwarder API request failed.")
+                )
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
