@@ -36,8 +36,8 @@ class ProblemDetails:
             return None
         if not isinstance(status, int) or isinstance(status, bool):
             return None
-        if instance is not None and not isinstance(instance, str):
-            return None
+        if not isinstance(instance, str):
+            instance = None
 
         return cls(
             type=problem_type,

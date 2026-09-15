@@ -85,6 +85,38 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         self.assertIn("Insufficient credits to execute the request.", str(error))
         self.assertIn('"availableCredits": 0', str(error))
 
+    def test_non_string_instance_is_ignored(self):
+        """Ignore an optional instance member whose JSON type is invalid."""
+        for instance in (None, 123):
+            with self.subTest(instance=instance):
+                response = self._make_response(
+                    402,
+                    {
+                        "type": "https://docs.vbase.com/problems/insufficient-credits",
+                        "title": "Insufficient Credits",
+                        "status": 402,
+                        "detail": "Insufficient credits to execute the request.",
+                        "instance": instance,
+                    },
+                )
+
+                with (
+                    patch.object(
+                        self.service,
+                        "get_default_user",
+                        return_value="0xuser",
+                    ),
+                    patch("requests.post", return_value=response),
+                ):
+                    with self.assertRaises(ProblemDetailsError) as raised:
+                        self.service._call_forwarder_api(
+                            "execute",
+                            request_type=RequestType.POST,
+                        )
+
+                self.assertIsNone(raised.exception.instance)
+                self.assertNotIn("instance", raised.exception.problem.to_dict())
+
     def test_success_false_response_raises_request_exception(self):
         """Reject an explicit application failure before extracting response data."""
         response = self._make_response(

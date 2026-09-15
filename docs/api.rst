@@ -19,6 +19,8 @@ have convenience properties. Clients should branch primarily on ``type``.
 The validated document is available as ``error.problem`` and can be serialized
 with ``error.problem.to_dict()``.
 
-Malformed, non-Problem-Details, and status-mismatched HTTP failures continue
-to raise the original ``requests.HTTPError`` instead of being interpreted as a
-trusted structured error.
+Optional standard members with an invalid JSON type are ignored as required by
+RFC 9457. Responses with invalid required vBase members, non-Problem-Details
+content, or a status mismatch continue to raise the original
+``requests.HTTPError`` instead of being interpreted as a trusted structured
+error.
