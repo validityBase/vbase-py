@@ -6,9 +6,9 @@ A Python library for interacting with the validityBase (vBase) platform
 from vbase.core.aggregate_indexing_service import AggregateIndexingService
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.forwarder_commitment_service import (
-    ForwarderAPIError,
     ForwarderCommitmentService,
 )
+from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 from vbase.core.indexing_service import IndexingService, Web3HTTPIndexingService
 from vbase.core.sql_indexing_service import SQLIndexingService
@@ -52,7 +52,8 @@ __all__ = [
     "Web3HTTPCommitmentService",
     "Web3HTTPCommitmentServiceTest",
     "ForwarderCommitmentService",
-    "ForwarderAPIError",
+    "ProblemDetails",
+    "ProblemDetailsError",
     "ForwarderCommitmentServiceTest",
     "IndexingService",
     "Web3HTTPIndexingService",

@@ -8,7 +8,7 @@ import logging
 import os
 import pprint
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import requests
 from dotenv import load_dotenv
@@ -17,6 +17,7 @@ from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from web3 import Web3
 
+from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
@@ -43,61 +44,6 @@ class RequestType(Enum):
 
     GET = "GET"
     POST = "POST"
-
-
-class ForwarderAPIError(requests.HTTPError):
-    """Structured error returned by the Forwarder API.
-
-    This remains compatible with callers that catch :class:`requests.HTTPError`
-    while exposing the Forwarder error contract as typed attributes.
-    """
-
-    def __init__(
-        self,
-        response: requests.Response,
-        response_payload: dict[str, Any],
-    ) -> None:
-        code = response_payload["code"]
-        message = response_payload["message"]
-        raw_details = response_payload.get("details")
-
-        self.status_code: int = response.status_code
-        self.code: str = code
-        self.message: str = message
-        self.details: Optional[dict[str, Any]] = (
-            raw_details if isinstance(raw_details, dict) else None
-        )
-        self.response_payload: dict[str, Any] = response_payload
-
-        error_text = f"Forwarder API error ({self.status_code}) [{code}]: {message}"
-        if self.details:
-            error_text += f" Details: {json.dumps(self.details, sort_keys=True)}"
-
-        super().__init__(
-            error_text,
-            response=response,
-            request=response.request,
-        )
-
-    @classmethod
-    def from_response(
-        cls, response: requests.Response
-    ) -> Optional["ForwarderAPIError"]:
-        """Build an error from a valid structured Forwarder error response."""
-        try:
-            response_payload = response.json()
-        except ValueError:
-            return None
-
-        if not isinstance(response_payload, dict):
-            return None
-
-        code = response_payload.get("code")
-        message = response_payload.get("message")
-        if not isinstance(code, str) or not isinstance(message, str):
-            return None
-
-        return cls(response, response_payload)
 
 
 class ForwarderCommitmentService(Web3CommitmentService):
@@ -219,17 +165,11 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
-            # Newer servers may not return a "success" field.
-            # They signal error with HTTPError only.
-            # Check whether the "success" field is present and False
-            # to determine if an older server is returning a failure via this field.
-            if "success" in response_json and not response_json["success"]:
-                raise requests.RequestException(response_json["log"])
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
             if http_err.response is not None:
-                api_error = ForwarderAPIError.from_response(http_err.response)
+                api_error = ProblemDetailsError.from_response(http_err.response)
                 if api_error is not None:
                     _LOG.error("Forwarder API error occurred: %s", api_error)
                     raise api_error from http_err
