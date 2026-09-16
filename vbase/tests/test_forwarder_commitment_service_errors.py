@@ -33,6 +33,19 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         response.request = requests.Request("POST", response.url).prepare()
         return response
 
+    def _call_forwarder_with_response(
+        self, response: requests.Response
+    ) -> dict | str | None:
+        """Call the test seam with a supplied Forwarder response."""
+        with (
+            patch.object(self.service, "get_default_user", return_value="0xuser"),
+            patch("requests.post", return_value=response),
+        ):
+            return self.service._call_forwarder_api(
+                "execute",
+                request_type=RequestType.POST,
+            )
+
     def test_structured_http_error_is_preserved(self):
         """Expose Forwarder error fields while retaining requests compatibility."""
         response = self._make_response(
@@ -51,15 +64,8 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             },
         )
 
-        with (
-            patch.object(self.service, "get_default_user", return_value="0xuser"),
-            patch("requests.post", return_value=response),
-        ):
-            with self.assertRaises(ProblemDetailsError) as raised:
-                self.service._call_forwarder_api(
-                    "execute",
-                    request_type=RequestType.POST,
-                )
+        with self.assertRaises(ProblemDetailsError) as raised:
+            self._call_forwarder_with_response(response)
 
         error = raised.exception
         self.assertEqual(
@@ -97,25 +103,34 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                         "status": 402,
                         "detail": "Insufficient credits to execute the request.",
                         "instance": instance,
+                        "code": "INSUFFICIENT_CREDITS",
                     },
                 )
 
-                with (
-                    patch.object(
-                        self.service,
-                        "get_default_user",
-                        return_value="0xuser",
-                    ),
-                    patch("requests.post", return_value=response),
-                ):
-                    with self.assertRaises(ProblemDetailsError) as raised:
-                        self.service._call_forwarder_api(
-                            "execute",
-                            request_type=RequestType.POST,
-                        )
+                with self.assertRaises(ProblemDetailsError) as raised:
+                    self._call_forwarder_with_response(response)
 
                 self.assertIsNone(raised.exception.instance)
                 self.assertNotIn("instance", raised.exception.problem.to_dict())
+
+    def test_missing_or_invalid_code_remains_http_error(self):
+        """Reject responses that do not satisfy the vBase extension contract."""
+        for code in (None, "", 123):
+            with self.subTest(code=code):
+                payload: dict[str, object] = {
+                    "type": "https://docs.vbase.com/problems/invalid-api-key",
+                    "title": "Invalid API Key",
+                    "status": 401,
+                    "detail": "Invalid API key.",
+                }
+                if code is not None:
+                    payload["code"] = code
+                response = self._make_response(401, payload)
+
+                with self.assertRaises(requests.HTTPError) as raised:
+                    self._call_forwarder_with_response(response)
+
+                self.assertNotIsInstance(raised.exception, ProblemDetailsError)
 
     def test_success_false_response_raises_request_exception(self):
         """Reject an explicit application failure before extracting response data."""
@@ -128,18 +143,11 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         )
         response.headers["Content-Type"] = "application/json"
 
-        with (
-            patch.object(self.service, "get_default_user", return_value="0xuser"),
-            patch("requests.post", return_value=response),
+        with self.assertRaisesRegex(
+            requests.RequestException,
+            "Forwarder execution failed.",
         ):
-            with self.assertRaisesRegex(
-                requests.RequestException,
-                "Forwarder execution failed.",
-            ):
-                self.service._call_forwarder_api(
-                    "execute",
-                    request_type=RequestType.POST,
-                )
+            self._call_forwarder_with_response(response)
 
     def test_unstructured_http_error_remains_requests_http_error(self):
         """Preserve requests behavior for non-JSON upstream failures."""
@@ -149,15 +157,8 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         response._content = b"Bad Gateway"
         response.request = requests.Request("POST", response.url).prepare()
 
-        with (
-            patch.object(self.service, "get_default_user", return_value="0xuser"),
-            patch("requests.post", return_value=response),
-        ):
-            with self.assertRaises(requests.HTTPError) as raised:
-                self.service._call_forwarder_api(
-                    "execute",
-                    request_type=RequestType.POST,
-                )
+        with self.assertRaises(requests.HTTPError) as raised:
+            self._call_forwarder_with_response(response)
 
         self.assertNotIsInstance(raised.exception, ProblemDetailsError)
 
@@ -174,15 +175,8 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         )
         response.headers["Content-Type"] = "application/json"
 
-        with (
-            patch.object(self.service, "get_default_user", return_value="0xuser"),
-            patch("requests.post", return_value=response),
-        ):
-            with self.assertRaises(requests.HTTPError) as raised:
-                self.service._call_forwarder_api(
-                    "execute",
-                    request_type=RequestType.POST,
-                )
+        with self.assertRaises(requests.HTTPError) as raised:
+            self._call_forwarder_with_response(response)
 
         self.assertNotIsInstance(raised.exception, ProblemDetailsError)
 
@@ -195,18 +189,12 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                 "title": "Insufficient Credits",
                 "status": 402,
                 "detail": "Mismatched status.",
+                "code": "INSUFFICIENT_CREDITS",
             },
         )
 
-        with (
-            patch.object(self.service, "get_default_user", return_value="0xuser"),
-            patch("requests.post", return_value=response),
-        ):
-            with self.assertRaises(requests.HTTPError) as raised:
-                self.service._call_forwarder_api(
-                    "execute",
-                    request_type=RequestType.POST,
-                )
+        with self.assertRaises(requests.HTTPError) as raised:
+            self._call_forwarder_with_response(response)
 
         self.assertNotIsInstance(raised.exception, ProblemDetailsError)
 

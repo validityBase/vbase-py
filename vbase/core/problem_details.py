@@ -32,9 +32,12 @@ class ProblemDetails:
         status = payload.get("status")
         detail = payload.get("detail")
         instance = payload.get("instance")
+        code = payload.get("code")
         if not all(isinstance(value, str) for value in (problem_type, title, detail)):
             return None
         if not isinstance(status, int) or isinstance(status, bool):
+            return None
+        if not isinstance(code, str) or not code:
             return None
         if not isinstance(instance, str):
             instance = None
