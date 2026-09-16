@@ -1,10 +1,10 @@
 name: Run Forwarder Tests Using a Public Dev Service
 
 on:
-  pull_request:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read

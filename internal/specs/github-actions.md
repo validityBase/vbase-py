@@ -40,7 +40,8 @@
 
 ### `.github/workflows/test-forwarder-pub-dev.yml`
 
-- Runs on pull requests and pushes to `main`.
+- Runs on pushes to `main` and manual `workflow_dispatch`; it does not run on
+  pull requests because the job requires live dev-service credentials.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the forwarder tests against the public dev service using the GitHub
   Actions secrets `VBASE_API_KEY` and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
