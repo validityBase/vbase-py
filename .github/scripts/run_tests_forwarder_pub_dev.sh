@@ -5,17 +5,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
-# Keep an explicitly supplied secret ahead of values in local dotenv fixtures.
+# Keep explicitly supplied secrets ahead of values in local dotenv fixtures.
+API_KEY_FROM_ENV="${VBASE_API_KEY:-}"
 PRIVATE_KEY_FROM_ENV="${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:-}"
 
 set -a
 source "${REPO_ROOT}/config/.env.forwarder.pub.dev"
 set +a
 
+if [[ -n "${API_KEY_FROM_ENV}" ]]; then
+    export VBASE_API_KEY="${API_KEY_FROM_ENV}"
+fi
+
 if [[ -n "${PRIVATE_KEY_FROM_ENV}" ]]; then
     export VBASE_COMMITMENT_SERVICE_PRIVATE_KEY="${PRIVATE_KEY_FROM_ENV}"
 fi
 
+: "${VBASE_API_KEY:?VBASE_API_KEY must be supplied by the environment or a secret manager}"
 : "${VBASE_COMMITMENT_SERVICE_PRIVATE_KEY:?VBASE_COMMITMENT_SERVICE_PRIVATE_KEY must be supplied by the environment or a secret manager}"
 
 if [[ -z "${PYTHON_BIN:-}" ]]; then
