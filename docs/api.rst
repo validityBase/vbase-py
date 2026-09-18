@@ -19,11 +19,12 @@ have convenience properties. Clients should branch primarily on ``type``.
 The validated document is available as ``error.problem`` and can be serialized
 with ``error.problem.to_dict()``.
 
-Optional standard members with an invalid JSON type are ignored as required by
-RFC 9457. Responses with invalid required vBase members, non-Problem-Details
-content, or a status mismatch continue to raise the original
-``requests.HTTPError`` instead of being interpreted as a trusted structured
-error.
+The optional ``instance`` member may be omitted, but when present it must be a
+string. The optional vBase ``details`` extension may also be omitted, but when
+present it must be a JSON object. Responses that violate these types, contain
+invalid required vBase members, use non-Problem-Details content, or have a
+status mismatch continue to raise the original ``requests.HTTPError`` instead
+of being interpreted as a trusted structured error.
 
 The canonical machine-readable contract is the
 :download:`public vBase Problem Details JSON Schema <problem-details.schema.json>`
