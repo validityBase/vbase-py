@@ -116,10 +116,35 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             },
         )
 
-    def test_non_string_instance_is_ignored(self):
-        """Ignore an optional instance member whose JSON type is invalid."""
-        for instance in (None, 123):
-            with self.subTest(instance=instance):
+    def test_missing_instance_is_allowed(self):
+        """Allow the optional instance member to be omitted."""
+        response = self._make_response(
+            402,
+            {
+                "type": "https://docs.vbase.com/problems/insufficient-credits",
+                "title": "Insufficient Credits",
+                "status": 402,
+                "detail": "Insufficient credits to execute the request.",
+                "code": "INSUFFICIENT_CREDITS",
+            },
+        )
+
+        with self.assertRaises(ProblemDetailsError) as raised:
+            self._call_forwarder_with_response(response)
+
+        self.assertIsNone(raised.exception.instance)
+        self.assertNotIn("instance", raised.exception.problem.to_dict())
+
+    def test_invalid_optional_members_remain_http_error(self):
+        """Reject optional members whose values violate the public schema."""
+        invalid_members = (
+            {"instance": None},
+            {"instance": 123},
+            {"details": None},
+            {"details": "invalid"},
+        )
+        for invalid_member in invalid_members:
+            with self.subTest(invalid_member=invalid_member):
                 response = self._make_response(
                     402,
                     {
@@ -127,16 +152,31 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                         "title": "Insufficient Credits",
                         "status": 402,
                         "detail": "Insufficient credits to execute the request.",
-                        "instance": instance,
                         "code": "INSUFFICIENT_CREDITS",
+                        **invalid_member,
                     },
                 )
 
-                with self.assertRaises(ProblemDetailsError) as raised:
+                with self.assertRaises(requests.HTTPError) as raised:
                     self._call_forwarder_with_response(response)
 
-                self.assertIsNone(raised.exception.instance)
-                self.assertNotIn("instance", raised.exception.problem.to_dict())
+                self.assertNotIsInstance(raised.exception, ProblemDetailsError)
+
+    def test_out_of_range_status_is_rejected(self):
+        """Reject status values outside the public schema's HTTP range."""
+        for status in (0, 99, 600):
+            with self.subTest(status=status):
+                problem = ProblemDetails.from_dict(
+                    {
+                        "type": "https://docs.vbase.com/problems/invalid-status",
+                        "title": "Invalid Status",
+                        "status": status,
+                        "detail": "Invalid status.",
+                        "code": "INVALID_STATUS",
+                    }
+                )
+
+                self.assertIsNone(problem)
 
     def test_missing_or_invalid_code_remains_http_error(self):
         """Reject responses that do not satisfy the vBase extension contract."""

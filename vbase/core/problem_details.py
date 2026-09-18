@@ -33,14 +33,28 @@ class ProblemDetails:
         detail = payload.get("detail")
         instance = payload.get("instance")
         code = payload.get("code")
-        if not all(isinstance(value, str) for value in (problem_type, title, detail)):
+        details = payload.get("details")
+        required_strings_valid = all(
+            isinstance(value, str) for value in (problem_type, title, detail)
+        )
+        status_valid = (
+            isinstance(status, int)
+            and not isinstance(status, bool)
+            and 100 <= status <= 599
+        )
+        code_valid = isinstance(code, str) and bool(code)
+        instance_valid = "instance" not in payload or isinstance(instance, str)
+        details_valid = "details" not in payload or isinstance(details, dict)
+        if not all(
+            (
+                required_strings_valid,
+                status_valid,
+                code_valid,
+                instance_valid,
+                details_valid,
+            )
+        ):
             return None
-        if not isinstance(status, int) or isinstance(status, bool):
-            return None
-        if not isinstance(code, str) or not code:
-            return None
-        if not isinstance(instance, str):
-            instance = None
 
         return cls(
             type=problem_type,
