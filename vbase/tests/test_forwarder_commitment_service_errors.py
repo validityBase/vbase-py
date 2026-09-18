@@ -12,7 +12,7 @@ from vbase.core.forwarder_commitment_service import (
     ForwarderCommitmentService,
     RequestType,
 )
-from vbase.core.problem_details import ProblemDetailsError
+from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
 
 
 class TestForwarderCommitmentServiceErrors(unittest.TestCase):
@@ -90,6 +90,31 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         self.assertIn("INSUFFICIENT_CREDITS", str(error))
         self.assertIn("Insufficient credits to execute the request.", str(error))
         self.assertIn('"availableCredits": 0', str(error))
+
+    def test_problem_details_adds_extensions_without_mutating_standard_members(self):
+        """Expose a reusable immutable model for downstream HTTP adapters."""
+        problem = ProblemDetails(
+            type="https://docs.vbase.com/problems/bad-request",
+            title="Bad Request",
+            status=400,
+            detail="Invalid request.",
+            extensions={"code": "BAD_REQUEST"},
+        )
+
+        extended = problem.with_extensions(
+            user_message="Correct the request and try again.",
+            status=500,
+        )
+
+        self.assertEqual(problem.extensions, {"code": "BAD_REQUEST"})
+        self.assertEqual(extended.status, 400)
+        self.assertEqual(
+            extended.extensions,
+            {
+                "code": "BAD_REQUEST",
+                "user_message": "Correct the request and try again.",
+            },
+        )
 
     def test_non_string_instance_is_ignored(self):
         """Ignore an optional instance member whose JSON type is invalid."""

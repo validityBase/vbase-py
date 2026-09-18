@@ -1,7 +1,7 @@
 """RFC 9457 Problem Details support for vBase HTTP APIs."""
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Mapping, Optional
 
 import requests
@@ -66,6 +66,18 @@ class ProblemDetails:
         """Return the optional vBase diagnostic details extension."""
         details = self.extensions.get("details")
         return details if isinstance(details, dict) else None
+
+    def with_extensions(self, **extensions: Any) -> "ProblemDetails":
+        """Return a copy with additional non-standard members."""
+        safe_extensions = {
+            key: value
+            for key, value in extensions.items()
+            if key not in _STANDARD_MEMBERS
+        }
+        return replace(
+            self,
+            extensions={**self.extensions, **safe_extensions},
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the validated problem document."""

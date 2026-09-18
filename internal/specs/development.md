@@ -39,10 +39,11 @@ The public dev forwarder runner generates a fresh ephemeral signer key and
 address for every invocation. This prevents prior test history and nonce state
 from leaking into later runs; only `VBASE_API_KEY` must be supplied externally.
 
-Forwarder Problem Details parsing follows the canonical contract maintained in
-`vbase-api-server`. The RFC standard members plus the vBase `code` extension
-must be valid before the SDK raises `ProblemDetailsError`; invalid optional
-standard members are ignored.
+Forwarder Problem Details parsing follows the public contract in
+`docs/problem-details.schema.json`. The RFC standard members plus the vBase
+`code` extension must be valid before the SDK raises `ProblemDetailsError`;
+invalid optional standard members are ignored. Forwarder implementations and
+downstream applications must conform to this public schema.
 
 ## Environment
 

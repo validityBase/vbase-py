@@ -25,5 +25,8 @@ content, or a status mismatch continue to raise the original
 ``requests.HTTPError`` instead of being interpreted as a trusted structured
 error.
 
-The canonical vBase extension schema is maintained by
-`vbase-api-server <https://github.com/validityBase/vbase-api-server/blob/main/internal/specs/problem-details.schema.json>`_.
+The canonical machine-readable contract is the
+:download:`public vBase Problem Details JSON Schema <problem-details.schema.json>`
+published with this SDK. Forwarder implementations and downstream applications
+must conform to this public schema rather than relying on internal repository
+documentation.

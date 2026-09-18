@@ -1,4 +1,4 @@
-"""Test the public dev forwarder test runner."""
+"""Unit tests for the public-dev Forwarder shell runner configuration."""
 
 import os
 import subprocess
@@ -7,11 +7,17 @@ import unittest
 from pathlib import Path
 
 
-class TestForwarderPubDevRunner(unittest.TestCase):
-    """Test the shell runner without calling the public dev service."""
+class TestPublicDevForwarderRunnerScript(unittest.TestCase):
+    """Verify runner setup without executing tests or making network requests.
 
-    def test_runner_replaces_configured_signer_with_ephemeral_key(self):
-        """Use the generated signer for every public dev test command."""
+    The test places a fake ``python3`` first on ``PATH``. The fake records the
+    environment and command for each invocation, allowing the shell runner's
+    signer isolation and test selection to be checked without contacting the
+    public dev Forwarder.
+    """
+
+    def test_runner_injects_one_ephemeral_signer_into_both_test_suites(self):
+        """Pass the generated signer to both suites instead of a configured key."""
         repository_root = Path(__file__).resolve().parents[2]
         runner = repository_root / "vbase/tests/scripts/run_tests_forwarder_pub_dev.sh"
 
