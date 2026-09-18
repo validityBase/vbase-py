@@ -140,6 +140,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         invalid_members = (
             {"instance": None},
             {"instance": 123},
+            {"instance": "not a valid URI reference"},
             {"details": None},
             {"details": "invalid"},
         )
@@ -161,6 +162,41 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                     self._call_forwarder_with_response(response)
 
                 self.assertNotIsInstance(raised.exception, ProblemDetailsError)
+
+    def test_invalid_type_uri_reference_remains_http_error(self):
+        """Reject a problem type whose value is not a URI reference."""
+        response = self._make_response(
+            400,
+            {
+                "type": "not a valid URI reference",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Invalid request.",
+                "code": "BAD_REQUEST",
+            },
+        )
+
+        with self.assertRaises(requests.HTTPError) as raised:
+            self._call_forwarder_with_response(response)
+
+        self.assertNotIsInstance(raised.exception, ProblemDetailsError)
+
+    def test_relative_uri_references_are_allowed(self):
+        """Accept relative URI references permitted by RFC 9457."""
+        problem = ProblemDetails.from_dict(
+            {
+                "type": "/problems/bad-request",
+                "title": "Bad Request",
+                "status": 400,
+                "detail": "Invalid request.",
+                "instance": "/problems/instances/123",
+                "code": "BAD_REQUEST",
+            }
+        )
+
+        self.assertIsNotNone(problem)
+        self.assertEqual(problem.type, "/problems/bad-request")
+        self.assertEqual(problem.instance, "/problems/instances/123")
 
     def test_out_of_range_status_is_rejected(self):
         """Reject status values outside the public schema's HTTP range."""

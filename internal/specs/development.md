@@ -42,11 +42,11 @@ from leaking into later runs; only `VBASE_API_KEY` must be supplied externally.
 Forwarder Problem Details parsing follows the public contract in
 `docs/problem-details.schema.json`. The RFC standard members plus the vBase
 `code` extension must be valid before the SDK raises `ProblemDetailsError`.
-The optional `instance` and `details` members may be omitted, but explicitly
-supplied values must satisfy their schema types (`string` and JSON object,
-respectively). Malformed documents remain ordinary `requests.HTTPError`
-instances. Forwarder implementations and downstream applications must conform
-to this public schema.
+The required `type` and optional `instance` members must be valid RFC 3986 URI
+references; `instance` may be omitted. The optional `details` member may also be
+omitted, but when present it must be a JSON object. Malformed documents remain
+ordinary `requests.HTTPError` instances. Forwarder implementations and
+downstream applications must conform to this public schema.
 
 ## Environment
 

@@ -5,9 +5,17 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Mapping, Optional
 
 import requests
+from rfc3986_validator import validate_rfc3986
 
 PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
 _STANDARD_MEMBERS = frozenset({"type", "title", "status", "detail", "instance"})
+
+
+def _is_uri_reference(value: object) -> bool:
+    """Return whether a value follows the RFC 3986 URI-reference grammar."""
+    return isinstance(value, str) and bool(
+        validate_rfc3986(value, rule="URI_reference")
+    )
 
 
 @dataclass(frozen=True)
@@ -34,8 +42,9 @@ class ProblemDetails:
         instance = payload.get("instance")
         code = payload.get("code")
         details = payload.get("details")
+        problem_type_valid = _is_uri_reference(problem_type)
         required_strings_valid = all(
-            isinstance(value, str) for value in (problem_type, title, detail)
+            isinstance(value, str) for value in (title, detail)
         )
         status_valid = (
             isinstance(status, int)
@@ -43,10 +52,11 @@ class ProblemDetails:
             and 100 <= status <= 599
         )
         code_valid = isinstance(code, str) and bool(code)
-        instance_valid = "instance" not in payload or isinstance(instance, str)
+        instance_valid = "instance" not in payload or _is_uri_reference(instance)
         details_valid = "details" not in payload or isinstance(details, dict)
         if not all(
             (
+                problem_type_valid,
                 required_strings_valid,
                 status_valid,
                 code_valid,
