@@ -155,6 +155,8 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             "urn:uuid:9bc21f1c-0acc-4e01-934d-d9b4bb75576e",
             "//docs.vbase.com/problems/bad-request",
             "https://docs.vbase.com:99999/problems/bad-request",
+            "https://[2001:db8::1]/problems/bad-request",
+            "https://[v1.fe80]/problems/bad-request",
             "/problems/bad-request",
             "../problems/bad-request?source=sdk#request",
         )
@@ -180,6 +182,9 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             "https://example.com/%ZZ",
             "1invalid:scheme",
             "https://[invalid",
+            "https://[invalid]",
+            "https://[]",
+            "https://[fe80::1%25eth0]",
             "https://example.com:invalid",
             "https://first@second@example.com/problem",
             "https://example.com/one#two#three",

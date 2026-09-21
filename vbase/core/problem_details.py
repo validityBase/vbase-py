@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
+from ipaddress import IPv6Address
 from types import MappingProxyType
 from typing import Any, Dict, Mapping, Optional, cast
 from urllib.parse import urlsplit
@@ -15,6 +16,21 @@ _INVALID_PERCENT_ENCODING = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _URI_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*$")
 _URI_USER_INFO = re.compile(r"^[A-Za-z0-9\-._~!$&'()*+,;=:%]*$")
 _URI_REG_NAME = re.compile(r"^[A-Za-z0-9\-._~!$&'()*+,;=%]*$")
+_IPV_FUTURE = re.compile(r"^[vV][0-9A-Fa-f]+\.[A-Za-z0-9\-._~!$&'()*+,;=:]+$")
+
+
+def _is_valid_ip_literal(value: str) -> bool:
+    """Return whether a bracketed host is an IPv6address or IPvFuture."""
+    if _IPV_FUTURE.fullmatch(value) is not None:
+        return True
+    if "%" in value:
+        return False
+
+    try:
+        IPv6Address(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _is_valid_authority(authority: str) -> bool:
@@ -28,11 +44,16 @@ def _is_valid_authority(authority: str) -> bool:
 
     if host_port.startswith("["):
         closing_bracket = host_port.find("]")
+        host = host_port[1:closing_bracket]
         port_separator = host_port[closing_bracket + 1 :]
-        return closing_bracket >= 0 and (
-            port_separator in ("", ":")
-            or port_separator.startswith(":")
-            and port_separator[1:].isdigit()
+        return (
+            closing_bracket >= 0
+            and _is_valid_ip_literal(host)
+            and (
+                port_separator in ("", ":")
+                or port_separator.startswith(":")
+                and port_separator[1:].isdigit()
+            )
         )
 
     if host_port.count(":") > 1:
