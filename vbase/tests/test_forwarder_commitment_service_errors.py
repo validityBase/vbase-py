@@ -141,11 +141,12 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             {"type", "title", "status", "detail", "code"},
         )
         properties = schema["properties"]
+        self.assertNotIn("$id", schema)
         self.assertEqual(properties["type"]["format"], "uri-reference")
         self.assertEqual(properties["instance"]["format"], "uri-reference")
         self.assertEqual(properties["status"]["minimum"], 100)
         self.assertEqual(properties["status"]["maximum"], 599)
-        self.assertEqual(properties["code"]["minLength"], 1)
+        self.assertEqual(properties["code"]["pattern"], "^[A-Z][A-Z0-9_]{0,63}$")
         self.assertEqual(properties["details"]["type"], "object")
 
     def test_uri_reference_formats_are_supported(self):
@@ -156,6 +157,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             "//docs.vbase.com/problems/bad-request",
             "https://docs.vbase.com:99999/problems/bad-request",
             "https://[2001:db8::1]/problems/bad-request",
+            "https://[::ffff:192.0.2.128]/problems/bad-request",
             "https://[v1.fe80]/problems/bad-request",
             "/problems/bad-request",
             "../problems/bad-request?source=sdk#request",
@@ -185,6 +187,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             "https://[invalid]",
             "https://[]",
             "https://[fe80::1%25eth0]",
+            "https://[::ffff:192.168.001.1]/problems/bad-request",
             "https://example.com:invalid",
             "https://first@second@example.com/problem",
             "https://example.com/one#two#three",
@@ -235,7 +238,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
 
     def test_missing_or_invalid_code_remains_http_error(self):
         """Reject responses that do not satisfy the vBase extension contract."""
-        for code in (None, "", 123):
+        for code in (None, "", 123, "lowercase", "BAD-CODE", "BAD\nFORGED"):
             with self.subTest(code=code):
                 payload = self._problem_payload()
                 if code is None:

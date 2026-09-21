@@ -22,12 +22,14 @@ with ``error.problem.to_dict()``.
 The required ``type`` and optional ``instance`` members must be valid RFC 3986
 URI references; ``instance`` may be omitted. The optional vBase ``details``
 extension may also be omitted, but when present it must be a JSON object.
+The required ``code`` extension must be an uppercase machine-readable identifier
+made up of ASCII letters, digits, and underscores, with at most 64 characters.
 Responses that violate these constraints, contain invalid required vBase
 members, use non-Problem-Details content, or have a status mismatch continue to
 raise the original ``requests.HTTPError`` instead of being interpreted as a
 trusted structured error.
 
-The canonical machine-readable contract is the
-:download:`public vBase Problem Details JSON Schema <problem-details.schema.json>`
-published with this SDK. Forwarder implementations and downstream applications
-must conform to this public schema.
+The :download:`vBase SDK Problem Details consumer profile
+<problem-details.schema.json>` documents the forward-compatible response shape
+accepted by this SDK. It intentionally does not enumerate producer-specific
+error codes or detail fields; each API owns that authoritative contract.
