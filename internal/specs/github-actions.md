@@ -43,10 +43,12 @@
 - Runs on pull requests and pushes to `main`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the forwarder tests against the public dev service using `VBASE_API_KEY`.
+  The runner creates a fresh ephemeral signer for each invocation; no signer
+  private key needs to be stored as a CI secret.
 - Uses a workflow-level concurrency group with `cancel-in-progress: false` so
-  independent pull request and `main` push runs do not execute against the same
-  public dev forwarder account at the same time. Serial execution avoids
-  nonce/signature races when multiple runs share `VBASE_API_KEY`.
+  independent pull request and `main` push runs do not overload the same
+  public dev forwarder account at the same time. Different runs have different
+  signer addresses, but still share the API key and account-level limits.
 
 ### `.github/workflows/update-main-docs.yml`
 
