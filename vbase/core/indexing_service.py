@@ -12,6 +12,7 @@ from typing import List, Union, cast
 
 import web3
 from dotenv import load_dotenv
+from requests.exceptions import HTTPError
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
 
@@ -43,6 +44,25 @@ def _create_event_filter(event: ContractEvent, from_block: int, argument_filters
         argument_filters=argument_filters,
         **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
     )
+
+
+def _safe_rpc_error_category(message: str) -> str:
+    """Classify provider text without echoing untrusted response content."""
+    message = message.lower()
+    if "block" in message and "range" in message:
+        return "block_range_limit"
+    if "filter not found" in message:
+        return "filter_not_found"
+    if any(
+        term in message
+        for term in ("too many logs", "too many results", "response size")
+    ):
+        return "result_limit"
+    if "rate limit" in message or "throughput" in message:
+        return "rate_limit"
+    if "invalid" in message:
+        return "invalid_request"
+    return "unclassified"
 
 
 # The indexing service will grow to have more features
@@ -288,7 +308,32 @@ class Web3HTTPIndexingService(IndexingService):
 
     def _get_all_entries(self, event_filter):
         """Wrapper to get all entries from an event filter."""
-        return event_filter.get_all_entries()
+        try:
+            return event_filter.get_all_entries()
+        except HTTPError as error:
+            response = error.response
+            status = getattr(response, "status_code", None)
+            rpc_code = None
+            category = "unclassified"
+            if response is not None:
+                try:
+                    payload = response.json()
+                except ValueError:
+                    payload = None
+                if isinstance(payload, dict):
+                    rpc_error = payload.get("error")
+                    if isinstance(rpc_error, dict):
+                        code = rpc_error.get("code")
+                        if isinstance(code, int) and not isinstance(code, bool):
+                            rpc_code = code
+                        message = rpc_error.get("message")
+                        if isinstance(message, str):
+                            category = _safe_rpc_error_category(message)
+            raise HTTPError(
+                f"Indexer RPC request failed (HTTP {status}, RPC {rpc_code}, "
+                f"{category})",
+                response=response,
+            ) from None
 
     def _retry_get_all_entries(self, event_filter):
         """Get all entries from an event filter with retry logic."""

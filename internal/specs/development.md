@@ -48,3 +48,7 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 The public-dev forwarder runner requires `VBASE_API_KEY` from the environment
 or a secret manager. It generates a fresh signer private key for each invocation
 and does not use a committed or externally supplied signer key.
+The indexing tests use unique object CIDs for global object lookups so old
+public-chain test data does not accumulate in those queries. Event-log retrieval
+HTTP errors report only HTTP status, JSON-RPC code, and a safe error category;
+provider URLs and raw response messages are not logged for those errors.
