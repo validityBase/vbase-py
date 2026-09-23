@@ -248,8 +248,6 @@ class TestIndexingService(unittest.TestCase):
         cl = self.vbc.add_object(object_cid=object_cid)
         user = cl["user"]
         commitment_receipts = self.indexing_service.find_object(object_cid=object_cid)
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
         self.assertTrue(
             compare_dict_subset(
                 commitment_receipts[-1],
@@ -275,8 +273,6 @@ class TestIndexingService(unittest.TestCase):
         cids = [cls[i]["objectCid"] for i in cl_inds]
         timestamps = [cls[i]["timestamp"] for i in cl_inds]
         commitment_receipts = self.indexing_service.find_objects(object_cids=cids)
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
         for i in range(2):
             self.assertTrue(
                 compare_dict_subset(
@@ -348,8 +344,6 @@ class TestIndexingService(unittest.TestCase):
         commitment_receipt = self.indexing_service.find_last_object(
             object_cid=object_cid
         )
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
         self.assertTrue(
             compare_dict_subset(
                 commitment_receipt,
