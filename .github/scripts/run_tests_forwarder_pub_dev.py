@@ -94,8 +94,9 @@ def main() -> int:
     repo_root = _repo_root()
     _configure_test_package()
     loader = unittest.defaultTestLoader
+    test_modules = tuple(sys.argv[1:]) or TEST_MODULES
     suite = unittest.TestSuite(
-        loader.loadTestsFromName(module_name) for module_name in TEST_MODULES
+        loader.loadTestsFromName(module_name) for module_name in test_modules
     )
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     _assert_pypi_runtime_imports_are_external(repo_root)

@@ -45,10 +45,12 @@
 - Runs the forwarder tests against the public dev service using `VBASE_API_KEY`.
 - Labels the package source as `source` so the shared test runner verifies that
   the checkout package is imported.
+- The shared runner creates a fresh ephemeral signer for each invocation, so no
+  signer private key needs to be stored as a CI secret.
 - Uses a workflow-level concurrency group with `cancel-in-progress: false` so
-  independent pull request and `main` push runs do not execute against the same
-  public dev forwarder account at the same time. Serial execution avoids
-  nonce/signature races when multiple runs share `VBASE_API_KEY`.
+  independent pull request and `main` push runs do not overload the same
+  public dev forwarder account at the same time. Different runs have different
+  signer addresses, but still share the API key and account-level limits.
 
 ### `.github/workflows/test-forwarder-pub-dev-pypi.yml`
 
@@ -62,8 +64,10 @@
 - Runs the same `test_vbase_client` and `test_indexing_service` modules as the
   source-install forwarder workflow. The runner loads those test modules from
   the checkout while keeping the imported `vbase` package in site-packages.
+- The shared runner generates a fresh signer for each matrix leg; only
+  `VBASE_API_KEY` is required as a CI secret.
 - Shares the source-install workflow's concurrency group because all matrix
-  legs use the same forwarder account and must not race on transaction nonces.
+  legs use the same API key and account-level limits.
 
 ### `.github/workflows/update-main-docs.yml`
 

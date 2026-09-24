@@ -5,7 +5,7 @@ import unittest
 
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.tests.utils import TEST_HASH1, TEST_HASH2, compare_dict_subset, int_to_hash
+from vbase.tests.utils import TEST_HASH1, compare_dict_subset, int_to_hash
 
 
 class TestIndexingService(unittest.TestCase):
@@ -85,13 +85,14 @@ class TestIndexingService(unittest.TestCase):
     # pylint: disable=R0801
     def test_add_set_object_indexing(self):
         """Test a simple set object commitment."""
-        cl = self.vbc.add_set_object(set_cid=TEST_HASH1, object_cid=TEST_HASH2)
+        object_cid = "0x" + secrets.token_hex(32)
+        cl = self.vbc.add_set_object(set_cid=TEST_HASH1, object_cid=object_cid)
         user = cl["user"]
         expected_receipt = {
             "chainId": self.chain_id,
             "user": user,
             "setCid": TEST_HASH1,
-            "objectCid": TEST_HASH2,
+            "objectCid": object_cid,
             "timestamp": cl["timestamp"],
         }
 
@@ -110,7 +111,7 @@ class TestIndexingService(unittest.TestCase):
 
         # Verify find_objects().
         commitment_receipts = self.indexing_service.find_objects(
-            object_cids=[TEST_HASH2]
+            object_cids=[object_cid]
         )
         self.assertNotIn("setCid", commitment_receipts[-1])
         self.assertTrue(
@@ -125,7 +126,7 @@ class TestIndexingService(unittest.TestCase):
 
         # Verify find_objects(return_set_cids=True).
         commitment_receipts = self.indexing_service.find_objects(
-            object_cids=[TEST_HASH2], return_set_cids=True
+            object_cids=[object_cid], return_set_cids=True
         )
         self.assertTrue(
             compare_dict_subset(
@@ -141,7 +142,7 @@ class TestIndexingService(unittest.TestCase):
         # Use a random set CID to avoid collisions with other tests.
         set_cid = "0x" + secrets.token_bytes(32).hex()
         self.vbc.add_set(set_cid=set_cid)
-        object_cids = [int_to_hash(i) for i in range(5)]
+        object_cids = ["0x" + secrets.token_hex(32) for _ in range(5)]
         cls = []
         for i in range(5):
             cl = self.vbc.add_set_object(
@@ -243,18 +244,17 @@ class TestIndexingService(unittest.TestCase):
     # pylint: disable=R0801
     def test_add_object_find_object(self):
         """Test a simple object commitment following by find_object()."""
-        cl = self.vbc.add_object(object_cid=TEST_HASH2)
+        object_cid = "0x" + secrets.token_hex(32)
+        cl = self.vbc.add_object(object_cid=object_cid)
         user = cl["user"]
-        commitment_receipts = self.indexing_service.find_object(object_cid=TEST_HASH2)
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
+        commitment_receipts = self.indexing_service.find_object(object_cid=object_cid)
         self.assertTrue(
             compare_dict_subset(
                 commitment_receipts[-1],
                 {
                     "chainId": self.chain_id,
                     "user": user,
-                    "objectCid": TEST_HASH2,
+                    "objectCid": object_cid,
                     "timestamp": cl["timestamp"],
                 },
             )
@@ -264,14 +264,15 @@ class TestIndexingService(unittest.TestCase):
     # pylint: disable=R0801
     def test_add_objects_find_objects(self):
         """Test add and find for multiple objects."""
-        cls = [self.vbc.add_object(object_cid=int_to_hash(i)) for i in range(1, 5)]
+        cls = [
+            self.vbc.add_object(object_cid="0x" + secrets.token_hex(32))
+            for _ in range(4)
+        ]
         user = cls[0]["user"]
         cl_inds = [1, 2]
         cids = [cls[i]["objectCid"] for i in cl_inds]
         timestamps = [cls[i]["timestamp"] for i in cl_inds]
         commitment_receipts = self.indexing_service.find_objects(object_cids=cids)
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
         for i in range(2):
             self.assertTrue(
                 compare_dict_subset(
@@ -337,20 +338,19 @@ class TestIndexingService(unittest.TestCase):
     # pylint: disable=R0801
     def test_find_last_object(self):
         """Test a simple object commitment following by find_last_object()."""
-        cl = self.vbc.add_object(object_cid=TEST_HASH2)
+        object_cid = "0x" + secrets.token_hex(32)
+        cl = self.vbc.add_object(object_cid=object_cid)
         user = cl["user"]
         commitment_receipt = self.indexing_service.find_last_object(
-            object_cid=TEST_HASH2
+            object_cid=object_cid
         )
-        # The node may run multiple tests accumulating multiple events.
-        # Validate the tail.
         self.assertTrue(
             compare_dict_subset(
                 commitment_receipt,
                 {
                     "chainId": self.chain_id,
                     "user": user,
-                    "objectCid": TEST_HASH2,
+                    "objectCid": object_cid,
                     "timestamp": cl["timestamp"],
                 },
             )
