@@ -10,9 +10,8 @@ resolutions for terminal environment locks. CI, tests, docs publishing, and lock
 tooling are terminal environments owned by this repo, so those installs use pip
 hash-checking mode for reproducibility.
 
-Lock files are generated with Python 3.11 for CI parity. The package metadata
-may still support older Python versions, but the committed locks represent the
-CI install environment.
+Python 3.11 is the package minimum and is used to generate lock files for CI
+parity. The setup matrix validates the published package through Python 3.13.
 
 ## Files
 
@@ -96,6 +95,6 @@ resolution, and runs `python -m pip check`.
 
 `.github/workflows/run-setup-matrix.yaml` complements the Linux hash-locked
 checks by installing the published runtime ranges from `requirements.in` without
-hash checking across Ubuntu, macOS, and Windows for Python 3.11 and 3.12. This
+hash checking across Ubuntu, macOS, and Windows for Python 3.11 through 3.13. This
 workflow validates resolver compatibility and package importability on supported
 setup targets without Docker, secrets, or external services.
