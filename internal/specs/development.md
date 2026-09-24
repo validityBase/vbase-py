@@ -45,3 +45,6 @@ Test environment files live under `config/`:
 
 Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 `VBASE_COMMITMENT_SERVICE_ADDRESS`, and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
+The public-dev forwarder runner generates a fresh signer on every invocation,
+overriding any configured private key. Only `VBASE_API_KEY` is needed by the
+runner itself.
