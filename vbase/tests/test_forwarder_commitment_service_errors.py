@@ -188,6 +188,8 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
             "https://[invalid]",
             "https://[]",
             "https://[fe80::1%25eth0]",
+            "https://[::ffff:256.1.2.3]/problems/bad-request",
+            "https://[::ffff:192.168.1]/problems/bad-request",
             "https://[::ffff:192.168.001.1]/problems/bad-request",
             "https://example.com:invalid",
             "https://first@second@example.com/problem",

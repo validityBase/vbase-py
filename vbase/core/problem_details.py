@@ -20,26 +20,11 @@ _IPV_FUTURE = re.compile(r"^[vV][0-9A-Fa-f]+\.[A-Za-z0-9\-._~!$&'()*+,;=:]+$")
 _PROBLEM_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
-def _has_valid_embedded_ipv4_address(value: str) -> bool:
-    """Reject non-canonical IPv4 tails before version-dependent parsing."""
-    if "." not in value:
-        return True
-
-    octets = value.rsplit(":", maxsplit=1)[-1].split(".")
-    return len(octets) == 4 and all(
-        octet.isascii()
-        and octet.isdigit()
-        and (octet == "0" or not octet.startswith("0"))
-        and int(octet) <= 255
-        for octet in octets
-    )
-
-
 def _is_valid_ip_literal(value: str) -> bool:
-    """Return whether a bracketed host is an IPv6address or IPvFuture."""
+    """Return whether a bracketed host is an IPv6 address or IPvFuture."""
     if _IPV_FUTURE.fullmatch(value) is not None:
         return True
-    if "%" in value or not _has_valid_embedded_ipv4_address(value):
+    if "%" in value:
         return False
 
     try:
