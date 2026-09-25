@@ -55,8 +55,9 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
 
     @staticmethod
     def _problem_payload(**overrides: Any) -> Dict[str, Any]:
+        # The .invalid host is a test placeholder, not a published vBase URL.
         payload = {
-            "type": "https://docs.vbase.com/problems/insufficient-credits",
+            "type": "https://example.invalid/problems/insufficient-credits",
             "title": "Insufficient Credits",
             "status": 402,
             "detail": "Insufficient credits to execute the request.",
@@ -83,7 +84,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         error = raised.exception
         self.assertEqual(
             error.type,
-            "https://docs.vbase.com/problems/insufficient-credits",
+            "https://example.invalid/problems/insufficient-credits",
         )
         self.assertEqual(error.title, "Insufficient Credits")
         self.assertEqual(error.status, 402)
@@ -123,7 +124,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         """Keep invalid vBase problem documents out of the public model."""
         with self.assertRaisesRegex(ValueError, "Invalid vBase Problem Details"):
             ProblemDetails(
-                type="https://docs.vbase.com/problems/bad-request",
+                type="https://example.invalid/problems/bad-request",
                 title="Bad Request",
                 status=400,
                 detail="Invalid request.",
@@ -152,9 +153,9 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
     def test_uri_reference_formats_are_supported(self):
         """Accept absolute, URN, network-path, and relative URI references."""
         valid_references = (
-            "https://docs.vbase.com/problems/bad-request",
+            "https://example.invalid/problems/bad-request",
             "urn:uuid:9bc21f1c-0acc-4e01-934d-d9b4bb75576e",
-            "//docs.vbase.com/problems/bad-request",
+            "//example.invalid/problems/bad-request",
             "https://docs.vbase.com:99999/problems/bad-request",
             "https://[2001:db8::1]/problems/bad-request",
             "https://[::ffff:192.0.2.128]/problems/bad-request",
