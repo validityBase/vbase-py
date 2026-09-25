@@ -35,7 +35,11 @@ def _is_valid_ip_literal(value: str) -> bool:
 
 
 def _is_valid_authority(authority: str) -> bool:
-    """Validate the RFC 3986 authority components without DNS semantics."""
+    """Validate RFC 3986 authority syntax without DNS or TCP port semantics.
+
+    ``urlsplit`` splits authority but does not validate it. Its ``port``
+    property also rejects digit-only ports above 65535, which RFC 3986 allows.
+    """
     if authority.count("@") > 1:
         return False
 
