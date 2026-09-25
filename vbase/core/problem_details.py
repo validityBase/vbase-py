@@ -2,7 +2,6 @@
 
 import re
 from dataclasses import dataclass, field
-from ipaddress import IPv6Address
 from types import MappingProxyType
 from typing import Any, Dict, Mapping, Optional, cast
 from urllib.parse import urlsplit
@@ -11,115 +10,36 @@ import requests
 
 PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
 _STANDARD_MEMBERS = frozenset({"type", "title", "status", "detail", "instance"})
-_URI_REFERENCE_CHARACTERS = re.compile(r"^[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]*$")
-_INVALID_PERCENT_ENCODING = re.compile(r"%(?![0-9A-Fa-f]{2})")
-_URI_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*$")
-_URI_USER_INFO = re.compile(r"^[A-Za-z0-9\-._~!$&'()*+,;=:%]*$")
-_URI_REG_NAME = re.compile(r"^[A-Za-z0-9\-._~!$&'()*+,;=%]*$")
-_IPV_FUTURE = re.compile(r"^[vV][0-9A-Fa-f]+\.[A-Za-z0-9\-._~!$&'()*+,;=:]+$")
 _PROBLEM_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+_INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
-def _is_valid_ip_literal(value: str) -> bool:
-    """Return whether a bracketed host is an IPv6 address or IPvFuture."""
-    if _IPV_FUTURE.fullmatch(value) is not None:
-        return True
-    if "%" in value:
+def _passes_uri_reference_checks(value: object) -> bool:
+    """Apply lightweight sanity checks, not full RFC 3986 validation.
+
+    Reject raw whitespace/control characters before urlsplit can discard them.
+    URI references are identifiers here, not validated connection targets.
+    """
+    if (
+        not isinstance(value, str)
+        or not value.isascii()
+        or any(ord(char) <= 32 or ord(char) == 127 for char in value)
+        or _INVALID_PERCENT_ESCAPE.search(value)
+    ):
         return False
 
     try:
-        IPv6Address(value)
+        # A lowercase copy lets urlsplit recognize either IPvFuture marker case.
+        # Do not use the parsed result to rewrite the original identifier.
+        urlsplit(value.lower())
     except ValueError:
         return False
     return True
 
 
-def _is_valid_authority(authority: str) -> bool:
-    """Validate RFC 3986 authority syntax without DNS or TCP port semantics.
-
-    ``urlsplit`` splits authority but does not validate it. Its ``port``
-    property also rejects digit-only ports above 65535, which RFC 3986 allows.
-    """
-    if authority.count("@") > 1:
-        return False
-
-    user_info, separator, host_port = authority.rpartition("@")
-    if separator and _URI_USER_INFO.fullmatch(user_info) is None:
-        return False
-
-    if host_port.startswith("["):
-        closing_bracket = host_port.find("]")
-        host = host_port[1:closing_bracket]
-        port_separator = host_port[closing_bracket + 1 :]
-        return (
-            closing_bracket >= 0
-            and _is_valid_ip_literal(host)
-            and (
-                port_separator in ("", ":")
-                or port_separator.startswith(":")
-                and port_separator[1:].isdigit()
-            )
-        )
-
-    if host_port.count(":") > 1:
-        return False
-    host, port_separator, port = host_port.rpartition(":")
-    if not port_separator:
-        host = port
-        port = ""
-    if _URI_REG_NAME.fullmatch(host) is None:
-        return False
-    return not port_separator or not port or port.isdigit()
-
-
-def _is_uri_reference(value: object) -> bool:
-    """Return whether a string is a well-formed RFC 3986 URI reference.
-
-    ``urllib.parse`` intentionally accepts malformed input, so the split is
-    combined with lightweight checks for the RFC 3986 character set, percent
-    encoding, fragments, schemes, and relative-path syntax.
-    """
-    if (
-        not isinstance(value, str)
-        or _URI_REFERENCE_CHARACTERS.fullmatch(value) is None
-        or _INVALID_PERCENT_ENCODING.search(value)
-        or value.count("#") > 1
-    ):
-        return False
-
-    try:
-        parsed = urlsplit(value)
-    except ValueError:
-        return False
-
-    invalid_scheme = bool(
-        parsed.scheme and _URI_SCHEME.fullmatch(parsed.scheme) is None
-    )
-    brackets_outside_authority = any(
-        "[" in component or "]" in component
-        for component in (parsed.path, parsed.query, parsed.fragment)
-    )
-    invalid_authority = bool(parsed.netloc and not _is_valid_authority(parsed.netloc))
-
-    # RFC 3986 path-noscheme forbids a colon in the first relative segment.
-    first_path_segment = parsed.path.split("/", maxsplit=1)[0]
-    invalid_relative_path = bool(
-        not parsed.scheme and not value.startswith("//") and ":" in first_path_segment
-    )
-
-    return not any(
-        (
-            invalid_scheme,
-            brackets_outside_authority,
-            invalid_authority,
-            invalid_relative_path,
-        )
-    )
-
-
 @dataclass(frozen=True)
 class ProblemDetails:
-    """A validated vBase RFC 9457 Problem Details document."""
+    """A vBase Problem Details document with structural and basic URI checks."""
 
     type: str
     title: str
@@ -129,7 +49,7 @@ class ProblemDetails:
     extensions: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Reject invalid documents created through the public constructor."""
+        """Check member structure and reject obviously malformed references."""
         extensions_valid = isinstance(self.extensions, Mapping) and not any(
             member in self.extensions for member in _STANDARD_MEMBERS
         )
@@ -149,11 +69,11 @@ class ProblemDetails:
         )
         if not all(
             (
-                _is_uri_reference(self.type),
+                _passes_uri_reference_checks(self.type),
                 isinstance(self.title, str),
                 status_valid,
                 isinstance(self.detail, str),
-                self.instance is None or _is_uri_reference(self.instance),
+                self.instance is None or _passes_uri_reference_checks(self.instance),
                 code_valid,
                 details_valid,
             )
@@ -167,7 +87,7 @@ class ProblemDetails:
 
     @classmethod
     def from_dict(cls, payload: object) -> Optional["ProblemDetails"]:
-        """Parse the vBase Problem Details schema, or return ``None``."""
+        """Parse a problem, or return ``None`` if SDK consumer checks fail."""
         if not isinstance(payload, dict) or (
             "instance" in payload and payload["instance"] is None
         ):
@@ -218,7 +138,7 @@ class ProblemDetails:
 
 
 class ProblemDetailsError(requests.HTTPError):
-    """HTTP failure carrying a validated RFC 9457 problem document.
+    """HTTP failure carrying a problem that passed SDK consumer checks.
 
     The exception remains compatible with callers that catch
     :class:`requests.HTTPError` and preserves the original response.
@@ -285,7 +205,7 @@ class ProblemDetailsError(requests.HTTPError):
     def from_response(
         cls, response: requests.Response
     ) -> Optional["ProblemDetailsError"]:
-        """Build an error from a conforming RFC 9457 HTTP response."""
+        """Build an error after checking the response's media type and profile."""
         content_type = response.headers.get("Content-Type", "")
         media_type = content_type.partition(";")[0].strip().lower()
         if media_type != PROBLEM_JSON_MEDIA_TYPE:

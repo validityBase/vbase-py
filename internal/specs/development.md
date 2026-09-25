@@ -38,13 +38,22 @@ python3 -m unittest discover -s vbase/tests
 Forwarder Problem Details parsing follows the SDK consumer profile in
 `docs/problem-details.schema.json`. The profile deliberately remains
 forward-compatible; the Forwarder owns its producer-specific error catalog.
-The RFC standard members plus the vBase `code` extension must be valid before
-the SDK raises `ProblemDetailsError`. Codes contain only uppercase ASCII
-letters, digits, and underscores and are limited to 64 characters.
-The required `type` and optional `instance` members must be valid RFC 3986 URI
-references; `instance` may be omitted. The optional `details` member may also be
-omitted, but when present it must be a JSON object. Malformed documents remain
-ordinary `requests.HTTPError` instances.
+The SDK checks the standard members' structure plus the vBase `code` extension
+before raising `ProblemDetailsError`. Codes contain only uppercase ASCII
+letters, digits, and underscores and are limited to 64 characters. The optional
+`details` member may be omitted, but when present it must be a JSON object.
+Responses failing these checks remain ordinary `requests.HTTPError` instances.
+
+Producers must supply RFC 3986 URI references for `type` and `instance`;
+`instance` may be omitted, but not JSON null. The SDK treats them as identifiers
+and applies lightweight checks: ASCII strings without raw whitespace/control
+characters, well-formed percent escapes, and successful `urlsplit` parsing.
+It does not certify full URI syntax or URL safety. Schema `uri-reference`
+formats are producer-contract annotations, not exhaustive runtime assertions.
+Do not add a URI-validation dependency or a custom authority/IP/port grammar.
+Parsing uses a lowercase validation copy for the IPvFuture marker; identifiers
+are preserved unchanged and are never dereferenced. Tests cover both fields,
+including the deliberate boundary between sanity checks and full validation.
 
 ## Environment
 

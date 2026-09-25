@@ -153,14 +153,24 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
     def test_uri_reference_formats_are_supported(self):
         """Accept absolute, URN, network-path, and relative URI references."""
         valid_references = (
+            "",
+            "about:blank",
+            "#request",
+            "?source=sdk",
             "https://example.invalid/problems/bad-request",
             "urn:uuid:9bc21f1c-0acc-4e01-934d-d9b4bb75576e",
             "//example.invalid/problems/bad-request",
-            "https://docs.vbase.com:99999/problems/bad-request",
+            "https://example.invalid:99999/problems/bad-request",
+            "https://example.invalid:123456/problems/bad-request",
+            "https://@example.invalid/problems/bad-request",
+            "https://256.1.2.3/problems/bad-request",
             "https://[2001:db8::1]/problems/bad-request",
             "https://[::ffff:192.0.2.128]/problems/bad-request",
             "https://[v1.fe80]/problems/bad-request",
+            "https://[V1.fe80]/problems/bad-request",
+            "HTTPS://example.invalid/%2fProblem?#",
             "/problems/bad-request",
+            "/problems/%0A",
             "../problems/bad-request?source=sdk#request",
         )
         for reference in valid_references:
@@ -177,38 +187,89 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                 )
 
                 self.assertIsNotNone(problem)
+                self.assertEqual(problem.type, reference)
+                self.assertEqual(problem.instance, reference)
+                self.assertEqual(problem.to_dict()["type"], reference)
+                self.assertEqual(problem.to_dict()["instance"], reference)
 
-    def test_malformed_uri_references_are_rejected(self):
-        """Reject malformed raw URI-reference values without normalizing them."""
+    def test_obviously_malformed_references_are_rejected(self):
+        """Reject raw-input defects and standard-library parsing failures."""
         invalid_references = (
             "not a valid URI reference",
             "https://example.com/%ZZ",
-            "1invalid:scheme",
+            "https://example.com/%",
+            "https://example.com/%2",
             "https://[invalid",
             "https://[invalid]",
             "https://[]",
-            "https://[fe80::1%25eth0]",
             "https://[::ffff:256.1.2.3]/problems/bad-request",
             "https://[::ffff:192.168.1]/problems/bad-request",
             "https://[::ffff:192.168.001.1]/problems/bad-request",
-            "https://example.com:invalid",
-            "https://first@second@example.com/problem",
-            "https://example.com/one#two#three",
             "https://example.com/проблема",
+            "https://example.com/\u212a",
+            "https://example.com/problem\n",
+            "https://example.com/pro\tblem",
+            "https://example.com/pro\x00blem",
+            "https://example.com/pro\x1fblem",
+            "https://example.com/pro\x7fblem",
+            " https://example.com/problem",
         )
         for reference in invalid_references:
-            with self.subTest(reference=reference):
-                problem = ProblemDetails.from_dict(
-                    {
-                        "type": reference,
-                        "title": "Bad Request",
-                        "status": 400,
-                        "detail": "Invalid request.",
-                        "code": "BAD_REQUEST",
-                    }
-                )
+            for member in ("type", "instance"):
+                with self.subTest(member=member, reference=reference):
+                    problem = ProblemDetails.from_dict(
+                        self._problem_payload(**{member: reference})
+                    )
 
-                self.assertIsNone(problem)
+                    self.assertIsNone(problem)
+
+    def test_reference_checks_do_not_validate_authority(self):
+        """SDK sanity checks are not full URI or connection-target validation."""
+        for reference in (
+            "https://example.invalid:service/problem",
+            "https://first@second@example.invalid/problem",
+        ):
+            for member in ("type", "instance"):
+                with self.subTest(member=member, reference=reference):
+                    response = self._make_response(
+                        402, self._problem_payload(**{member: reference})
+                    )
+                    error = ProblemDetailsError.from_response(response)
+
+                    self.assertIsNotNone(error)
+                    self.assertEqual(error.problem.to_dict()[member], reference)
+                    self.assertIs(error.response, response)
+
+    def test_non_string_references_are_rejected(self):
+        """Keep JSON member types strict even with lightweight URI checks."""
+        for reference in (None, 123, True, [], {}):
+            for member in ("type", "instance"):
+                with self.subTest(member=member, reference=reference):
+                    problem = ProblemDetails.from_dict(
+                        self._problem_payload(**{member: reference})
+                    )
+
+                    self.assertIsNone(problem)
+
+    def test_malformed_uri_references_preserve_http_error(self):
+        """Never repair a malformed URI and promote its response to a problem."""
+        for reference in (
+            "https://example.invalid/a b",
+            "https://example.invalid/%ZZ",
+            "https://[invalid]",
+            "https://example.invalid/problem\n",
+        ):
+            for member in ("type", "instance"):
+                with self.subTest(member=member, reference=reference):
+                    response = self._make_response(
+                        402, self._problem_payload(**{member: reference})
+                    )
+
+                    with self.assertRaises(requests.HTTPError) as raised:
+                        self._call_forwarder_with_response(response)
+
+                    self.assertNotIsInstance(raised.exception, ProblemDetailsError)
+                    self.assertIs(raised.exception.response, response)
 
     def test_invalid_optional_members_remain_http_error(self):
         """Reject optional members whose values violate the public schema."""
