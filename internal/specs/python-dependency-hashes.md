@@ -18,6 +18,9 @@ The package requires Python 3.11 or newer. Lock files are generated with Python
 - `requirements.in` is the human-edited published runtime dependency source.
   It is read by `pyproject.toml` and must use dependency ranges rather than
   hash-locked pins.
+- `requirements/ci-constraints.in` is the human-edited version constraint shared
+  by the development, test, and docs lock inputs. It pins Web3 for the
+  repository's CI environments without changing the published SDK requirement.
 - `requirements/dev.in` is the human-edited development environment input.
 - `requirements/dev.txt` is generated from `requirements/dev.in` and
   includes runtime and development dependencies with hashes.
@@ -53,6 +56,11 @@ pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o req
 pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/test.txt requirements/test.in
 pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.txt requirements/docs.in
 ```
+
+To change the Web3 version used by the repository's CI environments, update
+`requirements/ci-constraints.in` and regenerate all three locks using the
+commands above. The `dev.in`, `test.in`, and `docs.in` inputs include this
+constraint with `-c`; package metadata continues to use `requirements.in`.
 
 To add or update a development dependency:
 
