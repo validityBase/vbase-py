@@ -1867,9 +1867,9 @@ sqlalchemy==2.0.50 \
     --hash=sha256:eefd9a03cc0047b14153872d228499d048bd7deaf926109c9ec25b15157b8e23 \
     --hash=sha256:f96233858e3df43932ac11589e22520da6e8aeb624b03fedfeebb0e8ea213086 \
     --hash=sha256:faffef4bcc20a1892e65e155293d99d60855bbbc79250ab712819cfd56a8e6bb
-sqlmodel==0.0.46 \
-    --hash=sha256:a1f962c0b92bc569d21e08d152fe823c61edd37a461e551636f15a153aa66bd5 \
-    --hash=sha256:c9c8b6b9642eb82aa6b5db6e6e0eea61a6fcb0b37440db35a9eecd9fc897ea3f
+sqlmodel==0.0.47 \
+    --hash=sha256:165294386c3e4b25fa02f151ca1abb0cbf5fdb76f6093a38aca33fdc30dfd485 \
+    --hash=sha256:3606430ea6db7f00c8ae2157458b9766644ea3ad365c601e26a86cf23f5910d5
 tabulate==0.10.0 \
     --hash=sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d \
     --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
