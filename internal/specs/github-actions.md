@@ -40,21 +40,25 @@
 
 ### `.github/workflows/test-forwarder-pub-dev.yml`
 
-- Runs on pull requests and pushes to `main`.
+- Runs on pushes to `main` and manual `workflow_dispatch` on `main`; it does
+  not run on pull requests because the job requires a live dev-service API key.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Runs the forwarder tests against the public dev service using `VBASE_API_KEY`.
+- Runs the forwarder tests against the public dev service using the GitHub
+  Actions secret `VBASE_API_KEY`.
 - Labels the package source as `source` so the shared test runner verifies that
   the checkout package is imported.
 - The shared runner creates a fresh ephemeral signer for each invocation, so no
   signer private key needs to be stored as a CI secret.
 - Uses a workflow-level concurrency group with `cancel-in-progress: false` so
-  independent pull request and `main` push runs do not overload the same
-  public dev forwarder account at the same time. Different runs have different
-  signer addresses, but still share the API key and account-level limits.
+  source and PyPI runs do not overload the same public dev forwarder account.
+  Different runs have different signer addresses, but still share the API key
+  and account-level limits.
 
 ### `.github/workflows/test-forwarder-pub-dev-pypi.yml`
 
-- Runs daily at 03:17 UTC and supports manual `workflow_dispatch`.
+- Runs daily at 03:17 UTC and supports manual `workflow_dispatch` on `main`;
+  it does not run on pull requests because the job requires a live dev-service
+  API key.
 - Uses a sequential Ubuntu, macOS, and Windows matrix to test the latest
   published `vbase` package from PyPI against the public dev forwarder.
 - Uses the shared `setup-python-deps@v1` action to install the cross-platform
