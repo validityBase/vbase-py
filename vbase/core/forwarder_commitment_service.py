@@ -17,6 +17,7 @@ from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from web3 import Web3
 
+from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
@@ -164,15 +165,23 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
-            # Newer servers may not return a "success" field.
-            # They signal error with HTTPError only.
-            # Check whether the "success" field is present and False
-            # to determine if an older server is returning a failure via this field.
-            if "success" in response_json and not response_json["success"]:
-                raise requests.RequestException(response_json["log"])
+            if response_json.get("success") is False:
+                raise requests.RequestException(
+                    response_json.get("log", "Forwarder API request failed.")
+                )
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
+            if http_err.response is not None:
+                api_error = ProblemDetailsError.from_response(http_err.response)
+                if api_error is not None:
+                    _LOG.error(
+                        "Forwarder API error occurred: status=%s type=%s code=%s",
+                        api_error.status,
+                        api_error.type,
+                        api_error.code,
+                    )
+                    raise api_error from http_err
             _LOG.error("HTTP error occurred: %s", http_err)
             raise http_err
         except requests.RequestException as req_err:
