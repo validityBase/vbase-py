@@ -19,7 +19,7 @@ from .models import (
 INDEXING_STALE_THRESHOLD_SECONDS = 60
 
 
-class SQLIndexingService(IndexingService):
+class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
     """
     Indexing service based on chain indexing data from sql db.
     """
