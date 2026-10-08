@@ -23,7 +23,7 @@
 ### `.github/workflows/test-localhost.yml`
 
 - Runs on pull requests and pushes to `main` and `dev`.
-- Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using `GHCR_PAT`.
+- Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
 
@@ -40,13 +40,38 @@
 
 ### `.github/workflows/test-forwarder-pub-dev.yml`
 
-- Runs on pull requests and pushes to `main`.
+- Runs on pushes to `main` and manual `workflow_dispatch` on `main`; it does
+  not run on pull requests because the job requires a live dev-service API key.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Runs the forwarder tests against the public dev service using `VBASE_API_KEY`.
+- Runs the forwarder tests against the public dev service using the GitHub
+  Actions secret `VBASE_API_KEY`.
+- Labels the package source as `source` so the shared test runner verifies that
+  the checkout package is imported.
+- The shared runner creates a fresh ephemeral signer for each invocation, so no
+  signer private key needs to be stored as a CI secret.
 - Uses a workflow-level concurrency group with `cancel-in-progress: false` so
-  independent pull request and `main` push runs do not execute against the same
-  public dev forwarder account at the same time. Serial execution avoids
-  nonce/signature races when multiple runs share `VBASE_API_KEY`.
+  source and PyPI runs do not overload the same public dev forwarder account.
+  Different runs have different signer addresses, but still share the API key
+  and account-level limits.
+
+### `.github/workflows/test-forwarder-pub-dev-pypi.yml`
+
+- Runs daily at 03:17 UTC and supports manual `workflow_dispatch` on `main`;
+  it does not run on pull requests because the job requires a live dev-service
+  API key.
+- Uses a sequential Ubuntu, macOS, and Windows matrix to test the latest
+  published `vbase` package from PyPI against the public dev forwarder.
+- Uses the shared `setup-python-deps@v1` action to install the cross-platform
+  `requirements/test.in` input with `require-hashes: false`, then runs
+  `python -m pip install --upgrade vbase` so the job exercises the package
+  users install rather than the repository checkout.
+- Runs the same `test_vbase_client` and `test_indexing_service` modules as the
+  source-install forwarder workflow. The runner loads those test modules from
+  the checkout while keeping the imported `vbase` package in site-packages.
+- The shared runner generates a fresh signer for each matrix leg; only
+  `VBASE_API_KEY` is required as a CI secret.
+- Shares the source-install workflow's concurrency group because all matrix
+  legs use the same API key and account-level limits.
 
 ### `.github/workflows/update-main-docs.yml`
 

@@ -21,7 +21,7 @@ matching utilities for auditable data provenance workflows.
 - Test and docs workflows install hashed requirements with `require-hashes`.
 - `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
   without hashes across Ubuntu, macOS, and Windows for Python 3.11 and 3.12.
-- `test-localhost.yml` requires `GHCR_PAT` to pull the localhost commitment service image.
+- `test-localhost.yml` uses the workflow `GITHUB_TOKEN` with `packages: read` to pull the localhost commitment service image.
 - Repository backups use `.github/workflows/repo-backup.yml`, which delegates
   to the shared `repo-backup.yml@v1` workflow and resolves generic object
   storage credentials from the `vbase-repo-backups` Bitwarden project.

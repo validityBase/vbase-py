@@ -30,7 +30,7 @@ forwarder, or localhost commitment service.
 
 ```bash
 ./vbase/tests/scripts/run_tests_localhost.sh
-./vbase/tests/scripts/run_tests_forwarder_pub_dev.sh
+bash .github/scripts/run_tests_forwarder_pub_dev.sh
 source config/.env.localhost
 python3 -m unittest discover -s vbase/tests
 ```
@@ -55,3 +55,12 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   fully redacted.
 - Log only whether private keys and RPC URLs are configured. Public contract
   addresses may be logged directly.
+
+## Public Dev Tests
+
+The public-dev forwarder runner requires `VBASE_API_KEY` from the environment
+or a secret manager. It generates a fresh signer private key for each invocation
+and does not use a committed or externally supplied signer key.
+
+The indexing tests use unique object CIDs for global object lookups so old
+public-chain test data does not accumulate in those queries.

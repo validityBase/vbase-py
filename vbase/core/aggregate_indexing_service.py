@@ -10,7 +10,7 @@ _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
-class AggregateIndexingService(IndexingService):
+class AggregateIndexingService(IndexingService):  # pylint: disable=abstract-method
     """This indexing service aggregates the responses from a set of indexing services
 
     Each operation executes a corresponding method on all services and aggregates the results.
