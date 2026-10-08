@@ -12,7 +12,8 @@ hash-checking mode for reproducibility.
 
 Python 3.11 is the package minimum. Lock files are generated with Python 3.11
 for CI parity and represent the CI install environment. The setup matrix
-validates the published package through Python 3.13.
+checks editable source-install importability through Python 3.13; it does not
+install a published PyPI artifact.
 
 ## Files
 

@@ -4,4 +4,4 @@
 
 ### Changed
 
-- Raised the minimum supported Python version from 3.8 to 3.11.
+- Extended the cross-platform package setup matrix to Python 3.13.
