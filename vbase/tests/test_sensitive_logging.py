@@ -18,7 +18,8 @@ class TestSensitiveLogging(unittest.TestCase):
 
     def test_mask_api_key_keeps_only_safe_prefix_and_suffix(self):
         """Long API keys retain only eight characters at each end."""
-        api_key = "qHhlk9M6-middle-secret-2fckvz-A"
+        api_key = "qHhlk9M6-middle-secretX-2fckvz-A"
+        self.assertEqual(len(api_key), 32)
 
         self.assertEqual(
             mask_api_key(api_key), "qHhlk9M6\N{HORIZONTAL ELLIPSIS}2fckvz-A"
@@ -27,13 +28,16 @@ class TestSensitiveLogging(unittest.TestCase):
     def test_mask_api_key_fully_redacts_short_keys(self):
         """Short API keys are not partially disclosed."""
         self.assertEqual(mask_api_key("short-api-key"), REDACTED_LOG_VALUE)
+        for length in (16, 17, 31):
+            with self.subTest(length=length):
+                self.assertEqual(mask_api_key("x" * length), REDACTED_LOG_VALUE)
         self.assertIsNone(mask_api_key(None))
         self.assertEqual(mask_api_key(""), "")
 
     @patch("vbase.core.forwarder_commitment_service._LOG.debug")
     def test_forwarder_environment_log_masks_credentials(self, debug_mock):
         """Forwarder diagnostics mask API keys and omit private values."""
-        api_key = "qHhlk9M6-middle-secret-2fckvz-A"
+        api_key = "qHhlk9M6-middle-secretX-2fckvz-A"
         private_key = "0x" + "11" * 32
         forwarder_url = "https://forwarder.example/path?token=forwarder-secret"
         environment = {
@@ -61,6 +65,23 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertNotIn(api_key, rendered_call)
         self.assertNotIn(private_key, rendered_call)
         self.assertNotIn(forwarder_url, rendered_call)
+
+    @patch("vbase.core.forwarder_commitment_service._LOG.debug")
+    def test_forwarder_environment_log_fully_redacts_17_character_key(self, debug_mock):
+        """A short configured API key must never be nearly exposed."""
+        api_key = "x" * 17
+        environment = {
+            "VBASE_FORWARDER_URL": "https://forwarder.example",
+            "VBASE_API_KEY": api_key,
+            "VBASE_COMMITMENT_SERVICE_PRIVATE_KEY": "0x" + "11" * 32,
+        }
+
+        with patch.dict(os.environ, environment):
+            init_args = ForwarderCommitmentService.get_init_args_from_env()
+
+        self.assertEqual(init_args["api_key"], api_key)
+        self.assertEqual(debug_mock.call_args.args[1]["api_key"], REDACTED_LOG_VALUE)
+        self.assertNotIn(api_key, repr(debug_mock.call_args))
 
     @patch("vbase.core.web3_http_commitment_service._LOG.debug")
     def test_web3_environment_log_omits_private_rpc_values(self, debug_mock):

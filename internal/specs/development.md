@@ -51,8 +51,8 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 - Never log complete API keys, private keys, access tokens, credentials, or RPC
   URLs that may contain provider credentials.
 - API keys needed for diagnostic correlation use `vbase.utils.log.mask_api_key`,
-  which retains at most the first and last eight characters. Short keys are
-  fully redacted.
+  which retains the first and last eight characters only for keys of at least
+  32 characters. Shorter keys are fully redacted.
 - Log only whether private keys and RPC URLs are configured. Public contract
   addresses may be logged directly.
 
