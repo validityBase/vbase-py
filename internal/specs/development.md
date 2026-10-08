@@ -56,6 +56,11 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 - Log only whether private keys and RPC URLs are configured. Public contract
   addresses may be logged directly.
 
+- Indexing descriptors may contain credentials: log only the commitment service
+  count, never the descriptor or individual service configuration.
+- Do not log exception text from forwarder or RPC connection failures; it may
+  contain credential-bearing URLs.
+
 ## Public Dev Tests
 
 The public-dev forwarder runner requires `VBASE_API_KEY` from the environment

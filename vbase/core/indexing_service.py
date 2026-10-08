@@ -6,7 +6,6 @@ Such services enable queries of past commitments.
 import json
 import logging
 import os
-import pprint
 from abc import ABC
 from typing import List, Union, cast
 
@@ -218,11 +217,11 @@ class Web3HTTPIndexingService(IndexingService):
         # Process the environment variable and create the defined commitment services.
         is_dict = json.loads(is_json)
         cs_list = []
+        _LOG.info(
+            "Initializing indexing service. commitment_service_count=%d",
+            len(is_dict["commitment_services"]),
+        )
         for cs_dict in is_dict["commitment_services"]:
-            _LOG.info(
-                "IndexingService.create_instance_from_env_json_descriptor(): cs_dict =\n%s",
-                pprint.pformat(cs_dict),
-            )
             cs_class = cs_dict["class"]
             cs_init_args = cs_dict["init_args"]
             if cs_class == "Web3HTTPCommitmentService":
@@ -250,12 +249,6 @@ class Web3HTTPIndexingService(IndexingService):
             raise EnvironmentError(
                 "Missing required environment variable VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR"
             )
-        _LOG.info(
-            "IndexingService.create_instance_from_env_json_descriptor(): "
-            "VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
-            pprint.pformat(is_json),
-        )
-
         return Web3HTTPIndexingService.create_instance_from_json_descriptor(is_json)
 
     @staticmethod

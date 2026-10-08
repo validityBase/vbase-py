@@ -1,10 +1,14 @@
 """Unit tests for sensitive-value logging safeguards."""
 
+import json
 import os
 import unittest
 from unittest.mock import patch
 
+import requests
+
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key
 
@@ -101,6 +105,99 @@ class TestSensitiveLogging(unittest.TestCase):
             )
 
         self.assertNotIn(node_rpc_url, repr(error_mock.call_args))
+        self.assertNotIn(node_rpc_url, str(raised.exception))
+
+    def test_indexing_descriptor_log_omits_private_values(self):
+        """Indexer configuration logs only a safe count."""
+        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+        private_key = "0x" + "44" * 32
+        init_args = {
+            "node_rpc_url": node_rpc_url,
+            "commitment_service_address": "0x" + "33" * 20,
+            "private_key": private_key,
+        }
+        descriptor = {
+            "commitment_services": [
+                {"class": "Web3HTTPCommitmentService", "init_args": init_args}
+            ]
+        }
+        environment = {"VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR": json.dumps(descriptor)}
+
+        with (
+            patch.dict(os.environ, environment),
+            patch("vbase.core.indexing_service._LOG.info") as info_mock,
+            patch(
+                "vbase.core.indexing_service.Web3HTTPCommitmentService"
+            ) as service_mock,
+        ):
+            indexer = Web3HTTPIndexingService.create_instance_from_env_json_descriptor()
+
+        self.assertEqual(indexer.commitment_services, [service_mock.return_value])
+        service_mock.assert_called_once_with(**init_args)
+        info_mock.assert_called_once_with(
+            "Initializing indexing service. commitment_service_count=%d", 1
+        )
+        self.assertNotIn(node_rpc_url, repr(info_mock.call_args_list))
+        self.assertNotIn(private_key, repr(info_mock.call_args_list))
+
+    @patch("vbase.core.forwarder_commitment_service._LOG.error")
+    @patch("vbase.core.forwarder_commitment_service.requests.get")
+    def test_forwarder_http_error_log_omits_url(self, get_mock, error_mock):
+        """HTTP failures must not log a credential-bearing request URL."""
+        secret = "private-forwarder-token"
+        service = object.__new__(ForwarderCommitmentService)
+        service.forwarder_url = f"https://forwarder.example/?token={secret}"
+        service.api_key = "test-api-key"
+        get_mock.return_value.raise_for_status.side_effect = requests.HTTPError(
+            service.forwarder_url
+        )
+
+        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
+            with self.assertRaises(requests.HTTPError):
+                service.get_commitment_service_data()
+
+        error_mock.assert_called_once_with("Forwarder HTTP request failed")
+        self.assertNotIn(secret, repr(error_mock.call_args_list))
+
+    @patch("vbase.core.forwarder_commitment_service._LOG.error")
+    @patch("vbase.core.forwarder_commitment_service.requests.get")
+    def test_forwarder_transport_error_log_omits_url(self, get_mock, error_mock):
+        """Transport failures must not log a credential-bearing request URL."""
+        secret = "private-forwarder-token"
+        service = object.__new__(ForwarderCommitmentService)
+        service.forwarder_url = f"https://forwarder.example/?token={secret}"
+        service.api_key = "test-api-key"
+        get_mock.side_effect = requests.ConnectionError(service.forwarder_url)
+
+        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
+            with self.assertRaises(requests.ConnectionError):
+                service.get_commitment_service_data()
+
+        error_mock.assert_called_once_with("Forwarder request failed")
+        self.assertNotIn(secret, repr(error_mock.call_args_list))
+
+    @patch("vbase.core.web3_http_commitment_service.time.sleep")
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
+    @patch("vbase.core.web3_http_commitment_service._LOG.error")
+    @patch("vbase.core.web3_http_commitment_service.Web3")
+    def test_web3_connection_exception_log_omits_rpc_url(
+        self, web3_mock, error_mock, _sleep_mock
+    ):
+        """Provider errors may include a credential-bearing RPC URL."""
+        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+        web3_mock.return_value.is_connected.side_effect = (
+            ConnectionError(node_rpc_url),
+            False,
+        )
+
+        with self.assertRaises(ConnectionError) as raised:
+            Web3HTTPCommitmentService(
+                node_rpc_url=node_rpc_url,
+                commitment_service_address="0x" + "33" * 20,
+            )
+
+        error_mock.assert_called_once_with("Web3 node RPC connection attempt failed")
+        self.assertNotIn(node_rpc_url, repr(error_mock.call_args_list))
         self.assertNotIn(node_rpc_url, str(raised.exception))
 
 

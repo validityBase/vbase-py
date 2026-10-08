@@ -176,12 +176,12 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 raise requests.RequestException(response_json["log"])
             response_data = response_json["data"]
 
-        except requests.HTTPError as http_err:
-            _LOG.error("HTTP error occurred: %s", http_err)
-            raise http_err
-        except requests.RequestException as req_err:
-            _LOG.error("Request error occurred: %s", req_err)
-            raise req_err
+        except requests.HTTPError:
+            _LOG.error("Forwarder HTTP request failed")
+            raise
+        except requests.RequestException:
+            _LOG.error("Forwarder request failed")
+            raise
         except ValueError as err:
             _LOG.error("Invalid JSON received!")
             raise err

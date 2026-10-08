@@ -106,11 +106,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 raise ConnectionError(
                     "Failed to connect to configured node RPC endpoint"
                 )
-            except ConnectionError as e:
-                _LOG.error(
-                    "Web3HTTPCommitmentService.__init__(): %s",
-                    e,
-                )
+            except ConnectionError:
+                _LOG.error("Web3 node RPC connection attempt failed")
                 retry_count += 1
                 backoff += _W3_CONNECTION_BACKOFF
                 time.sleep(backoff)
