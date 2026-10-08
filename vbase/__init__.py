@@ -8,6 +8,7 @@ from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 from vbase.core.indexing_service import IndexingService, Web3HTTPIndexingService
+from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
 from vbase.core.sql_indexing_service import SQLIndexingService
 from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
@@ -49,6 +50,8 @@ __all__ = [
     "Web3HTTPCommitmentService",
     "Web3HTTPCommitmentServiceTest",
     "ForwarderCommitmentService",
+    "ProblemDetails",
+    "ProblemDetailsError",
     "ForwarderCommitmentServiceTest",
     "IndexingService",
     "Web3HTTPIndexingService",
