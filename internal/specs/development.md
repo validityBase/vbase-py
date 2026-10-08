@@ -58,8 +58,8 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 
 - Indexing descriptors may contain credentials: log only the commitment service
   count, never the descriptor or individual service configuration.
-- Do not log exception text from forwarder or RPC connection failures; it may
-  contain credential-bearing URLs.
+- Do not log exception text or service objects from forwarder, RPC connection,
+  or failover indexing failures; they may contain credential-bearing URLs.
 
 ## Public Dev Tests
 
