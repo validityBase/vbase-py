@@ -9,7 +9,7 @@ _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
-class FailoverIndexingService(IndexingService):
+class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-method
     """This indexing service calls a set of indexing services one after another
     and provides a failover mechanism to ensure that if one service fails,
     another service can be used to retrieve the data.
