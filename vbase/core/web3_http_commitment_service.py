@@ -94,10 +94,12 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # Connect to the node with retries and backoff.
         retry_count = 0
         backoff = 0
+        connected = False
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
                 w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
                 if w3.is_connected():
+                    connected = True
                     _LOG.debug(
                         "Web3HTTPCommitmentService.__init__(): "
                         "Connected to configured node RPC endpoint"
@@ -112,7 +114,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 backoff += _W3_CONNECTION_BACKOFF
                 time.sleep(backoff)
 
-        if not w3.is_connected():
+        if not connected:
             raise ConnectionError(
                 "Failed to connect to configured node RPC endpoint "
                 f"after {retry_count} retries"

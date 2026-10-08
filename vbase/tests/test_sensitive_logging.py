@@ -3,7 +3,7 @@
 import json
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import requests
 
@@ -220,6 +220,45 @@ class TestSensitiveLogging(unittest.TestCase):
         error_mock.assert_called_once_with("Web3 node RPC connection attempt failed")
         self.assertNotIn(node_rpc_url, repr(error_mock.call_args_list))
         self.assertNotIn(node_rpc_url, str(raised.exception))
+
+    @patch("retry.api.time.sleep")
+    @patch("vbase.core.indexing_service._LOG.warning")
+    def test_indexing_retry_does_not_log_rpc_url(self, warning_mock, _sleep_mock):
+        """A transient provider error must not log its credential-bearing URL."""
+        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+        event_filter = Mock()
+        event_filter.get_all_entries.side_effect = [
+            ConnectionError(node_rpc_url),
+            [],
+        ]
+        indexer = Web3HTTPIndexingService([])
+
+        # pylint: disable-next=protected-access
+        self.assertEqual(indexer._retry_get_all_entries(event_filter), [])
+        self.assertEqual(event_filter.get_all_entries.call_count, 2)
+        warning_mock.assert_not_called()
+
+    @patch("vbase.core.web3_http_commitment_service.time.sleep")
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 2)
+    @patch("vbase.core.web3_http_commitment_service._LOG.error")
+    @patch("vbase.core.web3_http_commitment_service.Web3")
+    def test_web3_repeated_connection_exceptions_omit_rpc_url(
+        self, web3_mock, error_mock, _sleep_mock
+    ):
+        """The final connection failure must not repeat or expose a provider error."""
+        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+        web3_mock.return_value.is_connected.side_effect = ConnectionError(node_rpc_url)
+
+        with self.assertRaises(ConnectionError) as raised:
+            Web3HTTPCommitmentService(
+                node_rpc_url=node_rpc_url,
+                commitment_service_address="0x" + "33" * 20,
+            )
+
+        self.assertEqual(web3_mock.return_value.is_connected.call_count, 2)
+        self.assertEqual(error_mock.call_count, 2)
+        self.assertNotIn(node_rpc_url, str(raised.exception))
+        self.assertNotIn(node_rpc_url, repr(error_mock.call_args_list))
 
 
 if __name__ == "__main__":

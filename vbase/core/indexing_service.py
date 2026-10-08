@@ -291,7 +291,7 @@ class Web3HTTPIndexingService(IndexingService):
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,
             backoff=self.RETRY_BACKOFF,
-            logger=_LOG,
+            logger=None,
         )
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:
