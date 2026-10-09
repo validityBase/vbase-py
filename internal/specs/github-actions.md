@@ -33,7 +33,7 @@
 - Uses pinned `actions/setup-python` with pip caching.
 - Installs build tooling and `requirements.in` without hash checking because
   generated terminal locks target Linux wheels.
-- Verifies setup across Ubuntu, macOS, and Windows for Python 3.11 and 3.12.
+- Verifies setup across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
 - Installs the package metadata in editable mode without dependency resolution,
   runs `python -m pip check`, and imports the public `vbase` package without
   Docker, secrets, or external services.

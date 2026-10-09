@@ -238,6 +238,23 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertEqual(event_filter.get_all_entries.call_count, 2)
         warning_mock.assert_not_called()
 
+    @patch("retry.api.time.sleep")
+    @patch("vbase.core.web3_commitment_service._LOG.warning")
+    def test_set_existence_retry_does_not_log_rpc_url(self, warning_mock, _sleep_mock):
+        """A transient set lookup error must not log its credential-bearing URL."""
+        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+        service = object.__new__(Web3HTTPCommitmentService)
+        with patch.object(
+            service,
+            "user_set_exists",
+            side_effect=[ConnectionError(node_rpc_url), True],
+        ) as exists_mock:
+            # pylint: disable-next=protected-access
+            self.assertIsNone(service._user_set_exists_with_retry("0xabc", "0xdef"))
+
+        self.assertEqual(exists_mock.call_count, 2)
+        warning_mock.assert_not_called()
+
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
     @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 2)
     @patch("vbase.core.web3_http_commitment_service._LOG.error")

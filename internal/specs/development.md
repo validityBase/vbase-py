@@ -2,8 +2,8 @@
 
 ## Setup
 
-Python 3.11 is the minimum supported version. CI validates Python 3.11 and 3.12,
-and generated lock files are maintained with Python 3.11.
+Python 3.11 is the minimum supported version. CI validates Python 3.11 through
+3.13, and generated lock files are maintained with Python 3.11 for CI parity.
 
 ```bash
 python -m pip install --require-hashes -r requirements/dev.txt
