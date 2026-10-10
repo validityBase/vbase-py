@@ -45,8 +45,27 @@ Test environment files live under `config/`:
 
 Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 `VBASE_COMMITMENT_SERVICE_ADDRESS`, and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
+
+## Sensitive Logging
+
+- Never log complete API keys, private keys, access tokens, credentials, or RPC
+  URLs that may contain provider credentials.
+- API keys needed for diagnostic correlation use `vbase.utils.log.mask_api_key`,
+  which retains the first and last eight characters only for keys of at least
+  32 characters. Shorter keys are fully redacted.
+- Log only whether private keys and RPC URLs are configured. Public contract
+  addresses may be logged directly.
+
+- Indexing descriptors may contain credentials: log only the commitment service
+  count, never the descriptor or individual service configuration.
+- Do not log exception text or service objects from forwarder, RPC connection,
+  or failover indexing failures; they may contain credential-bearing URLs.
+
+## Public Dev Tests
+
 The public-dev forwarder runner requires `VBASE_API_KEY` from the environment
 or a secret manager. It generates a fresh signer private key for each invocation
 and does not use a committed or externally supplied signer key.
+
 The indexing tests use unique object CIDs for global object lookups so old
 public-chain test data does not accumulate in those queries.

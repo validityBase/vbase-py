@@ -27,8 +27,13 @@ class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-meth
         for service in self.services:
             try:
                 return getattr(service, method_name)(*args, **kwargs)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                _LOG.error("Service %s failed with error: %s", service, e)
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                _LOG.error(
+                    "Indexing service failed. service_type=%s method=%s error_type=%s",
+                    type(service).__name__,
+                    method_name,
+                    type(error).__name__,
+                )
 
         raise RuntimeError("All services failed to execute the method.")
 
