@@ -9,6 +9,7 @@ import requests
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
+from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key
 
@@ -178,6 +179,43 @@ class TestSensitiveLogging(unittest.TestCase):
                 service.get_commitment_service_data()
 
         error_mock.assert_called_once_with("Forwarder HTTP request failed")
+        self.assertNotIn(secret, repr(error_mock.call_args_list))
+
+    @patch("vbase.core.forwarder_commitment_service._LOG.error")
+    @patch("vbase.core.forwarder_commitment_service.requests.get")
+    def test_structured_forwarder_error_log_omits_untrusted_type(
+        self, get_mock, error_mock
+    ):
+        """A valid problem type cannot copy URL credentials into the SDK log."""
+        secret = "private-forwarder-token"
+        response = requests.Response()
+        response.status_code = 402
+        response.url = "https://forwarder.example/commitment-service-data"
+        response.headers["Content-Type"] = "application/problem+json"
+        response._content = json.dumps(  # pylint: disable=protected-access
+            {
+                "type": f"https://forwarder.example/problems/credits?token={secret}",
+                "title": "Insufficient Credits",
+                "status": 402,
+                "detail": "Insufficient credits.",
+                "code": "INSUFFICIENT_CREDITS",
+            }
+        ).encode("utf-8")
+        response.request = requests.Request("GET", response.url).prepare()
+        get_mock.return_value = response
+        service = object.__new__(ForwarderCommitmentService)
+        service.forwarder_url = "https://forwarder.example/"
+        service.api_key = "test-api-key"
+
+        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
+            with self.assertRaises(ProblemDetailsError):
+                service.get_commitment_service_data()
+
+        error_mock.assert_called_once_with(
+            "Forwarder API error occurred: status=%s code=%s",
+            402,
+            "INSUFFICIENT_CREDITS",
+        )
         self.assertNotIn(secret, repr(error_mock.call_args_list))
 
     @patch("vbase.core.forwarder_commitment_service._LOG.error")

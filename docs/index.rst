@@ -11,3 +11,4 @@ vBase Python SDK Documentation
    dataset_commitments
    addresses
    api
+   errors
