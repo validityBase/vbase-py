@@ -4,11 +4,7 @@ import logging
 import time
 import unittest
 from datetime import datetime, timedelta
-from io import BytesIO
-from pathlib import Path
 
-import imageio
-import numpy as np
 import pandas as pd
 
 from vbase.core.vbase_client import VBaseClient
@@ -35,34 +31,6 @@ from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
-
-
-def create_png_bytes_from_array(array: np.ndarray) -> bytes:
-    """Create a PNG image from a NumPy array and return it as bytes."""
-    buf = BytesIO()
-    imageio.imwrite(buf, array, format="png")
-    return buf.getvalue()
-
-
-def create_test_image(save_file: bool = False) -> bytes:
-    """Create a simple 200x200 black PNG image in memory.
-
-    Args:
-        save_file (bool): If True, saves the image as 'image_sample.png' next to the script.
-
-    Returns:
-        bytes: The image content in bytes.
-
-    """
-    img = np.zeros((200, 200, 3), dtype=np.uint8)
-    image_bytes = create_png_bytes_from_array(img)
-    # Optionally save to disk
-    if save_file:
-        image_path = Path(__file__).parent / "image_sample.png"
-        with open(image_path, "wb") as f:
-            f.write(image_bytes)
-
-    return image_bytes
 
 
 class TestVBaseDataset(unittest.TestCase):
@@ -356,13 +324,15 @@ class TestVBaseDataset(unittest.TestCase):
         assert cid_str is not None
         assert cid_bytes == cid_str
 
-    def test_image_cid_consistency(self):
-        """Verify CID for image file is deterministic and matches manual SHA3-256."""
-        image_bytes = create_test_image()
-        expected_cid = sha3_256_hash_bytes(image_bytes)
-        vbo = VBaseBytesObject(init_data=image_bytes)
+    def test_binary_cid_consistency(self) -> None:
+        """Verify binary data CIDs are deterministic and match manual SHA3-256."""
+        # Include every byte value, including nulls and non-UTF-8 bytes.
+        data_bytes = bytes(range(256))
+        expected_cid = sha3_256_hash_bytes(data_bytes)
+        vbo = VBaseBytesObject(init_data=data_bytes)
         cid = vbo.get_cid()
-        assert cid == expected_cid, f"Expected {expected_cid}, got {cid}"
+        self.assertEqual(cid, expected_cid)
+        self.assertEqual(VBaseBytesObject(init_data=data_bytes).get_cid(), cid)
 
 
 if __name__ == "__main__":

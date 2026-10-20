@@ -1,7 +1,7 @@
 """Tests for FailoverIndexingService."""
 
 import unittest
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, patch
 
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.indexing_service import IndexingService
@@ -32,6 +32,27 @@ class TestFailoverIndexingService(unittest.TestCase):
         self.assertEqual(result, [{"id": 2}])
         self.service1.find_user_sets.assert_called_once_with("user2")
         self.service2.find_user_sets.assert_called_once_with("user2")
+
+    @patch("vbase.core.failover_indexing_service._LOG.error")
+    def test_failover_log_omits_rpc_url(self, error_mock):
+        """Fallback preserves behavior without logging provider credentials."""
+        secret_url = "https://rpc.example/v2/private-rpc-token"
+        self.service1.find_user_sets.side_effect = ConnectionError(secret_url)
+        self.service1.__str__.return_value = secret_url
+        self.service2.find_user_sets.return_value = [{"id": 2}]
+
+        result = self.failover_service.find_user_sets("user2")
+
+        self.assertEqual(result, [{"id": 2}])
+        self.service2.find_user_sets.assert_called_once_with("user2")
+        error_mock.assert_called_once_with(
+            "Indexing service failed. service_type=%s method=%s error_type=%s",
+            type(self.service1).__name__,
+            "find_user_sets",
+            "ConnectionError",
+        )
+        log_format, *log_args = error_mock.call_args.args
+        self.assertNotIn(secret_url, log_format % tuple(log_args))
 
     def test_find_user_sets_all_services_fail(self):
         """Raises an exception with 'All services failed' when every service fails."""

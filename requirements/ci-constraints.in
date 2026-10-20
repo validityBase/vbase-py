@@ -1,0 +1,3 @@
+# Pin Web3 for the repository's generated development, test, and docs locks.
+# The published SDK supports the broader range in ../requirements.in.
+web3==8.0.0

@@ -28,7 +28,8 @@ private variants.
 ## Datasets
 
 `vbase/core/vbase_dataset.py` manages collections of vBase objects with
-provenance. `VBaseDatasetAsync` provides non-blocking dataset operations.
+provenance. `vbase/core/vbase_dataset_async.py` provides `VBaseDatasetAsync`
+for non-blocking dataset operations.
 
 ## Set Matching
 

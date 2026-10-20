@@ -1,4 +1,5 @@
 -r ../requirements.in
+-c ci-constraints.in
 
 aiohttp>=3.14.1
 
