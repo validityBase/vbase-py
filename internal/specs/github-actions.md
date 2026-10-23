@@ -80,3 +80,18 @@
 - Installs `requirements/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
+
+### Python release workflow wrappers
+
+- `prepare-release.yml` calls the shared `prepare-python-release.yml` with an
+  explicit patch/minor/major increment and `version-file: vbase/_version.py`.
+- `tag-release.yml` calls `tag-python-release.yml` for merged release PRs;
+  ordinary, unmerged, and fork PRs do not publish.
+- `publish-pypi.yml` calls `build-python-release.yml` with `package-name: vbase`,
+  uploads through the shared composite inside its existing caller-owned `pypi`
+  job, and calls `github-python-release.yml` after upload succeeds.
+- The shared workflow SHA and release-tools-ref match. Scripts and tests remain
+  in the shared-actions repository. The upload workflow filename, PyPI project,
+  environment, and OIDC trusted-publisher identity are retained.
+- The runbook is [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); repository
+  settings and behavior are in [pypi-releases.md](pypi-releases.md).

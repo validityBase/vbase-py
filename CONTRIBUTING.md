@@ -38,8 +38,14 @@ both files in the pull request. Do not edit generated lock files by hand.
 See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
 for the exact commands.
 
-## Publishing Releases
+## Changelog and Releases
 
-- Update the package version in `vbase/_version.py`.
-- For a production publish, create and publish a GitHub Release or run the `Publish Python Package to PyPI` workflow manually.
-- Configure the GitHub environment named `pypi` and add a matching trusted publisher in PyPI before the first publish.
+Add user-facing changes under `[Unreleased]` in `CHANGELOG.md`; ordinary PRs
+do not change `vbase/_version.py`. Explain why an entry is unnecessary for
+infrastructure-only changes.
+
+Follow [RELEASE_MANAGEMENT.md](RELEASE_MANAGEMENT.md) to select a patch, minor,
+or major increment in **Prepare release**, approve workflows on its generated
+PR when prompted, and review and merge that PR when ready to publish. Merging
+a reviewed Release PR automatically tags its merged commit and starts
+publication. Shared tooling is maintained in `validityBase/vbase-github-actions`.

@@ -1,3 +1,4 @@
 include README.md
 include requirements.in
 recursive-include vbase/core/abi *.json
+include CHANGELOG.md
