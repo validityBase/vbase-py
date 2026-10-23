@@ -1,0 +1,22 @@
+name: Prepare release
+'on':
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version increment (major for breaking changes)
+        type: choice
+        required: true
+        options:
+        - patch
+        - minor
+        - major
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  prepare:
+    uses: validityBase/vbase-github-actions/.github/workflows/prepare-python-release.yml@90bb174056b74032c5f750473d2b42f4b1fa1797
+    with:
+      version-file: vbase/_version.py
+      release-tools-ref: 90bb174056b74032c5f750473d2b42f4b1fa1797
+      bump: ${{ inputs.bump }}
