@@ -3,7 +3,9 @@
 ## Policy
 
 - Third-party actions are pinned by full commit SHA for reproducibility.
-- Shared vBase-owned actions and reusable workflows use `validityBase/vbase-github-actions` with reviewed release tags such as `@v1`.
+- Shared vBase-owned release workflows and composite actions are pinned by full
+  commit SHA; each release-tools-ref matches its workflow SHA. Non-release
+  workflows may use reviewed shared release tags such as `@v1`.
 - Workflow permissions are declared explicitly and kept minimal.
 - Linux dependency verification workflows use generated hash-locked terminal
   environment requirements with `require-hashes`.

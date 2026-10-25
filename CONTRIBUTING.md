@@ -24,6 +24,54 @@ To contribute code or documentation, please do the following:
 - Submit a pull request for your change.
 Provide a detailed description of the changes and any supporting information.
 
+## Development Setup
+
+From your cloned repository, use Python 3.11 (the version used to generate CI
+locks) and create a virtual environment. The activation command is for
+macOS/Linux; on Windows PowerShell use `venv\Scripts\Activate.ps1`.
+
+```bash
+python -m venv venv
+source venv/bin/activate
+python -m pip install --require-hashes -r requirements/dev.txt
+python -m pip install --no-deps --no-build-isolation -e .
+pre-commit install
+```
+
+The generated locks target Linux wheels. For local development on macOS or
+Windows, replace the requirements install with
+`python -m pip install -r requirements/dev.in`.
+
+Check your environment and run formatting/lint checks:
+
+```bash
+python -m pip check
+python -c "import vbase"
+pre-commit run --all-files
+pylint vbase/
+```
+
+Tests use `unittest` and require a configured commitment service. With a
+localhost service running and `config/.env.localhost` configured, run:
+
+```bash
+bash vbase/tests/scripts/run_tests_localhost.sh
+```
+
+Alternatively, with authorized access to the public development forwarder and
+`VBASE_API_KEY` supplied privately in your environment, run:
+
+```bash
+bash .github/scripts/run_tests_forwarder_pub_dev.sh
+```
+
+These tests make service calls; installing the package alone does not provision
+a service. See the [development guide](internal/specs/development.md) for service
+configuration and test environment details. Do not commit credentials or include
+them in issue reports or test output.
+
+Do not report security vulnerabilities or share exploit details in public issues.
+
 ## Updating Python Dependencies
 
 Published package dependencies are managed as abstract ranges in
