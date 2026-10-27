@@ -3,7 +3,9 @@
 ## Policy
 
 - Third-party actions are pinned by full commit SHA for reproducibility.
-- Shared vBase-owned actions and reusable workflows use `validityBase/vbase-github-actions` with reviewed release tags such as `@v1`.
+- Shared vBase-owned release workflows and composite actions are pinned by full
+  commit SHA; each release-tools-ref matches its workflow SHA. Non-release
+  workflows may use reviewed shared release tags such as `@v1`.
 - Workflow permissions are declared explicitly and kept minimal.
 - Linux dependency verification workflows use generated hash-locked terminal
   environment requirements with `require-hashes`.
@@ -80,3 +82,21 @@
 - Installs `requirements/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
+
+### Python release workflow wrappers
+
+- `prepare-release.yml` calls the shared `prepare-python-release.yml` with an
+  explicit patch/minor/major increment and `version-file: vbase/_version.py`.
+- `tag-release.yml` calls `tag-python-release.yml` for merged release PRs;
+  ordinary, unmerged, and fork PRs do not publish.
+- `publish-pypi.yml` calls `build-python-release.yml` with `package-name: vbase`,
+  downloads the validated artifact and invokes the pinned PyPA publisher directly inside its existing caller-owned `pypi`
+  job, and calls `github-python-release.yml` after upload succeeds.
+- Manual dispatch accepts an optional `release-tag` and forwards it to both
+  build and GitHub Release creation. An explicit tag requires dispatch from
+  `main`; the selected full tag ref shares a concurrency lock with tag runs.
+- The shared workflow SHA and release-tools-ref match. Scripts and tests remain
+  in the shared-actions repository. The upload workflow filename, PyPI project,
+  environment, and OIDC trusted-publisher identity are retained.
+- The runbook is [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); repository
+  settings and behavior are in [pypi-releases.md](pypi-releases.md).
