@@ -3,20 +3,27 @@ name: Publish Python Package to PyPI
   push:
     tags:
     - v[0-9]*.[0-9]*.[0-9]*
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: Existing unpublished release tag (leave empty when running at a tag)
+        type: string
+        required: false
+        default: ''
 concurrency:
-  group: pypi-${{ github.ref }}
+  group: pypi-${{ inputs.release-tag && format('refs/tags/{0}', inputs.release-tag) || github.ref }}
   cancel-in-progress: false
 permissions:
   contents: read
   actions: write
 jobs:
   build:
-    uses: validityBase/vbase-github-actions/.github/workflows/build-python-release.yml@24bce39c7e11510238b189ee14abcdf7e129aae6
+    uses: validityBase/vbase-github-actions/.github/workflows/build-python-release.yml@7c910e039185487d620b26ae06cfa83f408be5eb
     with:
       version-file: vbase/_version.py
-      release-tools-ref: 24bce39c7e11510238b189ee14abcdf7e129aae6
+      release-tools-ref: 7c910e039185487d620b26ae06cfa83f408be5eb
       package-name: vbase
+      release-tag: ${{ inputs.release-tag }}
   publish-to-pypi:
     needs: build
     runs-on: ubuntu-24.04
@@ -27,10 +34,18 @@ jobs:
       id-token: write
       actions: read
     steps:
-    - uses: validityBase/vbase-github-actions/.github/actions/publish-python-release@24bce39c7e11510238b189ee14abcdf7e129aae6
+    - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+      with:
+        name: python-package-distributions
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
+      with:
+        packages-dir: dist
   github-release:
     needs: publish-to-pypi
     permissions:
       contents: write
       actions: read
-    uses: validityBase/vbase-github-actions/.github/workflows/github-python-release.yml@24bce39c7e11510238b189ee14abcdf7e129aae6
+    uses: validityBase/vbase-github-actions/.github/workflows/github-python-release.yml@7c910e039185487d620b26ae06cfa83f408be5eb
+    with:
+      release-tag: ${{ inputs.release-tag }}

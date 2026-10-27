@@ -90,8 +90,11 @@
 - `tag-release.yml` calls `tag-python-release.yml` for merged release PRs;
   ordinary, unmerged, and fork PRs do not publish.
 - `publish-pypi.yml` calls `build-python-release.yml` with `package-name: vbase`,
-  uploads through the shared composite inside its existing caller-owned `pypi`
+  downloads the validated artifact and invokes the pinned PyPA publisher directly inside its existing caller-owned `pypi`
   job, and calls `github-python-release.yml` after upload succeeds.
+- Manual dispatch accepts an optional `release-tag` and forwards it to both
+  build and GitHub Release creation. An explicit tag requires dispatch from
+  `main`; the selected full tag ref shares a concurrency lock with tag runs.
 - The shared workflow SHA and release-tools-ref match. Scripts and tests remain
   in the shared-actions repository. The upload workflow filename, PyPI project,
   environment, and OIDC trusted-publisher identity are retained.

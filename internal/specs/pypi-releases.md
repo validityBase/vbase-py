@@ -16,8 +16,13 @@ settings, including commit author defaults, are documented in the shared
 [release contract](https://github.com/validityBase/vbase-github-actions/blob/main/.github/actions/python-release/README.md).
 
 The upload job remains in this repository's workflow so its existing PyPI
-trusted-publisher identity is preserved. It calls the shared publication
-composite action. GitHub Release creation depends on successful upload.
+trusted-publisher identity is preserved. It downloads the validated artifact
+and invokes the pinned PyPA publisher directly. GitHub Release creation
+depends on successful upload.
+
+For manual recovery, dispatch `publish-pypi.yml` from `main` with an existing,
+unpublished `release-tag`. The same tag is forwarded to build and GitHub Release
+creation; manual and tag-triggered publication share a lock for that full tag ref.
 
 The shared contract defines release behavior and validation; it is not copied
 into this repository. Package-specific settings are listed above.
