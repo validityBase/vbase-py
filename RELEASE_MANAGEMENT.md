@@ -17,6 +17,11 @@ Release logic, tests, and the runbook are maintained in `vbase-github-actions`.
 | Release branch / tag | `release/vX.Y.Z` / `vX.Y.Z` |
 | Publication workflow / environment | `publish-pypi.yml` / `pypi` |
 
+Before preparation, merge user-facing release notes under `[Unreleased]` in
+`CHANGELOG.md` into `main`. Preparation stops if this section has no entries;
+it does not generate notes from commit history. Leave `vbase/_version.py`
+unchanged so the preparation workflow can apply the selected increment.
+
 Start preparation through this repository's **Actions → Prepare release**,
 using `main` and an explicit patch/minor/major increment. The selected bump type determines the next version number, derived
 from the current version in the version file.
