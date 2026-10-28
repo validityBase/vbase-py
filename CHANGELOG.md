@@ -10,6 +10,8 @@ for prior changes.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-28
+
 ### Changed
 
 - Require Python 3.11 or later. Drop support for Python 3.8 through 3.10 (#84).
