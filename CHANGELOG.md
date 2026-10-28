@@ -12,13 +12,17 @@ for prior changes.
 
 ### Changed
 
-- Require Python 3.11 or newer; Python 3.8 through 3.10 are no longer supported (#84).
-- Allow Web3 versions from 7.15 up to, but excluding, 9 and constrain runtime
-  dependencies to supported version ranges (#63, #106).
+- Require Python 3.11 or later. Drop support for Python 3.8 through 3.10 (#84).
+- Accept Web3 versions greater than or equal to 7.15 and less than 9 (#106).
+- Set upper bounds for runtime dependencies (#63, #106).
 - Remove the unused `imageio` runtime dependency (#110).
 
 ### Fixed
 
-- Avoid false `add_set` failures when a successful commitment is not yet visible
-  through another RPC backend. Validate the receipt's user and set CID, and retry
-  state confirmation for eventless, idempotent transactions (#86).
+- Use a matching `AddSet` receipt event to confirm a new set commitment.
+  Check the event's user and set CID. This avoids a false `add_set` failure
+  when an RPC backend returns stale state (#86).
+- Retry the state check if a successful `add_set` transaction has no `AddSet`
+  receipt event. Fail if the set commitment cannot be confirmed after the
+  configured retries. Commitment confirmation does not guarantee immediate
+  visibility through an indexing service (#86).
