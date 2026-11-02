@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "vBase SDK Problem Details Consumer Profile",
+  "description": "Forward-compatible RFC 9457 response structure consumed by the vBase Python SDK.",
+  "$comment": "URI-reference format annotations describe producer requirements. The SDK applies lightweight URI sanity checks, not exhaustive RFC 3986 format validation; see the Forwarder errors documentation.",
+  "type": "object",
+  "required": ["type", "title", "status", "detail", "code"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "detail": {
+      "type": "string"
+    },
+    "instance": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+    },
+    "details": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
