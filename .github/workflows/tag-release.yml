@@ -1,0 +1,16 @@
+name: Tag merged release
+'on':
+  pull_request:
+    branches:
+    - main
+    types:
+    - closed
+permissions:
+  contents: write
+  actions: write
+jobs:
+  tag:
+    uses: validityBase/vbase-github-actions/.github/workflows/tag-python-release.yml@7c910e039185487d620b26ae06cfa83f408be5eb
+    with:
+      version-file: vbase/_version.py
+      release-tools-ref: 7c910e039185487d620b26ae06cfa83f408be5eb
