@@ -150,6 +150,7 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         response = self._make_response(402, self._problem_payload())
         error = ProblemDetailsError.from_response(response)
         self.assertIsNotNone(error)
+        error.add_note("Annotated by worker process.")
 
         restored = pickle.loads(pickle.dumps(error))
 
@@ -161,6 +162,9 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         self.assertEqual(restored.response.content, response.content)
         self.assertEqual(restored.request.method, "POST")
         self.assertEqual(str(restored), str(error))
+        self.assertEqual(
+            getattr(restored, "__notes__", None), ["Annotated by worker process."]
+        )
 
     def test_public_schema_matches_parser_contract(self):
         """Keep the published schema aligned with the SDK parser."""

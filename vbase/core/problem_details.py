@@ -175,9 +175,11 @@ class ProblemDetailsError(requests.HTTPError):
             request=response.request,
         )
 
-    def __reduce__(self) -> tuple[Any, tuple[requests.Response, ProblemDetails]]:
-        """Rebuild the exception from its response and validated problem."""
-        return (type(self), (self.response, self.problem))
+    def __reduce__(
+        self,
+    ) -> tuple[Any, tuple[requests.Response, ProblemDetails], Dict[str, Any]]:
+        """Rebuild the exception and preserve its instance state."""
+        return (type(self), (self.response, self.problem), self.__dict__)
 
     @property
     def type(self) -> str:
