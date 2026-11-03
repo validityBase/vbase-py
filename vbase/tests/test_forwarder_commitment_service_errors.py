@@ -3,8 +3,11 @@
 # pylint: disable=protected-access
 
 import json
+import pickle
+import re
 import unittest
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Dict, Union
 from unittest.mock import patch
 
@@ -130,6 +133,35 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
                 detail="Invalid request.",
             )
 
+    def test_problem_details_can_be_pickled(self):
+        """Keep the immutable extensions usable across process boundaries."""
+        problem = ProblemDetails.from_dict(self._problem_payload())
+        self.assertIsNotNone(problem)
+
+        restored = pickle.loads(pickle.dumps(problem))
+
+        self.assertEqual(restored.to_dict(), problem.to_dict())
+        self.assertIsInstance(restored.extensions, MappingProxyType)
+        with self.assertRaises(TypeError):
+            restored.extensions["code"] = "OTHER_ERROR"
+
+    def test_problem_details_error_can_be_pickled(self):
+        """Preserve the structured problem and HTTP response after unpickling."""
+        response = self._make_response(402, self._problem_payload())
+        error = ProblemDetailsError.from_response(response)
+        self.assertIsNotNone(error)
+
+        restored = pickle.loads(pickle.dumps(error))
+
+        self.assertIsInstance(restored, requests.HTTPError)
+        self.assertEqual(restored.problem.to_dict(), error.problem.to_dict())
+        self.assertEqual(restored.code, error.code)
+        self.assertEqual(restored.response.status_code, response.status_code)
+        self.assertEqual(restored.response.url, response.url)
+        self.assertEqual(restored.response.content, response.content)
+        self.assertEqual(restored.request.method, "POST")
+        self.assertEqual(str(restored), str(error))
+
     def test_public_schema_matches_parser_contract(self):
         """Keep the published schema aligned with the SDK parser."""
         repository_root = Path(__file__).resolve().parents[2]
@@ -147,7 +179,10 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         self.assertEqual(properties["instance"]["format"], "uri-reference")
         self.assertEqual(properties["status"]["minimum"], 100)
         self.assertEqual(properties["status"]["maximum"], 599)
-        self.assertEqual(properties["code"]["pattern"], "^[A-Z][A-Z0-9_]{0,63}$")
+        code_pattern = properties["code"]["pattern"]
+        self.assertEqual(code_pattern, r"^[A-Z][A-Z0-9_]{0,63}(?![\s\S])")
+        self.assertIsNotNone(re.search(code_pattern, "BAD_REQUEST"))
+        self.assertIsNone(re.search(code_pattern, "BAD_REQUEST\n"))
         self.assertEqual(properties["details"]["type"], "object")
 
     def test_uri_reference_formats_are_supported(self):
@@ -302,7 +337,15 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
 
     def test_missing_or_invalid_code_remains_http_error(self):
         """Reject responses that do not satisfy the vBase extension contract."""
-        for code in (None, "", 123, "lowercase", "BAD-CODE", "BAD\nFORGED"):
+        for code in (
+            None,
+            "",
+            123,
+            "lowercase",
+            "BAD-CODE",
+            "BAD\nFORGED",
+            "BAD_REQUEST\n",
+        ):
             with self.subTest(code=code):
                 payload = self._problem_payload()
                 if code is None:

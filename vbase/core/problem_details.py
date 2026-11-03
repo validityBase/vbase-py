@@ -136,6 +136,20 @@ class ProblemDetails:
             **extensions,
         }
 
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        """Rebuild immutable extensions when crossing a pickle boundary."""
+        return (
+            type(self),
+            (
+                self.type,
+                self.title,
+                self.status,
+                self.detail,
+                self.instance,
+                dict(self.extensions),
+            ),
+        )
+
 
 class ProblemDetailsError(requests.HTTPError):
     """HTTP failure carrying a problem that passed SDK consumer checks.
@@ -160,6 +174,10 @@ class ProblemDetailsError(requests.HTTPError):
             response=response,
             request=response.request,
         )
+
+    def __reduce__(self) -> tuple[Any, tuple[requests.Response, ProblemDetails]]:
+        """Rebuild the exception from its response and validated problem."""
+        return (type(self), (self.response, self.problem))
 
     @property
     def type(self) -> str:

@@ -10,7 +10,9 @@ preserves the original response. The standard members are exposed as ``type``,
 ``extensions``. The required vBase ``code`` and optional ``details`` extensions
 have convenience properties. Clients should branch primarily on ``type``.
 The parsed document is available as ``error.problem`` and can be serialized
-with ``error.problem.to_dict()``.
+with ``error.problem.to_dict()``. Both the parsed document and the
+exception support Python pickling, including passing structured errors
+between worker processes.
 
 API producers must supply RFC 3986 URI references in the required ``type`` and
 optional ``instance`` members; ``instance`` may be omitted, but not JSON null.
