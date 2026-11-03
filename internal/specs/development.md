@@ -29,7 +29,7 @@ Tests use `unittest`. Integration-style tests require a running Ethereum node,
 forwarder, or localhost commitment service.
 
 ```bash
-./vbase/tests/scripts/run_tests_localhost.sh
+bash vbase/tests/scripts/run_tests_localhost.sh
 bash .github/scripts/run_tests_forwarder_pub_dev.sh
 source config/.env.localhost
 python3 -m unittest discover -s vbase/tests

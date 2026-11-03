@@ -24,6 +24,54 @@ To contribute code or documentation, please do the following:
 - Submit a pull request for your change.
 Provide a detailed description of the changes and any supporting information.
 
+## Development Setup
+
+From your cloned repository, use Python 3.11 (the version used to generate CI
+locks) and create a virtual environment. The activation command is for
+macOS/Linux; on Windows PowerShell use `venv\Scripts\Activate.ps1`.
+
+```bash
+python -m venv venv
+source venv/bin/activate
+python -m pip install --require-hashes -r requirements/dev.txt
+python -m pip install --no-deps --no-build-isolation -e .
+pre-commit install
+```
+
+The generated locks target Linux wheels. For local development on macOS or
+Windows, replace the requirements install with
+`python -m pip install -r requirements/dev.in`.
+
+Check your environment and run formatting/lint checks:
+
+```bash
+python -m pip check
+python -c "import vbase"
+pre-commit run --all-files
+pylint vbase/
+```
+
+Tests use `unittest` and require a configured commitment service. With a
+localhost service running and `config/.env.localhost` configured, run:
+
+```bash
+bash vbase/tests/scripts/run_tests_localhost.sh
+```
+
+Alternatively, with authorized access to the public development forwarder and
+`VBASE_API_KEY` supplied privately in your environment, run:
+
+```bash
+bash .github/scripts/run_tests_forwarder_pub_dev.sh
+```
+
+These tests make service calls; installing the package alone does not provision
+a service. See the [development guide](internal/specs/development.md) for service
+configuration and test environment details. Do not commit credentials or include
+them in issue reports or test output.
+
+Do not report security vulnerabilities or share exploit details in public issues.
+
 ## Updating Python Dependencies
 
 Published package dependencies are managed as abstract ranges in
@@ -38,8 +86,14 @@ both files in the pull request. Do not edit generated lock files by hand.
 See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
 for the exact commands.
 
-## Publishing Releases
+## Changelog and Releases
 
-- Update the package version in `vbase/_version.py`.
-- For a production publish, create and publish a GitHub Release or run the `Publish Python Package to PyPI` workflow manually.
-- Configure the GitHub environment named `pypi` and add a matching trusted publisher in PyPI before the first publish.
+Add user-facing changes under `[Unreleased]` in `CHANGELOG.md`; ordinary PRs
+do not change `vbase/_version.py`. Explain why an entry is unnecessary for
+infrastructure-only changes.
+
+Follow [RELEASE_MANAGEMENT.md](RELEASE_MANAGEMENT.md) to select a patch, minor,
+or major increment in **Prepare release**, approve workflows on its generated
+PR when prompted, and review and merge that PR when ready to publish. Merging
+a reviewed Release PR automatically tags its merged commit and starts
+publication. Shared tooling is maintained in `validityBase/vbase-github-actions`.
