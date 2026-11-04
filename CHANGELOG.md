@@ -20,6 +20,8 @@ for prior changes.
 
 ### Fixed
 
+- Preserve structured Forwarder errors when passed between Python processes
+  and reject trailing newlines in problem codes at the schema boundary.
 - Redact credentials and sensitive values from RPC and Forwarder diagnostics (#96).
 
 ## [2.0.0] - 2026-10-28
