@@ -14,6 +14,9 @@ services, forwarder-backed services, and deterministic test variants.
 commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
 
+See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
+for endpoint selection and event-query requirements.
+
 ## Client
 
 `vbase/core/vbase_client.py` exposes `VBaseClient`, the main entry point for

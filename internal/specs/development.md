@@ -50,3 +50,9 @@ or a secret manager. It generates a fresh signer private key for each invocation
 and does not use a committed or externally supplied signer key.
 The indexing tests use unique object CIDs for global object lookups so old
 public-chain test data does not accumulate in those queries.
+The [`TestIndexingService` setup](../../vbase/tests/test_indexing_service.py)
+reads `VBASE_TEST_INDEXING_N_LAST_BLOCKS` to configure its block lookback.
+[`config/.env.forwarder.pub.dev`](../../config/.env.forwarder.pub.dev) sets it
+for public-dev runs. See
+[Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
+for endpoint requirements and event visibility.

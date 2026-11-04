@@ -409,6 +409,10 @@ class VBaseDataset(ABC):
     def get_commitment_receipts(self) -> List[dict]:
         """Get commitment receipts for dataset records.
 
+        Uses ``self.indexing_service`` if it is set. Otherwise, creates one
+        with :meth:`vbase.IndexingService.create_instance_from_commitment_service`.
+        Assign a configured indexing service before calling to customize queries.
+
         :return: Commitment receipts for dataset records.
         """
         self.cid = self.get_set_cid_for_dataset(self.name)
@@ -434,6 +438,9 @@ class VBaseDataset(ABC):
         but long-term options can get complex. The following work remains:
         - How should records with identical CIDs be treated?
         - When multiple commitments exist for a given CID, what is the order of pairing?
+
+        Reads commitment receipts with :meth:`get_commitment_receipts`; see
+        that method for indexing service selection.
 
         :return: A tuple containing success and log:
             - success: True if all record have been found in the index

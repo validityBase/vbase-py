@@ -1,5 +1,6 @@
 """Tests of the indexing service for the vbase package"""
 
+import os
 import secrets
 import unittest
 
@@ -22,6 +23,11 @@ class TestIndexingService(unittest.TestCase):
                     self.vbc.commitment_service
                 )
             )
+            # These tests check freshly written commitments, so a recent-block
+            # lookback is sufficient; see internal/specs/development.md.
+            n_last_blocks = os.environ.get("VBASE_TEST_INDEXING_N_LAST_BLOCKS")
+            if n_last_blocks:
+                self.indexing_service.n_last_blocks = int(n_last_blocks)
         self.assertTrue(self.indexing_service is not None)
         self.assertEqual(len(self.indexing_service.commitment_services), 1)
         self.chain_id = self.indexing_service.commitment_services[0].w3.eth.chain_id

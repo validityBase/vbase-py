@@ -10,6 +10,23 @@ for prior changes.
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional `node_rpc_url` argument to
+  `IndexingService.create_instance_from_commitment_service()`. Use it to query
+  events through your own node instead of the node URL returned by the
+  forwarder.
+
+### Fixed
+
+- Clamp event-query start blocks at genesis when `n_last_blocks` exceeds the
+  chain height.
+
+### Documentation
+
+- Document endpoint selection and event-query requirements in
+  [Indexing and Node Requirements](README.md#indexing-and-node-requirements).
+
 ## [2.0.0] - 2026-10-28
 
 ### Changed
