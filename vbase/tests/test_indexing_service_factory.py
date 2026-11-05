@@ -51,6 +51,24 @@ class TestCreateInstanceFromCommitmentService(unittest.TestCase):
         )
 
     @mock.patch.object(Web3HTTPCommitmentService, "__init__", return_value=None)
+    def test_preserves_forwarder_descriptor_options(self, init: mock.MagicMock):
+        """Descriptor options other than the node URL are passed through."""
+        forwarder = _make_forwarder()
+        forwarder.get_commitment_service_data.return_value[
+            "inject_geth_poa_middleware"
+        ] = True
+
+        IndexingService.create_instance_from_commitment_service(
+            forwarder, node_rpc_url=_OWN_NODE_RPC_URL
+        )
+
+        init.assert_called_once_with(
+            node_rpc_url=_OWN_NODE_RPC_URL,
+            commitment_service_address=_COMMITMENT_SERVICE_ADDRESS,
+            inject_geth_poa_middleware=True,
+        )
+
+    @mock.patch.object(Web3HTTPCommitmentService, "__init__", return_value=None)
     def test_supplied_node_does_not_need_forwarder_node(self, init: mock.MagicMock):
         """A supplied node URL works when the forwarder returns no node."""
         forwarder = _make_forwarder()

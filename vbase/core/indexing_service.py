@@ -127,13 +127,12 @@ class IndexingService(ABC):
             node_rpc_url = commitment_service_data.get("node_rpc_url")
             if not node_rpc_url:
                 raise ValueError("Forwarder did not return node_rpc_url.")
+        # Pass the forwarder's descriptor through as constructor options,
+        # such as inject_geth_poa_middleware, and override only the node URL.
         return Web3HTTPIndexingService(
             [
                 Web3HTTPCommitmentService(
-                    node_rpc_url=node_rpc_url,
-                    commitment_service_address=commitment_service_data[
-                        "commitment_service_address"
-                    ],
+                    **{**commitment_service_data, "node_rpc_url": node_rpc_url}
                 )
             ]
         )
