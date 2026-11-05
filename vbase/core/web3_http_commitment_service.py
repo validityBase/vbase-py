@@ -32,10 +32,12 @@ except ImportError:
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_urls
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Node RPC URLs and provider errors can include credentials.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 # Settings for the connection retry for Web3.HTTPProvider.
@@ -92,6 +94,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         self.commitment_service_address = commitment_service_address
 
         # Connect to the node with retries and backoff.
+        # Keep credentials embedded in the URL out of logs and exception messages.
+        safe_node_rpc_url = redact_urls(self.node_rpc_url)
         retry_count = 0
         backoff = 0
         connected = False
@@ -101,23 +105,25 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                 if w3.is_connected():
                     connected = True
                     _LOG.debug(
-                        "Web3HTTPCommitmentService.__init__(): "
-                        "Connected to configured node RPC endpoint"
+                        "Web3HTTPCommitmentService.__init__(): Connected to %s",
+                        safe_node_rpc_url,
                     )
                     break
-                raise ConnectionError(
-                    "Failed to connect to configured node RPC endpoint"
+                raise ConnectionError(f"Failed to connect to {safe_node_rpc_url}")
+            except ConnectionError as e:
+                _LOG.error(
+                    "Web3HTTPCommitmentService.__init__(): "
+                    "Exception connecting to %s: %s",
+                    safe_node_rpc_url,
+                    e,
                 )
-            except ConnectionError:
-                _LOG.error("Web3 node RPC connection attempt failed")
                 retry_count += 1
                 backoff += _W3_CONNECTION_BACKOFF
                 time.sleep(backoff)
 
         if not connected:
             raise ConnectionError(
-                "Failed to connect to configured node RPC endpoint "
-                f"after {retry_count} retries"
+                f"Failed to connect to {safe_node_rpc_url} after {retry_count} retries"
             )
 
         if inject_geth_poa_middleware:
@@ -164,10 +170,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             "commitment_service_address": os.getenv("VBASE_COMMITMENT_SERVICE_ADDRESS"),
             "private_key": os.getenv("VBASE_COMMITMENT_SERVICE_PRIVATE_KEY"),
             "inject_geth_poa_middleware": Web3HTTPCommitmentService._get_bool_env_var(
-                os.getenv(
-                    "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE",
-                    default="False",
-                )
+                "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE"
             ),
         }
         # Check for missing environment variables since these are unrecoverable.

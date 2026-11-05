@@ -40,24 +40,22 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 ## Indexing and Node Requirements
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
-contract events. It uses event filters (`eth_newFilter` followed by
-`eth_getFilterLogs`). Choose an endpoint that supports both methods across
-the required block range and preserves filter state between requests.
+contract events with `eth_getLogs`. Each query runs from a start block to the
+latest block. Queries that fail with a connection or node error are retried
+with exponential backoff, and the last error is raised if all attempts fail.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the
-node URL returned by the forwarder unless you supply `node_rpc_url`. Its
-query capabilities depend on the configured endpoint:
+node URL returned by the forwarder unless you supply `node_rpc_url`. Results
+depend on the endpoint:
 
-- Check the endpoint's supported block range. Log retrieval uses the retry policy in
-  [`Web3HTTPIndexingService._retry_get_all_entries`](vbase/core/indexing_service.py);
-  filter creation errors propagate directly.
-- Event filters fail if a load-balanced endpoint loses filter state between
-  requests, even for recent blocks.
-- If the endpoint has not reached a commitment's block, that commitment
-  will not appear in event queries.
+- Many public endpoints limit the block range or result count of an
+  `eth_getLogs` request. Full-history queries can fail on these endpoints.
+  Limit the range with `n_last_blocks`, or use a node without these limits.
+- If the endpoint has not yet reached a commitment's block, query results do
+  not include that commitment.
 
-To select an endpoint that meets these requirements, pass its URL:
+To use a different endpoint, pass its URL:
 
 ```python
 indexing_service = IndexingService.create_instance_from_commitment_service(
@@ -65,18 +63,24 @@ indexing_service = IndexingService.create_instance_from_commitment_service(
 )
 ```
 
-The endpoint must be on the same chain as the forwarder. The SDK does not
-validate chain identity or filter support. Verify both before querying; an
-empty result does not establish that you selected the correct chain.
+You are responsible for selecting an endpoint on the forwarder's chain. The
+SDK does not check the endpoint's chain. A node on a different chain returns
+empty results instead of an error, so an empty result does not confirm that
+the endpoint is correct.
 
-Set `indexing_service.n_last_blocks` to control how far back from the current
-block queries begin. The range calculation and full-history behavior are
-defined by
-[`Web3HTTPIndexingService._get_from_block`](vbase/core/indexing_service.py).
-For dataset queries, see the indexing service selection documented in
-[`VBaseDataset.get_commitment_receipts()`](vbase/core/vbase_dataset.py).
-For large histories, you can also use a custom indexer such as
-`SQLIndexingService`.
+Set `indexing_service.n_last_blocks` to query only recent blocks. When it is
+`None`, the default, queries start at the genesis block. When it is an
+integer, queries start that many blocks before the current block, or at the
+genesis block if the chain is shorter.
+
+`VBaseDataset.get_commitment_receipts()` and
+`VBaseDataset.try_restore_timestamps_from_index()` use the dataset's
+`indexing_service` attribute if it is set. Otherwise, they create one from the
+dataset's commitment service as described above. To customize queries, assign
+a configured indexing service to that attribute first.
+
+For large histories, use an indexer that does not query the node directly,
+such as `SQLIndexingService`.
 
 ## Development
 

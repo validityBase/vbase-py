@@ -11,7 +11,18 @@ from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key
+from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key, redact_urls
+
+_RPC_SECRET = "private-rpc-token"
+_RPC_URL = f"https://rpc.example/v2/{_RPC_SECRET}"
+_REDACTED_RPC_URL = f"https://rpc.example/{REDACTED_LOG_VALUE}"
+# Requests accepts these passwords; the delimiters must not end redaction early.
+_RPC_PASSWORD = "pa'ss\"word"
+_RPC_URLS_WITH_CREDENTIALS = (
+    _RPC_URL,
+    f"https://user:pa'ss@rpc.example/v2/{_RPC_SECRET}",
+    f"https://user:{_RPC_PASSWORD}@rpc.example/v2/{_RPC_SECRET}?key=k'ey",
+)
 
 
 class TestSensitiveLogging(unittest.TestCase):
@@ -34,6 +45,54 @@ class TestSensitiveLogging(unittest.TestCase):
                 self.assertEqual(mask_api_key("x" * length), REDACTED_LOG_VALUE)
         self.assertIsNone(mask_api_key(None))
         self.assertEqual(mask_api_key(""), "")
+
+    def test_redact_urls_keeps_only_scheme_and_host(self):
+        """URL credentials, paths, queries, and fragments are redacted."""
+        cases = {
+            _RPC_URL: _REDACTED_RPC_URL,
+            "https://user:pass@rpc.example:8545/v3/key?token=t#f": (
+                f"https://rpc.example:8545/{REDACTED_LOG_VALUE}"
+            ),
+            "wss://rpc.example/ws?key=secret": f"wss://rpc.example/{REDACTED_LOG_VALUE}",
+            "http://127.0.0.1:8545": "http://127.0.0.1:8545",
+            "https://rpc.example/": "https://rpc.example/",
+            "no URL 50%": "no URL 50%",
+            **{url: _REDACTED_RPC_URL for url in _RPC_URLS_WITH_CREDENTIALS},
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(redact_urls(text), expected)
+                self.assertEqual(redact_urls(expected), expected)
+
+    def test_redact_urls_keeps_trailing_punctuation(self):
+        """Punctuation after a URL is not treated as part of the URL."""
+        self.assertEqual(
+            redact_urls(f"connecting to {_RPC_URL}: retrying (see {_RPC_URL})."),
+            f"connecting to {_REDACTED_RPC_URL}: retrying (see {_REDACTED_RPC_URL}).",
+        )
+        self.assertEqual(
+            redact_urls(f"Invalid URL '{_RPC_URLS_WITH_CREDENTIALS[1]}': No host"),
+            f"Invalid URL '{_REDACTED_RPC_URL}': No host",
+        )
+
+    def test_redact_urls_handles_requests_error_messages(self):
+        """Error text from requests keeps its diagnostics without credentials."""
+        http_error = f"401 Client Error: Unauthorized for url: {_RPC_URL}"
+        connection_error = (
+            "HTTPSConnectionPool(host='rpc.example', port=443): Max retries "
+            f"exceeded with url: /v2/{_RPC_SECRET}?key=k'ey "
+            "(Caused by NewConnectionError())"
+        )
+
+        self.assertEqual(
+            redact_urls(requests.HTTPError(http_error)),
+            f"401 Client Error: Unauthorized for url: {_REDACTED_RPC_URL}",
+        )
+        self.assertEqual(
+            redact_urls(connection_error),
+            "HTTPSConnectionPool(host='rpc.example', port=443): Max retries "
+            f"exceeded with url: /{REDACTED_LOG_VALUE} (Caused by NewConnectionError())",
+        )
 
     @patch("vbase.core.forwarder_commitment_service._LOG.debug")
     def test_forwarder_environment_log_masks_credentials(self, debug_mock):
@@ -109,25 +168,58 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertNotIn(node_rpc_url, rendered_call)
         self.assertNotIn(private_key, rendered_call)
 
+    def test_web3_environment_reads_poa_middleware_flag(self):
+        """The POA middleware flag is read from its environment variable."""
+        environment = {
+            "VBASE_COMMITMENT_SERVICE_NODE_RPC_URL": _RPC_URL,
+            "VBASE_COMMITMENT_SERVICE_ADDRESS": "0x" + "33" * 20,
+            "VBASE_COMMITMENT_SERVICE_PRIVATE_KEY": "0x" + "22" * 32,
+        }
+        for value, expected in (("true", True), ("1", True), ("false", False)):
+            with self.subTest(value=value):
+                with patch.dict(
+                    os.environ,
+                    {
+                        **environment,
+                        "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE": value,
+                    },
+                ):
+                    init_args = Web3HTTPCommitmentService.get_init_args_from_env()
+                self.assertIs(init_args["inject_geth_poa_middleware"], expected)
+
+        with patch.dict(os.environ, environment):
+            os.environ.pop("VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE", None)
+            init_args = Web3HTTPCommitmentService.get_init_args_from_env()
+        self.assertIs(init_args["inject_geth_poa_middleware"], False)
+
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
     @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
-    @patch("vbase.core.web3_http_commitment_service._LOG.error")
     @patch("vbase.core.web3_http_commitment_service.Web3")
-    def test_web3_connection_failure_omits_rpc_url(
-        self, web3_mock, error_mock, _sleep_mock
-    ):
-        """Connection errors do not disclose credentials embedded in RPC URLs."""
-        node_rpc_url = "https://rpc.example/v2/rpc-provider-api-key"
+    def test_web3_connection_failure_redacts_rpc_url(self, web3_mock, _sleep_mock):
+        """Connection errors name the node host without its credentials."""
         web3_mock.return_value.is_connected.return_value = False
 
-        with self.assertRaises(ConnectionError) as raised:
-            Web3HTTPCommitmentService(
-                node_rpc_url=node_rpc_url,
-                commitment_service_address="0x" + "33" * 20,
-            )
+        for node_rpc_url in _RPC_URLS_WITH_CREDENTIALS:
+            with self.subTest(node_rpc_url=node_rpc_url):
+                with self.assertLogs(
+                    "vbase.core.web3_http_commitment_service", level="ERROR"
+                ) as captured:
+                    with self.assertRaises(ConnectionError) as raised:
+                        Web3HTTPCommitmentService(
+                            node_rpc_url=node_rpc_url,
+                            commitment_service_address="0x" + "33" * 20,
+                        )
 
-        self.assertNotIn(node_rpc_url, repr(error_mock.call_args))
-        self.assertNotIn(node_rpc_url, str(raised.exception))
+                self.assertEqual(
+                    str(raised.exception),
+                    f"Failed to connect to {_REDACTED_RPC_URL} after 1 retries",
+                )
+                log_output = "\n".join(captured.output)
+                self.assertIn(
+                    f"Exception connecting to {_REDACTED_RPC_URL}", log_output
+                )
+                for secret in (_RPC_SECRET, "user:pa"):
+                    self.assertNotIn(secret, log_output)
 
     def test_indexing_descriptor_log_omits_private_values(self):
         """Indexer configuration logs only a safe count."""
@@ -162,31 +254,43 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertNotIn(node_rpc_url, repr(info_mock.call_args_list))
         self.assertNotIn(private_key, repr(info_mock.call_args_list))
 
-    @patch("vbase.core.forwarder_commitment_service._LOG.error")
     @patch("vbase.core.forwarder_commitment_service.requests.get")
-    def test_forwarder_http_error_log_omits_url(self, get_mock, error_mock):
-        """HTTP failures must not log a credential-bearing request URL."""
+    def test_forwarder_http_error_log_redacts_url(self, get_mock):
+        """HTTP failures log the API, status, and error without URL credentials."""
         secret = "private-forwarder-token"
         service = object.__new__(ForwarderCommitmentService)
         service.forwarder_url = f"https://forwarder.example/?token={secret}"
         service.api_key = "test-api-key"
+        response = Mock(status_code=502)
         get_mock.return_value.raise_for_status.side_effect = requests.HTTPError(
-            service.forwarder_url
+            f"502 Server Error: Bad Gateway for url: {service.forwarder_url}",
+            response=response,
         )
 
-        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
-            with self.assertRaises(requests.HTTPError):
-                service.get_commitment_service_data()
+        with patch(
+            "vbase.core.forwarder_commitment_service.ProblemDetailsError.from_response",
+            return_value=None,
+        ):
+            with self.assertLogs(
+                "vbase.core.forwarder_commitment_service", level="ERROR"
+            ) as captured:
+                with patch.object(
+                    service, "get_default_user", return_value="0x" + "11" * 20
+                ):
+                    with self.assertRaises(requests.HTTPError):
+                        service.get_commitment_service_data()
 
-        error_mock.assert_called_once_with("Forwarder HTTP request failed")
-        self.assertNotIn(secret, repr(error_mock.call_args_list))
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            "HTTP error occurred: api=commitment-service-data status=502 "
+            "error=502 Server Error: Bad Gateway for url: "
+            f"https://forwarder.example/{REDACTED_LOG_VALUE}",
+        )
+        self.assertNotIn(secret, "\n".join(captured.output))
 
-    @patch("vbase.core.forwarder_commitment_service._LOG.error")
     @patch("vbase.core.forwarder_commitment_service.requests.get")
-    def test_structured_forwarder_error_log_omits_untrusted_type(
-        self, get_mock, error_mock
-    ):
-        """A valid problem type cannot copy URL credentials into the SDK log."""
+    def test_structured_forwarder_error_omits_untrusted_type(self, get_mock):
+        """A problem type cannot copy URL credentials into logs or messages."""
         secret = "private-forwarder-token"
         response = requests.Response()
         response.status_code = 402
@@ -207,113 +311,159 @@ class TestSensitiveLogging(unittest.TestCase):
         service.forwarder_url = "https://forwarder.example/"
         service.api_key = "test-api-key"
 
-        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
-            with self.assertRaises(ProblemDetailsError):
-                service.get_commitment_service_data()
+        with self.assertLogs(
+            "vbase.core.forwarder_commitment_service", level="ERROR"
+        ) as captured:
+            with patch.object(
+                service, "get_default_user", return_value="0x" + "11" * 20
+            ):
+                with self.assertRaises(ProblemDetailsError) as raised:
+                    service.get_commitment_service_data()
 
-        error_mock.assert_called_once_with(
-            "Forwarder API error occurred: status=%s code=%s",
-            402,
-            "INSUFFICIENT_CREDITS",
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            "HTTP error occurred: api=commitment-service-data status=402 "
+            "error=HTTP API problem (402) code=INSUFFICIENT_CREDITS: "
+            "Insufficient credits.",
         )
-        self.assertNotIn(secret, repr(error_mock.call_args_list))
+        self.assertNotIn(secret, str(raised.exception))
+        self.assertIn(secret, raised.exception.type)
 
-    @patch("vbase.core.forwarder_commitment_service._LOG.error")
     @patch("vbase.core.forwarder_commitment_service.requests.get")
-    def test_forwarder_transport_error_log_omits_url(self, get_mock, error_mock):
-        """Transport failures must not log a credential-bearing request URL."""
+    def test_forwarder_transport_error_log_redacts_url(self, get_mock):
+        """Transport failures log the API and error without URL credentials."""
         secret = "private-forwarder-token"
         service = object.__new__(ForwarderCommitmentService)
-        service.forwarder_url = f"https://forwarder.example/?token={secret}"
         service.api_key = "test-api-key"
-        get_mock.side_effect = requests.ConnectionError(service.forwarder_url)
 
-        with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
-            with self.assertRaises(requests.ConnectionError):
-                service.get_commitment_service_data()
+        for forwarder_url in (
+            f"https://forwarder.example/?token={secret}",
+            f"https://user:pa'ss@forwarder.example/?token=a'{secret}",
+        ):
+            with self.subTest(forwarder_url=forwarder_url):
+                service.forwarder_url = forwarder_url
+                get_mock.side_effect = requests.ConnectionError(forwarder_url)
 
-        error_mock.assert_called_once_with("Forwarder request failed")
-        self.assertNotIn(secret, repr(error_mock.call_args_list))
+                with self.assertLogs(
+                    "vbase.core.forwarder_commitment_service", level="ERROR"
+                ) as captured:
+                    with patch.object(
+                        service, "get_default_user", return_value="0x" + "11" * 20
+                    ):
+                        with self.assertRaises(requests.ConnectionError):
+                            service.get_commitment_service_data()
+
+                self.assertEqual(
+                    captured.records[0].getMessage(),
+                    "Request error occurred: api=commitment-service-data "
+                    f"error=https://forwarder.example/{REDACTED_LOG_VALUE}",
+                )
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
     @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
-    @patch("vbase.core.web3_http_commitment_service._LOG.error")
     @patch("vbase.core.web3_http_commitment_service.Web3")
-    def test_web3_connection_exception_log_omits_rpc_url(
-        self, web3_mock, error_mock, _sleep_mock
+    def test_web3_connection_exception_log_redacts_rpc_url(
+        self, web3_mock, _sleep_mock
     ):
         """Provider errors may include a credential-bearing RPC URL."""
-        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
         web3_mock.return_value.is_connected.side_effect = (
-            ConnectionError(node_rpc_url),
+            ConnectionError(_RPC_URL),
             False,
         )
 
-        with self.assertRaises(ConnectionError) as raised:
-            Web3HTTPCommitmentService(
-                node_rpc_url=node_rpc_url,
-                commitment_service_address="0x" + "33" * 20,
-            )
+        with self.assertLogs(
+            "vbase.core.web3_http_commitment_service", level="ERROR"
+        ) as captured:
+            with self.assertRaises(ConnectionError) as raised:
+                Web3HTTPCommitmentService(
+                    node_rpc_url=_RPC_URL,
+                    commitment_service_address="0x" + "33" * 20,
+                )
 
-        error_mock.assert_called_once_with("Web3 node RPC connection attempt failed")
-        self.assertNotIn(node_rpc_url, repr(error_mock.call_args_list))
-        self.assertNotIn(node_rpc_url, str(raised.exception))
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            "Web3HTTPCommitmentService.__init__(): Exception connecting to "
+            f"{_REDACTED_RPC_URL}: {_REDACTED_RPC_URL}",
+        )
+        self.assertNotIn(_RPC_SECRET, str(raised.exception))
 
     @patch("retry.api.time.sleep")
-    @patch("vbase.core.indexing_service._LOG.warning")
-    def test_indexing_retry_does_not_log_rpc_url(self, warning_mock, _sleep_mock):
-        """A transient provider error must not log its credential-bearing URL."""
-        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
-        event_filter = Mock()
-        event_filter.get_all_entries.side_effect = [
-            ConnectionError(node_rpc_url),
-            [],
-        ]
+    def test_indexing_retry_logs_redacted_rpc_url(self, _sleep_mock):
+        """A transient provider error is logged without its URL credentials."""
+        event = Mock()
+        event.get_logs.side_effect = [ConnectionError(_RPC_URL), []]
         indexer = Web3HTTPIndexingService([])
 
-        # pylint: disable-next=protected-access
-        self.assertEqual(indexer._retry_get_all_entries(event_filter), [])
-        self.assertEqual(event_filter.get_all_entries.call_count, 2)
-        warning_mock.assert_not_called()
+        with self.assertLogs(
+            "vbase.core.indexing_service", level="WARNING"
+        ) as captured:
+            # pylint: disable-next=protected-access
+            self.assertEqual(indexer._get_event_logs(event, 5, {"user": "0xabc"}), [])
+
+        self.assertEqual(event.get_logs.call_count, 2)
+        event.get_logs.assert_called_with(
+            argument_filters={"user": "0xabc"}, from_block=5, to_block="latest"
+        )
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            f"{_REDACTED_RPC_URL}, retrying in 2 seconds...",
+        )
+
+    def test_indexing_query_does_not_retry_invalid_arguments(self):
+        """Invalid query arguments fail immediately instead of being retried."""
+        event = Mock()
+        event.get_logs.side_effect = ValueError("invalid address")
+        indexer = Web3HTTPIndexingService([])
+
+        with self.assertRaises(ValueError):
+            # pylint: disable-next=protected-access
+            indexer._get_event_logs(event, 0, {"user": "0xuser"})
+
+        self.assertEqual(event.get_logs.call_count, 1)
 
     @patch("retry.api.time.sleep")
-    @patch("vbase.core.web3_commitment_service._LOG.warning")
-    def test_set_existence_retry_does_not_log_rpc_url(self, warning_mock, _sleep_mock):
-        """A transient set lookup error must not log its credential-bearing URL."""
-        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
+    def test_set_existence_retry_logs_redacted_rpc_url(self, _sleep_mock):
+        """A transient set lookup error is logged without its URL credentials."""
         service = object.__new__(Web3HTTPCommitmentService)
         with patch.object(
             service,
             "user_set_exists",
-            side_effect=[ConnectionError(node_rpc_url), True],
+            side_effect=[ConnectionError(_RPC_URL), True],
         ) as exists_mock:
-            # pylint: disable-next=protected-access
-            self.assertIsNone(service._user_set_exists_with_retry("0xabc", "0xdef"))
+            with self.assertLogs(
+                "vbase.core.web3_commitment_service", level="WARNING"
+            ) as captured:
+                # pylint: disable-next=protected-access
+                self.assertIsNone(service._user_set_exists_with_retry("0xabc", "0xdef"))
 
         self.assertEqual(exists_mock.call_count, 2)
-        warning_mock.assert_not_called()
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            f"{_REDACTED_RPC_URL}, retrying in 1 seconds...",
+        )
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
     @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 2)
-    @patch("vbase.core.web3_http_commitment_service._LOG.error")
     @patch("vbase.core.web3_http_commitment_service.Web3")
-    def test_web3_repeated_connection_exceptions_omit_rpc_url(
-        self, web3_mock, error_mock, _sleep_mock
+    def test_web3_repeated_connection_exceptions_redact_rpc_url(
+        self, web3_mock, _sleep_mock
     ):
-        """The final connection failure must not repeat or expose a provider error."""
-        node_rpc_url = "https://rpc.example/v2/private-rpc-token"
-        web3_mock.return_value.is_connected.side_effect = ConnectionError(node_rpc_url)
+        """Each failed attempt is logged; none exposes the URL credentials."""
+        web3_mock.return_value.is_connected.side_effect = ConnectionError(_RPC_URL)
 
-        with self.assertRaises(ConnectionError) as raised:
-            Web3HTTPCommitmentService(
-                node_rpc_url=node_rpc_url,
-                commitment_service_address="0x" + "33" * 20,
-            )
+        with self.assertLogs(
+            "vbase.core.web3_http_commitment_service", level="ERROR"
+        ) as captured:
+            with self.assertRaises(ConnectionError) as raised:
+                Web3HTTPCommitmentService(
+                    node_rpc_url=_RPC_URL,
+                    commitment_service_address="0x" + "33" * 20,
+                )
 
         self.assertEqual(web3_mock.return_value.is_connected.call_count, 2)
-        self.assertEqual(error_mock.call_count, 2)
-        self.assertNotIn(node_rpc_url, str(raised.exception))
-        self.assertNotIn(node_rpc_url, repr(error_mock.call_args_list))
+        self.assertEqual(len(captured.records), 2)
+        self.assertNotIn(_RPC_SECRET, str(raised.exception))
+        self.assertNotIn(_RPC_SECRET, "\n".join(captured.output))
 
 
 if __name__ == "__main__":

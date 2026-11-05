@@ -78,8 +78,12 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 
 - Indexing descriptors may contain credentials: log only the commitment service
   count, never the descriptor or individual service configuration.
-- Do not log exception text or service objects from forwarder, RPC connection,
-  or failover indexing failures; they may contain credential-bearing URLs.
+- Forwarder, RPC, and indexing error text may contain credential-bearing URLs.
+  Modules that log it attach `vbase.utils.log.RedactUrlsFilter` to their
+  logger, including loggers passed to `retry_call`. The filter applies
+  `vbase.utils.log.redact_urls`, which keeps each URL's scheme and host and
+  redacts userinfo, paths, queries, and fragments. Apply `redact_urls` directly
+  to URLs placed in exception messages. Do not log service objects.
 
 ## Public Dev Tests
 

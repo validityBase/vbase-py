@@ -51,21 +51,16 @@ class TestCreateInstanceFromCommitmentService(unittest.TestCase):
         )
 
     @mock.patch.object(Web3HTTPCommitmentService, "__init__", return_value=None)
-    def test_preserves_forwarder_descriptor_options(self, init: mock.MagicMock):
-        """Descriptor options other than the node URL are passed through."""
+    def test_ignores_unknown_forwarder_fields(self, init: mock.MagicMock):
+        """New forwarder response fields do not break indexer construction."""
         forwarder = _make_forwarder()
-        forwarder.get_commitment_service_data.return_value[
-            "inject_geth_poa_middleware"
-        ] = True
+        forwarder.get_commitment_service_data.return_value["chain_id"] = 137
 
-        IndexingService.create_instance_from_commitment_service(
-            forwarder, node_rpc_url=_OWN_NODE_RPC_URL
-        )
+        IndexingService.create_instance_from_commitment_service(forwarder)
 
         init.assert_called_once_with(
-            node_rpc_url=_OWN_NODE_RPC_URL,
+            node_rpc_url=_FORWARDER_NODE_RPC_URL,
             commitment_service_address=_COMMITMENT_SERVICE_ADDRESS,
-            inject_geth_poa_middleware=True,
         )
 
     @mock.patch.object(Web3HTTPCommitmentService, "__init__", return_value=None)
@@ -145,6 +140,44 @@ class TestGetFromBlock(unittest.TestCase):
     def test_clamps_at_genesis(self):
         """A window longer than the chain starts at the genesis block."""
         self.assertEqual(self._get_from_block(100, 50), 0)
+
+
+class TestEventQueries(unittest.TestCase):
+    """Test event queries that join object and set commitments."""
+
+    def _make_indexing_service(self):
+        """Return an indexer whose node advances one block per height read."""
+        commitment_service = mock.MagicMock()
+        type(commitment_service.w3.eth).block_number = mock.PropertyMock(
+            side_effect=[100, 101]
+        )
+        events = commitment_service.csc.events
+        events.AddObject.get_logs.return_value = []
+        events.AddSetObject.get_logs.return_value = []
+        indexing_service = Web3HTTPIndexingService([commitment_service])
+        indexing_service.n_last_blocks = 10
+        return indexing_service, events
+
+    def _assert_same_start_block(self, events):
+        for event in (events.AddObject, events.AddSetObject):
+            self.assertEqual(event.get_logs.call_args.kwargs["from_block"], 90)
+            self.assertEqual(event.get_logs.call_args.kwargs["to_block"], "latest")
+
+    def test_find_user_objects_uses_one_start_block(self):
+        """Object and set queries cover the same block range."""
+        indexing_service, events = self._make_indexing_service()
+
+        indexing_service.find_user_objects("0xuser", return_set_cids=True)
+
+        self._assert_same_start_block(events)
+
+    def test_find_objects_uses_one_start_block(self):
+        """Object and set queries cover the same block range."""
+        indexing_service, events = self._make_indexing_service()
+
+        indexing_service.find_objects(["0x" + "aa" * 32], return_set_cids=True)
+
+        self._assert_same_start_block(events)
 
 
 if __name__ == "__main__":

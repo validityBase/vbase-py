@@ -8,6 +8,8 @@ from urllib.parse import urlsplit
 
 import requests
 
+from vbase.utils.log import redact_urls
+
 PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
 _STANDARD_MEMBERS = frozenset({"type", "title", "status", "detail", "instance"})
 _PROBLEM_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
@@ -46,7 +48,8 @@ class ProblemDetails:
     status: int
     detail: str
     instance: Optional[str] = None
-    extensions: Mapping[str, Any] = field(default_factory=dict)
+    # The read-only extensions mapping is not hashable; equality still compares it.
+    extensions: Mapping[str, Any] = field(default_factory=dict, hash=False)
 
     def __post_init__(self) -> None:
         """Check member structure and reject obviously malformed references."""
@@ -156,6 +159,9 @@ class ProblemDetailsError(requests.HTTPError):
 
     The exception remains compatible with callers that catch
     :class:`requests.HTTPError` and preserves the original response.
+    The message omits the server-supplied ``type`` URI and redacts URL
+    credentials, paths, and queries in ``detail``; the attributes keep the
+    original values.
     """
 
     def __init__(
@@ -165,9 +171,9 @@ class ProblemDetailsError(requests.HTTPError):
     ) -> None:
         self.problem = problem
 
-        error_text = (
-            f"HTTP API problem ({problem.status}) [{problem.type}] "
-            f"code={problem.code}: {problem.detail}"
+        error_text = redact_urls(
+            f"HTTP API problem ({problem.status}) code={problem.code}: "
+            f"{problem.detail}"
         )
         super().__init__(
             error_text,

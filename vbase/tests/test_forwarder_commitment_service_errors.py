@@ -1,6 +1,6 @@
 """Tests for Forwarder commitment service error propagation."""
 
-# pylint: disable=protected-access
+# pylint: disable=protected-access,too-many-public-methods
 
 import json
 import pickle
@@ -110,6 +110,37 @@ class TestForwarderCommitmentServiceErrors(unittest.TestCase):
         log_output = "\n".join(captured_logs.output)
         self.assertIn("INSUFFICIENT_CREDITS", log_output)
         self.assertNotIn("availableCredits", log_output)
+
+    def test_error_message_omits_type_and_redacts_detail_urls(self):
+        """Keep server-supplied URL credentials out of the exception message."""
+        detail = "Retry at https://forwarder.example/execute?token=secret later."
+        response = self._make_response(
+            402,
+            self._problem_payload(
+                type="https://example.invalid/problems/credits?token=secret",
+                detail=detail,
+            ),
+        )
+
+        error = ProblemDetailsError.from_response(response)
+
+        self.assertIsNotNone(error)
+        self.assertEqual(
+            str(error),
+            "HTTP API problem (402) code=INSUFFICIENT_CREDITS: "
+            "Retry at https://forwarder.example/[REDACTED] later.",
+        )
+        self.assertEqual(error.detail, detail)
+        self.assertIn("token=secret", error.type)
+
+    def test_problem_details_are_hashable(self):
+        """Equal problems hash equally despite the read-only extensions."""
+        problem = ProblemDetails.from_dict(self._problem_payload())
+        same_problem = ProblemDetails.from_dict(self._problem_payload())
+
+        self.assertEqual(problem, same_problem)
+        self.assertEqual(hash(problem), hash(same_problem))
+        self.assertEqual(len({problem, same_problem}), 1)
 
     def test_missing_instance_is_allowed(self):
         """Allow the optional instance member to be omitted."""

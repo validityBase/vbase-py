@@ -20,10 +20,12 @@ from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger, mask_api_key
+from vbase.utils.log import RedactUrlsFilter, get_default_logger, mask_api_key
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Error messages from requests can include credential-bearing URLs.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 # Default timeout for HTTP requests.
@@ -169,6 +171,10 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
+            # The forwarder reports failures with HTTP error statuses and
+            # Problem Details bodies, and returns "success": true with "data"
+            # on success. Older forwarders reported some failures in a 2xx
+            # response with "success": false.
             if response_json.get("success") is False:
                 raise requests.RequestException(
                     response_json.get("log", "Forwarder API request failed.")
@@ -176,19 +182,23 @@ class ForwarderCommitmentService(Web3CommitmentService):
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
-            if http_err.response is not None:
-                api_error = ProblemDetailsError.from_response(http_err.response)
-                if api_error is not None:
-                    _LOG.error(
-                        "Forwarder API error occurred: status=%s code=%s",
-                        api_error.status,
-                        api_error.code,
-                    )
-                    raise api_error from http_err
-            _LOG.error("Forwarder HTTP request failed")
+            response = http_err.response
+            api_error = (
+                ProblemDetailsError.from_response(response)
+                if response is not None
+                else None
+            )
+            _LOG.error(
+                "HTTP error occurred: api=%s status=%s error=%s",
+                api,
+                response.status_code if response is not None else None,
+                api_error or http_err,
+            )
+            if api_error is not None:
+                raise api_error from http_err
             raise
-        except requests.RequestException:
-            _LOG.error("Forwarder request failed")
+        except requests.RequestException as req_err:
+            _LOG.error("Request error occurred: api=%s error=%s", api, req_err)
             raise
         except ValueError as err:
             _LOG.error("Invalid JSON received!")

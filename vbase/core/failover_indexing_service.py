@@ -3,10 +3,12 @@
 import logging
 
 from vbase.core.indexing_service import IndexingService
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import RedactUrlsFilter, get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Indexing service errors can include credential-bearing URLs.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-method
@@ -24,18 +26,21 @@ class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-meth
 
     def _execute_with_failover(self, method_name: str, *args, **kwargs):
         """Execute a method on the first available service that does not raise an exception."""
+        last_error = None
         for service in self.services:
             try:
                 return getattr(service, method_name)(*args, **kwargs)
             except Exception as error:  # pylint: disable=broad-exception-caught
                 _LOG.error(
-                    "Indexing service failed. service_type=%s method=%s error_type=%s",
+                    "Service %s failed to execute %s with error: %s: %s",
                     type(service).__name__,
                     method_name,
                     type(error).__name__,
+                    error,
                 )
+                last_error = error
 
-        raise RuntimeError("All services failed to execute the method.")
+        raise RuntimeError("All services failed to execute the method.") from last_error
 
     def find_user_sets(self, user: str) -> list[dict]:
         return self._execute_with_failover("find_user_sets", user)
