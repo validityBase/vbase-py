@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
-from typing import List, Union, cast
+from typing import List, Optional, Union, cast
 
 import web3
 from dotenv import load_dotenv
@@ -83,20 +83,34 @@ class IndexingService(ABC):
     @staticmethod
     def create_instance_from_commitment_service(
         commitment_service: CommitmentService,
+        node_rpc_url: Optional[str] = None,
     ) -> "IndexingService":
-        """Creates an instance initialized from a commitment service.
-        Handles the complexities of initializing an IndexingService
-        using a forwarded commitment service.
-        We need to query this service for the information needed to connect to a commitment
-        service directly, and this method abstracts this initialization.
+        """Create an indexing service from a commitment service.
+
+        For a forwarder, read the contract address from
+        ``get_commitment_service_data()`` and query events directly through
+        the selected node. For a Web3 commitment service, reuse its connection.
+        See `Indexing and Node Requirements
+        <https://github.com/validityBase/vbase-py/blob/main/README.md#indexing-and-node-requirements>`_
+        for endpoint requirements.
 
         :param commitment_service: The commitment service used.
+        :param node_rpc_url: Optional node RPC URL to use instead of the one
+            returned by the forwarder. Applies only to forwarder commitment
+            services; a Web3 commitment service already uses its own node.
         :return: The IndexingService created.
         """
+        if node_rpc_url is not None and not node_rpc_url:
+            raise ValueError("node_rpc_url must be a non-empty URL or None.")
         if isinstance(
             commitment_service,
             (Web3HTTPCommitmentService, Web3HTTPCommitmentServiceTest),
         ):
+            if node_rpc_url is not None:
+                raise ValueError(
+                    "node_rpc_url applies only to forwarder commitment services; "
+                    "a Web3 commitment service already uses its own node."
+                )
             # This is the trivial case where we pass through the commitment_service.
             return Web3HTTPIndexingService([commitment_service])
 
@@ -104,18 +118,22 @@ class IndexingService(ABC):
             commitment_service,
             (ForwarderCommitmentService, ForwarderCommitmentServiceTest),
         )
-        # Query the forwarder commitment service for the JSON descriptor
-        # required to init the Web3HTTPCommitmentService.
-        # This allows us to create a local web3 commitment and indexing services
-        # using data provided by the forwarder, eliminating additional settings
-        # and ensuring consistency with the forwarder.
+        # Read the contract address even when the caller supplies a node URL.
         commitment_service_data = commitment_service.get_commitment_service_data()
-        if "node_rpc_url" not in commitment_service_data:
-            raise ValueError("Forwarder did not return node_rpc_url.")
         if "commitment_service_address" not in commitment_service_data:
             raise ValueError("Forwarder did not return commitment_service_address.")
+        if node_rpc_url is None:
+            node_rpc_url = commitment_service_data.get("node_rpc_url")
+            if not node_rpc_url:
+                raise ValueError("Forwarder did not return node_rpc_url.")
+        # Pass the forwarder's descriptor through as constructor options,
+        # such as inject_geth_poa_middleware, and override only the node URL.
         return Web3HTTPIndexingService(
-            [Web3HTTPCommitmentService(**commitment_service_data)]
+            [
+                Web3HTTPCommitmentService(
+                    **{**commitment_service_data, "node_rpc_url": node_rpc_url}
+                )
+            ]
         )
 
     def find_user_sets(self, user: str) -> List[dict]:
@@ -299,7 +317,8 @@ class Web3HTTPIndexingService(IndexingService):
         if self.n_last_blocks is None:
             return 0
         block_number = commitment_service.w3.eth.block_number
-        return block_number - self.n_last_blocks
+        # Clamp at the genesis block for chains shorter than n_last_blocks.
+        return max(0, block_number - self.n_last_blocks)
 
     def find_user_sets(self, user: str) -> List[dict]:
         # Find events across all commitment services.

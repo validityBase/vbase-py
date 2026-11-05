@@ -357,8 +357,12 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     def get_commitment_service_data(self) -> dict:
         """Get commitment service data from the API server.
-        This returns the node_rpc_url and the commitment_service_address
-        for the web3 commitment service abstracted by the forwarder.
+        This returns the commitment_service_address of the contract the
+        forwarder uses and a node_rpc_url that clients can use to read the
+        chain directly.
+
+        For indexing service construction and endpoint requirements, see
+        :meth:`vbase.IndexingService.create_instance_from_commitment_service`.
 
         :return: The commitment service data for the API server.
         """

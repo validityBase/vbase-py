@@ -37,6 +37,47 @@ pip install vbase
 
 See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart-1) and the [cloud notebooks](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart) guides to get started using vBase from Python.
 
+## Indexing and Node Requirements
+
+`Web3HTTPIndexingService` finds past commitments by querying a node for
+contract events. It uses event filters (`eth_newFilter` followed by
+`eth_getFilterLogs`). Choose an endpoint that supports both methods across
+the required block range and preserves filter state between requests.
+
+When you use the vBase forwarder,
+`IndexingService.create_instance_from_commitment_service()` connects to the
+node URL returned by the forwarder unless you supply `node_rpc_url`. Its
+query capabilities depend on the configured endpoint:
+
+- Check the endpoint's supported block range. Log retrieval uses the retry policy in
+  [`Web3HTTPIndexingService._retry_get_all_entries`](vbase/core/indexing_service.py);
+  filter creation errors propagate directly.
+- Event filters fail if a load-balanced endpoint loses filter state between
+  requests, even for recent blocks.
+- If the endpoint has not reached a commitment's block, that commitment
+  will not appear in event queries.
+
+To select an endpoint that meets these requirements, pass its URL:
+
+```python
+indexing_service = IndexingService.create_instance_from_commitment_service(
+    vbc.commitment_service, node_rpc_url="https://<your-node-rpc-url>"
+)
+```
+
+The endpoint must be on the same chain as the forwarder. The SDK does not
+validate chain identity or filter support. Verify both before querying; an
+empty result does not establish that you selected the correct chain.
+
+Set `indexing_service.n_last_blocks` to control how far back from the current
+block queries begin. The range calculation and full-history behavior are
+defined by
+[`Web3HTTPIndexingService._get_from_block`](vbase/core/indexing_service.py).
+For dataset queries, see the indexing service selection documented in
+[`VBaseDataset.get_commitment_receipts()`](vbase/core/vbase_dataset.py).
+For large histories, you can also use a custom indexer such as
+`SQLIndexingService`.
+
 ## Development
 
 Install the generated development lock and package locally:
