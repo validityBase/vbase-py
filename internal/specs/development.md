@@ -2,8 +2,8 @@
 
 ## Setup
 
-Use Python 3.11 or newer. Generated lock files are maintained with Python 3.11
-for CI parity.
+Python 3.11 is the minimum supported version. CI validates Python 3.11 through
+3.13, and generated lock files are maintained with Python 3.11 for CI parity.
 
 ```bash
 python -m pip install --require-hashes -r requirements/dev.txt
@@ -35,6 +35,26 @@ source config/.env.localhost
 python3 -m unittest discover -s vbase/tests
 ```
 
+Forwarder Problem Details parsing follows the SDK consumer profile in
+`docs/problem-details.schema.json`. The profile deliberately remains
+forward-compatible; the Forwarder owns its producer-specific error catalog.
+The SDK checks the standard members' structure plus the vBase `code` extension
+before raising `ProblemDetailsError`. Codes contain only uppercase ASCII
+letters, digits, and underscores and are limited to 64 characters. The optional
+`details` member may be omitted, but when present it must be a JSON object.
+Responses failing these checks remain ordinary `requests.HTTPError` instances.
+
+Producers must supply RFC 3986 URI references for `type` and `instance`;
+`instance` may be omitted, but not JSON null. The SDK treats them as identifiers
+and applies lightweight checks: ASCII strings without raw whitespace/control
+characters, well-formed percent escapes, and successful `urlsplit` parsing.
+It does not certify full URI syntax or URL safety. Schema `uri-reference`
+formats are producer-contract annotations, not exhaustive runtime assertions.
+Do not add a URI-validation dependency or a custom authority/IP/port grammar.
+Parsing uses a lowercase validation copy for the IPvFuture marker; identifiers
+are preserved unchanged and are never dereferenced. Tests cover both fields,
+including the deliberate boundary between sanity checks and full validation.
+
 ## Environment
 
 Test environment files live under `config/`:
@@ -45,9 +65,28 @@ Test environment files live under `config/`:
 
 Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 `VBASE_COMMITMENT_SERVICE_ADDRESS`, and `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY`.
+
+## Sensitive Logging
+
+- Never log complete API keys, private keys, access tokens, credentials, or RPC
+  URLs that may contain provider credentials.
+- API keys needed for diagnostic correlation use `vbase.utils.log.mask_api_key`,
+  which retains the first and last eight characters only for keys of at least
+  32 characters. Shorter keys are fully redacted.
+- Log only whether private keys and RPC URLs are configured. Public contract
+  addresses may be logged directly.
+
+- Indexing descriptors may contain credentials: log only the commitment service
+  count, never the descriptor or individual service configuration.
+- Do not log exception text or service objects from forwarder, RPC connection,
+  or failover indexing failures; they may contain credential-bearing URLs.
+
+## Public Dev Tests
+
 The public-dev forwarder runner requires `VBASE_API_KEY` from the environment
 or a secret manager. It generates a fresh signer private key for each invocation
 and does not use a committed or externally supplied signer key.
+
 The indexing tests use unique object CIDs for global object lookups so old
 public-chain test data does not accumulate in those queries.
 The [`TestIndexingService` setup](../../vbase/tests/test_indexing_service.py)

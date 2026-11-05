@@ -6,7 +6,6 @@ This implementation uses a forwarder to execute meta-transactions on a user's be
 import json
 import logging
 import os
-import pprint
 from enum import Enum
 from typing import List, Optional, Union
 
@@ -17,10 +16,11 @@ from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from web3 import Web3
 
+from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import get_default_logger, mask_api_key
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -115,9 +115,14 @@ class ForwarderCommitmentService(Web3CommitmentService):
         }
         # Check for missing environment variables since these are unrecoverable.
         check_for_missing_env_vars(init_args)
+        safe_log_args = {
+            "forwarder_url_configured": bool(init_args["forwarder_url"]),
+            "api_key": mask_api_key(init_args["api_key"]),
+            "private_key_configured": bool(init_args["private_key"]),
+        }
         _LOG.debug(
-            "ForwarderCommitmentService.get_init_args_from_env(): init_args =\n%s",
-            pprint.pformat(init_args),
+            "ForwarderCommitmentService.get_init_args_from_env(): config = %s",
+            safe_log_args,
         )
         return init_args
 
@@ -164,20 +169,27 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
-            # Newer servers may not return a "success" field.
-            # They signal error with HTTPError only.
-            # Check whether the "success" field is present and False
-            # to determine if an older server is returning a failure via this field.
-            if "success" in response_json and not response_json["success"]:
-                raise requests.RequestException(response_json["log"])
+            if response_json.get("success") is False:
+                raise requests.RequestException(
+                    response_json.get("log", "Forwarder API request failed.")
+                )
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
-            _LOG.error("HTTP error occurred: %s", http_err)
-            raise http_err
-        except requests.RequestException as req_err:
-            _LOG.error("Request error occurred: %s", req_err)
-            raise req_err
+            if http_err.response is not None:
+                api_error = ProblemDetailsError.from_response(http_err.response)
+                if api_error is not None:
+                    _LOG.error(
+                        "Forwarder API error occurred: status=%s code=%s",
+                        api_error.status,
+                        api_error.code,
+                    )
+                    raise api_error from http_err
+            _LOG.error("Forwarder HTTP request failed")
+            raise
+        except requests.RequestException:
+            _LOG.error("Forwarder request failed")
+            raise
         except ValueError as err:
             _LOG.error("Invalid JSON received!")
             raise err

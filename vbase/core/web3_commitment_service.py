@@ -133,7 +133,7 @@ class Web3CommitmentService(CommitmentService, ABC):
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,
             backoff=self.RETRY_BACKOFF,
-            logger=_LOG,
+            logger=None,
         )
 
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
