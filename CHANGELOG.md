@@ -12,13 +12,21 @@ for prior changes.
 
 ### Added
 
+- Preserve RFC 9457 Problem Details from Forwarder errors in the Python SDK (#99).
 - Add an optional `node_rpc_url` argument to
   `IndexingService.create_instance_from_commitment_service()`. Use it to query
   events through your own node instead of the node URL returned by the
   forwarder.
 
+### Changed
+
+- Extend the cross-platform package setup matrix to Python 3.13 (#100).
+
 ### Fixed
 
+- Preserve structured Forwarder errors when passed between Python processes
+  and reject trailing newlines in problem codes at the schema boundary.
+- Redact credentials and sensitive values from RPC and Forwarder diagnostics (#96).
 - Clamp event-query start blocks at genesis when `n_last_blocks` exceeds the
   chain height.
 

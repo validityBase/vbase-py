@@ -27,9 +27,9 @@ It does not generate release notes from commit history.
 Keep `vbase/_version.py` unchanged in the changelog PR.
 The **Prepare release** workflow applies the selected version increment.
 
-Review compatibility changes before you select the increment.
-The current changes remove support for Python 3.8 through 3.10.
-A major increment is recommended for this compatibility change.
+Review compatibility changes in `[Unreleased]` before selecting the increment.
+Use a major increment when those changes remove supported Python versions
+or otherwise break backward compatibility.
 
 ## Start the Prepare release workflow
 
