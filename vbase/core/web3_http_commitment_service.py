@@ -10,7 +10,8 @@ import time
 from typing import List, Optional, Union
 
 from dotenv import load_dotenv
-from web3 import Web3
+from web3 import HTTPProvider, Web3
+from web3.types import RPCEndpoint, RPCResponse
 
 try:
     # web3.py v7 middleware names
@@ -32,10 +33,33 @@ except ImportError:
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import (
+    RedactUrlsFilter,
+    get_default_logger,
+    redact_exception,
+    redact_url,
+)
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Node RPC URLs and provider errors can include credentials.
+_LOG.addFilter(RedactUrlsFilter())
+
+
+class _RedactingHTTPProvider(HTTPProvider):
+    """HTTP provider that redacts URLs in the errors of node requests.
+
+    Every node request, including those of indexing services, passes through
+    ``make_request``. requests and urllib3 errors raised there include the
+    node URL, so redact them before they reach callers or tracebacks.
+    """
+
+    def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
+        try:
+            return super().make_request(method, params)
+        except Exception as error:
+            redact_exception(error)
+            raise
 
 
 # Settings for the connection retry for Web3.HTTPProvider.
@@ -92,32 +116,38 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         self.commitment_service_address = commitment_service_address
 
         # Connect to the node with retries and backoff.
+        # Keep credentials embedded in the URL out of logs and exception messages.
+        # The URL is redacted as one complete value, because its credentials
+        # can contain whitespace that would end a URL found in free text.
+        safe_node_rpc_url = redact_url(self.node_rpc_url)
         retry_count = 0
         backoff = 0
         connected = False
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
-                w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
+                w3 = Web3(_RedactingHTTPProvider(self.node_rpc_url))
                 if w3.is_connected():
                     connected = True
                     _LOG.debug(
-                        "Web3HTTPCommitmentService.__init__(): "
-                        "Connected to configured node RPC endpoint"
+                        "Web3HTTPCommitmentService.__init__(): Connected to %s",
+                        safe_node_rpc_url,
                     )
                     break
-                raise ConnectionError(
-                    "Failed to connect to configured node RPC endpoint"
+                raise ConnectionError(f"Failed to connect to {safe_node_rpc_url}")
+            except ConnectionError as e:
+                _LOG.error(
+                    "Web3HTTPCommitmentService.__init__(): "
+                    "Exception connecting to %s: %s",
+                    safe_node_rpc_url,
+                    e,
                 )
-            except ConnectionError:
-                _LOG.error("Web3 node RPC connection attempt failed")
                 retry_count += 1
                 backoff += _W3_CONNECTION_BACKOFF
                 time.sleep(backoff)
 
         if not connected:
             raise ConnectionError(
-                "Failed to connect to configured node RPC endpoint "
-                f"after {retry_count} retries"
+                f"Failed to connect to {safe_node_rpc_url} after {retry_count} retries"
             )
 
         if inject_geth_poa_middleware:
@@ -164,10 +194,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             "commitment_service_address": os.getenv("VBASE_COMMITMENT_SERVICE_ADDRESS"),
             "private_key": os.getenv("VBASE_COMMITMENT_SERVICE_PRIVATE_KEY"),
             "inject_geth_poa_middleware": Web3HTTPCommitmentService._get_bool_env_var(
-                os.getenv(
-                    "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE",
-                    default="False",
-                )
+                "VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE"
             ),
         }
         # Check for missing environment variables since these are unrecoverable.

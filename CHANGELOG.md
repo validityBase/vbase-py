@@ -12,28 +12,88 @@ for prior changes.
 
 ### Added
 
-- Preserve RFC 9457 Problem Details from Forwarder errors in the Python SDK (#99).
+- Raise `ProblemDetailsError` for Forwarder HTTP errors that return a valid
+  RFC 9457 `application/problem+json` body. It subclasses
+  `requests.HTTPError`, keeps the original response, and exposes the problem's
+  `type`, `title`, `status`, `detail`, `instance`, `code`, `details`, and
+  `extensions`. `ProblemDetails` and `ProblemDetailsError` are exported from
+  `vbase` and can be pickled. See
+  [Forwarder errors](https://github.com/validityBase/vbase-py/blob/main/docs/errors.rst)
+  (#99, #134).
 - Add an optional `node_rpc_url` argument to
   `IndexingService.create_instance_from_commitment_service()`. Use it to query
   events through your own node instead of the node URL returned by the
-  forwarder.
+  forwarder. It applies only to forwarder commitment services; an empty value,
+  or any value with a Web3 commitment service, raises `ValueError` (#135).
+- Document endpoint selection and event-query requirements in
+  [Indexing and Node Requirements](https://github.com/validityBase/vbase-py/blob/main/README.md#indexing-and-node-requirements)
+  (#135).
 
 ### Changed
 
-- Extend the cross-platform package setup matrix to Python 3.13 (#100).
+- For Forwarder errors raised as `ProblemDetailsError`, `str(error)` and
+  `error.args` contain `HTTP API problem (<status>) code=<code>: <detail>`
+  instead of the `requests` message
+  `<status> Client Error: <reason> for url: <url>`. Handlers that catch
+  `requests.HTTPError` and code that reads `error.response` work as before.
+  Code that parses the message should use the error's attributes (#99).
+- `Web3HTTPIndexingService` queries events with stateless `eth_getLogs`
+  requests instead of `eth_newFilter` and `eth_getFilterLogs`, so queries work
+  with load-balanced endpoints. A query that fails with a connection error or
+  a JSON-RPC error from the node is retried in full. Other errors, such as
+  invalid query arguments, are raised without a retry. Previously, only log
+  retrieval was retried, for any error.
+- `IndexingService.create_instance_from_commitment_service()` passes only
+  `node_rpc_url` and `commitment_service_address` from the forwarder's
+  commitment service data to `Web3HTTPCommitmentService` and ignores other
+  fields. It raises `ValueError` if the forwarder returns an empty or null
+  `node_rpc_url`; previously, Web3 used its default local endpoint.
+- Forwarder and failover indexing error logs use these formats:
+  `HTTP error occurred: api=<api> status=<status> error=<error>`,
+  `Request error occurred: api=<api> error=<error>`, and
+  `Service <class> failed to execute <method> with error: <type>: <error>`.
+- Declare Python 3.11 through 3.13 in the package classifiers, and verify
+  installation on Python 3.13 in CI (#100).
 
 ### Fixed
 
-- Preserve structured Forwarder errors when passed between Python processes
-  and reject trailing newlines in problem codes at the schema boundary.
-- Redact credentials and sensitive values from RPC and Forwarder diagnostics (#96).
+- Read `VBASE_COMMITMENT_SERVICE_INJECT_GETH_POA_MIDDLEWARE` in
+  `Web3HTTPCommitmentService.create_instance_from_env()`. The setting was
+  ignored, so the POA middleware was never injected. Deployments that set it
+  to a true value now get the middleware.
 - Clamp event-query start blocks at genesis when `n_last_blocks` exceeds the
-  chain height.
+  chain height (#135).
+- When `find_objects()`, `find_object()`, `find_last_object()`, or
+  `find_user_objects()` return set CIDs, use the same start block for the
+  object and set queries. Previously, `setCid` could be missing for
+  commitments near the start of the `n_last_blocks` range.
+- When all services fail, `FailoverIndexingService` raises its `RuntimeError`
+  with the last service error as the cause.
 
-### Documentation
+### Security
 
-- Document endpoint selection and event-query requirements in
-  [Indexing and Node Requirements](README.md#indexing-and-node-requirements).
+- Keep credentials out of SDK logs and exception messages (#96):
+  - `get_init_args_from_env()` debug logs show whether the forwarder URL, node
+    URL, and private key are set, and a masked API key, instead of the values.
+  - Indexing descriptor logs show only the number of commitment services.
+  - Forwarder, node connection, indexing retry, and failover logs keep the
+    error text but reduce each URL to its scheme and host. URL credentials,
+    paths, queries, and fragments, and punctuation that directly follows
+    them, are replaced with `[REDACTED]`. A URL that may have whitespace in
+    its credentials keeps only its scheme.
+  - `Web3HTTPCommitmentService` connection errors show only the scheme and
+    host of the node URL, including when its credentials contain whitespace.
+  - Errors raised by node and forwarder requests, such as `requests` HTTP and
+    connection errors and the `urllib3` errors they wrap, reduce URLs in their
+    messages to scheme and host. This applies to tracebacks, to the cause of
+    the `FailoverIndexingService` `RuntimeError`, and to errors passed to
+    another process, for example from a `ProcessPoolExecutor` worker to its
+    parent. The errors keep their type and attributes, except the `url`
+    attribute of `urllib3` errors: `urllib3` rebuilds its message from that
+    attribute in the receiving process, so the attribute is redacted too.
+    `error.request.url` keeps the full URL.
+  - `ProblemDetailsError` messages omit the server-supplied `type` URI and
+    redact URLs in `detail`.
 
 ## [2.0.0] - 2026-10-28
 

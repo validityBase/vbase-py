@@ -9,6 +9,21 @@ preserves the original response. The standard members are exposed as ``type``,
 ``title``, ``status``, ``detail``, and ``instance``; additional members are in
 ``extensions``. The required vBase ``code`` and optional ``details`` extensions
 have convenience properties. Clients should branch primarily on ``type``.
+
+The exception message, ``str(error)`` and ``error.args``, has the form
+``HTTP API problem (<status>) code=<code>: <detail>``. It is not the
+``"<status> Client Error: <reason> for url: <url>"`` message that
+``requests.HTTPError`` uses for other failures, in which the SDK reduces the
+URL to its scheme and host. The message omits the
+server-supplied ``type`` URI and reduces any URL in ``detail`` to its scheme
+and host, or to its scheme alone when the URL may have whitespace in its
+credentials, so it does not copy common forms of URL credentials into logs or
+tracebacks. This redaction is best effort; API producers must not include
+credentials in ``detail``. The
+attributes keep the original values. The message is for people to read and may
+change; do not parse it. To branch on a failure, use ``type``, ``code``,
+``status``, or ``error.response.status_code``.
+
 The parsed document is available as ``error.problem`` and can be serialized
 with ``error.problem.to_dict()``. Both the parsed document and the
 exception support Python pickling, including passing structured errors
