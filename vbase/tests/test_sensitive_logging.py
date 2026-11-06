@@ -4,6 +4,7 @@
 
 import io
 import json
+import logging
 import os
 import pickle
 import time
@@ -13,7 +14,8 @@ from unittest.mock import Mock, patch
 
 import requests
 from urllib3.exceptions import MaxRetryError
-from web3.exceptions import InvalidAddress, Web3RPCError
+from web3 import Web3
+from web3.exceptions import BadResponseFormat, InvalidAddress, Web3RPCError
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
@@ -24,6 +26,7 @@ from vbase.core.web3_http_commitment_service import (
 )
 from vbase.utils.log import (
     REDACTED_LOG_VALUE,
+    RedactUrlsFilter,
     mask_api_key,
     redact_exception,
     redact_url,
@@ -81,6 +84,15 @@ def _connection_error(url_path: str) -> requests.ConnectionError:
             raise requests.ConnectionError(error) from error
         except requests.ConnectionError as connection_error:
             return connection_error
+
+
+def _node_response(content: bytes) -> requests.Response:
+    """Build a successful node HTTP response with the given body."""
+    response = requests.Response()
+    response.status_code = 200
+    response._content = content  # pylint: disable=protected-access
+    response.raw = io.BytesIO(b"")
+    return response
 
 
 def _get_commitment_service_data() -> dict:
@@ -242,6 +254,33 @@ class TestSensitiveLogging(unittest.TestCase):
             _RPC_SECRET, _traceback_text(pickle.loads(pickle.dumps(error)))
         )
 
+    def test_redact_exception_redacts_other_traceback_text(self):
+        """Notes, OSError text, and exception groups are redacted too."""
+        os_error = ConnectionRefusedError(111, f"Connection refused for {_RPC_URL}")
+        file_error = FileNotFoundError(2, "No such file", _RPC_URL, None, _RPC_URL)
+        noted_error = requests.ConnectionError("Connection failed")
+        noted_error.add_note(f"Request endpoint: {_RPC_URL}")
+        error_group = ExceptionGroup("Requests failed", [_connection_error(_RPC_URL)])
+        for error in (os_error, file_error, noted_error, error_group):
+            with self.subTest(error=type(error).__name__):
+                redact_exception(error)
+
+                self.assertNotIn(_RPC_SECRET, _traceback_text(error))
+                self.assertNotIn(
+                    _RPC_SECRET, _traceback_text(pickle.loads(pickle.dumps(error)))
+                )
+
+        self.assertEqual(
+            str(os_error), f"[Errno 111] Connection refused for {_REDACTED_RPC_URL}"
+        )
+        self.assertEqual(
+            str(file_error),
+            f"[Errno 2] No such file: '{_REDACTED_RPC_URL}' -> '{_REDACTED_RPC_URL}'",
+        )
+        self.assertIn(
+            f"Request endpoint: {_REDACTED_RPC_URL}", _traceback_text(noted_error)
+        )
+
     @patch("requests.Session.post")
     def test_node_request_errors_redact_rpc_url(self, post_mock):
         """Errors from node requests do not show the node URL's credentials."""
@@ -276,6 +315,84 @@ class TestSensitiveLogging(unittest.TestCase):
 
                 self.assertEqual(str(raised.exception), message)
                 self.assertNotIn(_RPC_SECRET, _traceback_text(raised.exception))
+
+    @patch("requests.Session.post")
+    def test_node_error_responses_redact_urls(self, post_mock):
+        """Errors that web3 raises for node responses omit URL credentials."""
+        node_text = f"upstream {_RPC_URL} failed"
+        cases = (
+            (
+                Web3RPCError,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "error": {"code": -1, "message": node_text},
+                },
+            ),
+            (BadResponseFormat, {"jsonrpc": "2.0", "id": 0, "error": node_text}),
+        )
+        bodies = [(error_type, json.dumps(body).encode()) for error_type, body in cases]
+        # web3 raises JSONDecodeError, with the body in its message, for a
+        # body that is not JSON.
+        bodies.append((json.JSONDecodeError, node_text.encode()))
+        for error_type, body in bodies:
+            with self.subTest(error_type=error_type.__name__):
+                post_mock.return_value = _node_response(body)
+                w3 = Web3(
+                    _RedactingHTTPProvider(_RPC_URL, exception_retry_configuration=None)
+                )
+
+                with self.assertRaises(error_type) as raised:
+                    w3.eth.get_block_number()
+
+                error = raised.exception
+                self.assertIn(_REDACTED_RPC_URL, str(error))
+                self.assertNotIn(_RPC_SECRET, _traceback_text(error))
+                self.assertNotIn(_RPC_SECRET, repr(getattr(error, "rpc_response", "")))
+                # A worker process passes an exception to its parent by pickling it.
+                self.assertNotIn(
+                    _RPC_SECRET, _traceback_text(pickle.loads(pickle.dumps(error)))
+                )
+
+        # The result is node data and is returned unchanged.
+        post_mock.return_value = _node_response(
+            json.dumps({"jsonrpc": "2.0", "id": 0, "result": _RPC_URL}).encode()
+        )
+        provider = _RedactingHTTPProvider(_RPC_URL, exception_retry_configuration=None)
+        self.assertEqual(
+            provider.make_request("web3_clientVersion", [])["result"], _RPC_URL
+        )
+
+    def test_redact_urls_filter_redacts_logged_tracebacks(self):
+        """Tracebacks logged through a handler with the filter omit URL credentials."""
+        plain_stream = io.StringIO()
+        filtered_stream = io.StringIO()
+        filtered_handler = logging.StreamHandler(filtered_stream)
+        filtered_handler.addFilter(RedactUrlsFilter())
+        logger = logging.getLogger(f"{__name__}.tracebacks")
+        logger.propagate = False
+        # The first handler has no filter and caches the traceback text.
+        for handler in (logging.StreamHandler(plain_stream), filtered_handler):
+            logger.addHandler(handler)
+            self.addCleanup(logger.removeHandler, handler)
+
+        try:
+            raise _connection_error(f"/v2/{_RPC_SECRET}")
+        except requests.ConnectionError:
+            logger.exception("Request failed")
+        # A record received from another process carries only the text.
+        filtered_handler.handle(
+            logging.makeLogRecord(
+                {"msg": "Remote request failed", "exc_text": f"Error: {_RPC_URL}"}
+            )
+        )
+
+        # The cached text is unredacted, so the filtered handler must not use it.
+        self.assertIn(_RPC_SECRET, plain_stream.getvalue())
+        self.assertIn("Traceback", filtered_stream.getvalue())
+        self.assertIn(f"url: /{REDACTED_LOG_VALUE}", filtered_stream.getvalue())
+        self.assertIn(f"Error: {_REDACTED_RPC_URL}", filtered_stream.getvalue())
+        self.assertNotIn(_RPC_SECRET, filtered_stream.getvalue())
 
     def test_redact_urls_handles_requests_error_messages(self):
         """Error text from requests keeps its diagnostics without credentials."""

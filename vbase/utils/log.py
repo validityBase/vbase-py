@@ -163,23 +163,56 @@ def _redact_request_target(target: str) -> str:
     return target
 
 
+def _redact_exception_attributes(error: BaseException) -> None:
+    """Redact the attributes, other than args, that :func:`redact_exception` covers."""
+    if isinstance(error, OSError):
+        # An OSError message is built from these attributes, not from args.
+        for name in ("strerror", "filename", "filename2"):
+            value = getattr(error, name)
+            if isinstance(value, str):
+                setattr(error, name, redact_urls(value))
+    # Tracebacks show notes after the message. urllib3 errors and
+    # JSONDecodeError rebuild their message from the other attributes when
+    # passed to another process (see redact_exception). Write to the instance
+    # dictionary, because other classes may define these names as read-only
+    # properties.
+    attributes = getattr(error, "__dict__", {})
+    notes = attributes.get("__notes__")
+    if isinstance(notes, list):
+        attributes["__notes__"] = [
+            redact_urls(note) if isinstance(note, str) else note for note in notes
+        ]
+    if isinstance(attributes.get("url"), str):
+        attributes["url"] = _redact_request_target(attributes["url"])
+    for name in ("_message", "msg"):
+        if isinstance(attributes.get(name), str):
+            attributes[name] = redact_urls(attributes[name])
+
+
 def redact_exception(error: BaseException) -> BaseException:
     """Apply :func:`redact_urls` to an exception's messages, in place.
 
     Errors from requests and urllib3 include the request URL in their
     messages, so a traceback can show credentials in a node URL. This redacts
     the string arguments of the exception, of exceptions in its arguments,
-    such as the urllib3 error that a requests error wraps, and of its
-    ``__cause__`` and ``__context__`` chain.
+    such as the urllib3 error that a requests error wraps, of the exceptions
+    in an exception group, and of its ``__cause__`` and ``__context__``
+    chain. For each of these exceptions, it also redacts the other text that
+    a traceback shows: the exception's notes, and the ``strerror``,
+    ``filename``, and ``filename2`` attributes of an :class:`OSError`, whose
+    message is built from these attributes instead of its arguments.
 
-    It also redacts the ``url`` and ``_message`` attributes of urllib3
-    errors. An exception that is passed to another process, for example from
-    a ``concurrent.futures.ProcessPoolExecutor`` or ``multiprocessing`` worker
-    to its parent, is serialized with :mod:`pickle` and rebuilt in the
-    receiving process. Most exceptions are rebuilt from their arguments,
-    which are already redacted. urllib3 errors are rebuilt from these two
-    attributes instead, so leaving them unredacted would put the original
-    URL back into the rebuilt message.
+    It also redacts the attributes that some exceptions are rebuilt from in
+    another process. An exception that is passed to another process, for
+    example from a ``concurrent.futures.ProcessPoolExecutor`` or
+    ``multiprocessing`` worker to its parent, is serialized with
+    :mod:`pickle` and rebuilt in the receiving process. Most exceptions are
+    rebuilt from their arguments, which are already redacted. urllib3 errors
+    are rebuilt from their ``url`` and ``_message`` attributes instead, and
+    :class:`json.JSONDecodeError`, which web3 raises with the text of a node
+    response that is not JSON, from its ``msg`` attribute. Leaving these
+    attributes unredacted would put the original text back into the rebuilt
+    message.
 
     The exception keeps its type and other attributes, such as ``request``
     and ``response``, so callers can still catch and inspect it. Redaction is
@@ -207,15 +240,9 @@ def redact_exception(error: BaseException) -> BaseException:
             args.append(arg)
         if changed:
             current.args = tuple(args)
-        # urllib3 errors rebuild their message from these attributes when
-        # passed to another process (see the docstring). Write to the instance
-        # dictionary, because other classes may define these names as
-        # read-only properties.
-        attributes = getattr(current, "__dict__", {})
-        if isinstance(attributes.get("url"), str):
-            attributes["url"] = _redact_request_target(attributes["url"])
-        if isinstance(attributes.get("_message"), str):
-            attributes["_message"] = redact_urls(attributes["_message"])
+        _redact_exception_attributes(current)
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(current.exceptions)
         pending.extend(
             chained
             for chained in (current.__cause__, current.__context__)
@@ -228,9 +255,20 @@ class RedactUrlsFilter(logging.Filter):  # pylint: disable=too-few-public-method
     """Logging filter that applies :func:`redact_urls` to each formatted message.
 
     Attach it to loggers whose messages include provider or HTTP error text.
+    Formatters add the traceback of a record's exception after the message,
+    so the filter also redacts that exception in place with
+    :func:`redact_exception`, and redacts traceback text that a handler
+    formatted before the filter ran.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[1] is not None:
+            redact_exception(record.exc_info[1])
+            # Clear traceback text that a handler cached before this filter
+            # ran, so that the redacted exception is formatted again.
+            record.exc_text = None
+        elif record.exc_text:
+            record.exc_text = redact_urls(record.exc_text)
         try:
             message = record.getMessage()
         except (TypeError, ValueError):

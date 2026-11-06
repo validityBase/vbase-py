@@ -101,25 +101,38 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   text that may contain URLs.
 - Errors from requests and urllib3 include the request URL. The SDK redacts
   their messages in place with `vbase.utils.log.redact_exception`, which also
-  covers wrapped errors and the `__cause__` and `__context__` chain, so
-  tracebacks do not show URL credentials. The exceptions keep their type and
-  other attributes, such as `request` and `response`, so callers can catch
-  and inspect them.
+  covers wrapped errors, the exceptions in an exception group, and the
+  `__cause__` and `__context__` chain, so tracebacks do not show URL
+  credentials. It also redacts the other text that tracebacks show:
+  exception notes, and the `strerror`, `filename`, and `filename2`
+  attributes from which an `OSError` builds its message. The exceptions keep
+  their type and other attributes, such as `request` and `response`, so
+  callers can catch and inspect them.
 - An exception passed to another process, for example from a
   `concurrent.futures.ProcessPoolExecutor` or `multiprocessing` worker to its
   parent, is serialized with `pickle` and rebuilt in the receiving process.
   Most exceptions are rebuilt from their arguments, which are already
   redacted. urllib3 errors are rebuilt from their `url` and `_message`
-  attributes instead, so `redact_exception` redacts those attributes too.
-- Every node request, including indexing queries, goes through the HTTP
-  provider that `Web3HTTPCommitmentService` installs, which redacts its
-  errors. Forwarder request errors are redacted where they are caught, and
-  `FailoverIndexingService` redacts each service error before logging or
-  chaining it.
-- Dependency debug logs, such as those of `web3.providers.HTTPProvider` and
-  `urllib3.connectionpool`, include request URLs. The SDK does not change
-  dependency loggers. Applications that enable them can add
-  `vbase.utils.log.RedactUrlsFilter` to their handlers.
+  attributes instead, and `json.JSONDecodeError` from its `msg` attribute,
+  so `redact_exception` redacts those attributes too.
+- Every node request that the SDK sends, including indexing queries, goes
+  through the `make_request` method of the HTTP provider that
+  `Web3HTTPCommitmentService` installs. The SDK does not send JSON-RPC batch
+  requests, which use another provider method. The provider redacts the
+  errors raised by the request. web3 raises errors for JSON-RPC error
+  responses, such as `Web3RPCError`, after the provider returns the
+  response, and includes the response text in them, so the provider also
+  redacts URLs in the response outside its `result`. Forwarder request
+  errors are redacted where they are caught, and `FailoverIndexingService`
+  redacts each service error before logging or chaining it.
+- Dependency logs include request URLs: the debug logs of
+  `web3.providers.HTTPProvider` and `urllib3.connectionpool`, and some
+  urllib3 warnings, such as the warning for response headers that it cannot
+  parse. The SDK does not change dependency loggers. Applications that
+  enable these logs can add `vbase.utils.log.RedactUrlsFilter` to their
+  handlers. For a record with exception information, the filter also
+  redacts the exception in place with `redact_exception`, so the traceback
+  that a formatter adds after the message is redacted too.
 
 ## Public Dev Tests
 
