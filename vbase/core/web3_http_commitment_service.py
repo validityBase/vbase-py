@@ -30,6 +30,7 @@ except ImportError:
         geth_poa_middleware as geth_poa_middleware_compat,
     )
 
+from vbase.core.user_write_queue import serialize_user_write
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
@@ -187,6 +188,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)
         )
 
+    @serialize_user_write
     def add_set(self, set_cid: str) -> dict:
         _LOG.debug("Sending transaction to addSet")
         tx_hash = self.csc.functions.addSet(
@@ -208,6 +210,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             hex_str_to_int(user_set_cid_sum),
         ).call()
 
+    @serialize_user_write
     def add_object(self, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addObject")
         tx_hash = self.csc.functions.addObject(object_cid).transact()
@@ -222,6 +225,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             self.convert_timestamp_str_to_chain(timestamp),
         ).call()
 
+    @serialize_user_write
     def add_set_object(self, set_cid: str, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addSetObject")
         tx_hash = self.csc.functions.addSetObject(
@@ -232,6 +236,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return self._add_set_object_worker(receipt)
 
+    @serialize_user_write
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
@@ -244,6 +249,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return self._add_sets_objects_batch_worker(receipt)
 
+    @serialize_user_write
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         tx_hash = self.csc.functions.addSetObjectsBatch(

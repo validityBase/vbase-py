@@ -17,6 +17,7 @@ from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from web3 import Web3
 
+from vbase.core.user_write_queue import UserWriteState, serialize_user_write
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
@@ -68,14 +69,10 @@ class ForwarderCommitmentService(Web3CommitmentService):
         self.api_key = api_key
         self.private_key = private_key
 
-        # The forwarder caches signature data and keeps track of the nonce.
-        # This eliminates the need for the signature-data request
-        # on each forwarded execute.
-        # This can create difficulties if a user makes requests from multiple machines,
-        # but it is a fundamental issue with nonce tracking in such cases.
-        # The best one can do is get an updated nonce and re-try.
+        # Signature data is refreshed under user ownership before each write.
         self._signature_data: Union[dict, None] = None
         self._nonce: Union[int, None] = None
+        self._user_write_state: UserWriteState | None = None
 
         # Create the w3 object.
         # We will never interact with a node but will use the w3 object
@@ -240,6 +237,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 receipt["logs"][i_log]["topics"][i_topic] = HexBytes(topic)
         return receipt
 
+    @serialize_user_write
     def _post_execute(self, fn_name: str, args: []):
         """Call a forwarded web API and return the response.
 
@@ -247,20 +245,21 @@ class ForwarderCommitmentService(Web3CommitmentService):
         :param args: The arguments to the smart contract function.
         :return: The returned data.
         """
-        # Get signature data from the API endpoint if necessary.
-        # If we have the wrong nonce, we will reset these fields and re-initialize them.
-        if self._signature_data is None or self._nonce is None:
-            self._signature_data = self._call_forwarder_api("signature-data")
-            # Validate that signature_data is as expected for this call.
-            if self._signature_data is None or not isinstance(
-                self._signature_data, dict
-            ):
-                raise ValueError("Unexpected signature_data")
-            if "domain" not in self._signature_data:
-                raise ValueError("Missing domain field of signature_data")
-            if "chainId" not in self._signature_data["domain"]:
-                raise ValueError('Missing chainId field of signature_data["domain"]')
-            self._nonce = self._signature_data["nonce"]
+        # Another instance may have written since this instance's last call.
+        self._signature_data = None
+        self._nonce = None
+        self._signature_data = self._call_forwarder_api("signature-data")
+        # Validate that signature_data is as expected for this call.
+        if self._signature_data is None or not isinstance(self._signature_data, dict):
+            raise ValueError("Unexpected signature_data")
+        if "domain" not in self._signature_data:
+            raise ValueError("Missing domain field of signature_data")
+        if "chainId" not in self._signature_data["domain"]:
+            raise ValueError('Missing chainId field of signature_data["domain"]')
+        self._nonce = int(self._signature_data["nonce"])
+        # A replicated read may lag a receipt already confirmed by this queue.
+        if self._user_write_state.next_nonce is not None:
+            self._nonce = max(self._nonce, self._user_write_state.next_nonce)
 
         # Convert chainId to integer to make it compatible with consumer APIs.
         # Technically it is an uint256 and is sent as a string.
@@ -340,6 +339,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         # but a transport error occurs, and this success is unknown.
         # In these cases, the nonce will be wrong, and we should re-load it.
         self._nonce += 1
+        self._user_write_state.next_nonce = self._nonce
 
         return receipt
 
@@ -353,6 +353,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         ret = self._call_forwarder_api("commitment-service-data")
         return ret
 
+    @serialize_user_write
     def add_set(self, set_cid: str) -> dict:
         # Execute the call via the forwarder.
         _LOG.debug("Sending transaction to addSet")
@@ -413,6 +414,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             raise ValueError("signature_data['domain'] missing 'chainId'")
         return int(domain["chainId"])
 
+    @serialize_user_write
     def add_object(self, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addObject")
         receipt = self._post_execute(
@@ -435,6 +437,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return bool(int(ret, base=16))
 
+    @serialize_user_write
     def add_set_object(self, set_cid: str, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addSetObject")
         receipt = self._post_execute(
@@ -443,6 +446,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return self._add_set_object_worker(receipt)
 
+    @serialize_user_write
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
@@ -453,6 +457,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return self._add_sets_objects_batch_worker(receipt)
 
+    @serialize_user_write
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         receipt = self._post_execute(
