@@ -41,8 +41,10 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each query runs from a start block to the
-latest block. Queries that fail with a connection or node error are retried
-with exponential backoff, and the last error is raised if all attempts fail.
+latest block. Queries that fail with a connection error or a JSON-RPC error
+from the node are retried with exponential backoff, and the last error is
+raised if all attempts fail. Other errors, such as invalid query arguments, are
+raised without a retry.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the

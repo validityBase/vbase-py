@@ -32,7 +32,7 @@ except ImportError:
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_urls
+from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_url
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -95,7 +95,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
         # Connect to the node with retries and backoff.
         # Keep credentials embedded in the URL out of logs and exception messages.
-        safe_node_rpc_url = redact_urls(self.node_rpc_url)
+        # The URL is redacted as one complete value, because its credentials
+        # can contain whitespace that would end a URL found in free text.
+        safe_node_rpc_url = redact_url(self.node_rpc_url)
         retry_count = 0
         backoff = 0
         connected = False

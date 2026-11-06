@@ -1,17 +1,20 @@
 """Unit tests for sensitive-value logging safeguards."""
 
+# pylint: disable=too-many-public-methods
+
 import json
 import os
 import unittest
 from unittest.mock import Mock, patch
 
 import requests
+from web3.exceptions import InvalidAddress, Web3RPCError
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key, redact_urls
+from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key, redact_url, redact_urls
 
 _RPC_SECRET = "private-rpc-token"
 _RPC_URL = f"https://rpc.example/v2/{_RPC_SECRET}"
@@ -22,6 +25,11 @@ _RPC_URLS_WITH_CREDENTIALS = (
     _RPC_URL,
     f"https://user:pa'ss@rpc.example/v2/{_RPC_SECRET}",
     f"https://user:{_RPC_PASSWORD}@rpc.example/v2/{_RPC_SECRET}?key=k'ey",
+)
+# Requests also accepts whitespace in a configured URL's credentials.
+_CONFIGURED_RPC_URLS = (
+    *_RPC_URLS_WITH_CREDENTIALS,
+    f"https://user:prefix credential-tail@rpc.example/v2/{_RPC_SECRET}",
 )
 
 
@@ -63,6 +71,22 @@ class TestSensitiveLogging(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(redact_urls(text), expected)
                 self.assertEqual(redact_urls(expected), expected)
+
+    def test_redact_url_treats_value_as_one_url(self):
+        """A configured URL is redacted in full, even with whitespace in it."""
+        cases = {
+            **{url: _REDACTED_RPC_URL for url in _CONFIGURED_RPC_URLS},
+            f"{_RPC_URL}\n": _REDACTED_RPC_URL,
+            "https://user:pass word@rpc.example:8545": "https://rpc.example:8545",
+            "http://127.0.0.1:8545": "http://127.0.0.1:8545",
+            "user:pass word@rpc.example/v2/key": REDACTED_LOG_VALUE,
+        }
+        for url, expected in cases.items():
+            with self.subTest(url=url):
+                self.assertEqual(redact_url(url), expected)
+        # An unset URL selects web3's default local endpoint.
+        self.assertIsNone(redact_url(None))
+        self.assertEqual(redact_url(""), "")
 
     def test_redact_urls_keeps_trailing_punctuation(self):
         """Punctuation after a URL is not treated as part of the URL."""
@@ -199,7 +223,7 @@ class TestSensitiveLogging(unittest.TestCase):
         """Connection errors name the node host without its credentials."""
         web3_mock.return_value.is_connected.return_value = False
 
-        for node_rpc_url in _RPC_URLS_WITH_CREDENTIALS:
+        for node_rpc_url in _CONFIGURED_RPC_URLS:
             with self.subTest(node_rpc_url=node_rpc_url):
                 with self.assertLogs(
                     "vbase.core.web3_http_commitment_service", level="ERROR"
@@ -218,8 +242,9 @@ class TestSensitiveLogging(unittest.TestCase):
                 self.assertIn(
                     f"Exception connecting to {_REDACTED_RPC_URL}", log_output
                 )
-                for secret in (_RPC_SECRET, "user:pa"):
+                for secret in (_RPC_SECRET, "user:", "credential-tail"):
                     self.assertNotIn(secret, log_output)
+                    self.assertNotIn(secret, str(raised.exception))
 
     def test_indexing_descriptor_log_omits_private_values(self):
         """Indexer configuration logs only a safe count."""
@@ -409,17 +434,32 @@ class TestSensitiveLogging(unittest.TestCase):
             f"{_REDACTED_RPC_URL}, retrying in 2 seconds...",
         )
 
-    def test_indexing_query_does_not_retry_invalid_arguments(self):
-        """Invalid query arguments fail immediately instead of being retried."""
+    @patch("retry.api.time.sleep")
+    def test_indexing_query_retries_rpc_errors(self, _sleep_mock):
+        """A JSON-RPC error response from the node is retried."""
         event = Mock()
-        event.get_logs.side_effect = ValueError("invalid address")
+        event.get_logs.side_effect = [Web3RPCError("query timeout exceeded"), []]
         indexer = Web3HTTPIndexingService([])
 
-        with self.assertRaises(ValueError):
-            # pylint: disable-next=protected-access
-            indexer._get_event_logs(event, 0, {"user": "0xuser"})
+        # pylint: disable-next=protected-access
+        self.assertEqual(indexer._get_event_logs(event, 0, {"user": "0xabc"}), [])
 
-        self.assertEqual(event.get_logs.call_count, 1)
+        self.assertEqual(event.get_logs.call_count, 2)
+
+    def test_indexing_query_does_not_retry_invalid_arguments(self):
+        """Invalid query arguments fail immediately instead of being retried."""
+        # InvalidAddress is a Web3Exception raised before any request is sent.
+        for error in (InvalidAddress("invalid address"), ValueError("invalid")):
+            with self.subTest(error=type(error).__name__):
+                event = Mock()
+                event.get_logs.side_effect = error
+                indexer = Web3HTTPIndexingService([])
+
+                with self.assertRaises(type(error)):
+                    # pylint: disable-next=protected-access
+                    indexer._get_event_logs(event, 0, {"user": "0xuser"})
+
+                self.assertEqual(event.get_logs.call_count, 1)
 
     @patch("retry.api.time.sleep")
     def test_set_existence_retry_logs_redacted_rpc_url(self, _sleep_mock):

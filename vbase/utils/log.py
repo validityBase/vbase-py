@@ -32,17 +32,28 @@ def _split_trailing_punctuation(text: str) -> tuple[str, str]:
     return stripped, text[len(stripped) :]
 
 
-def _redact_url_match(match: re.Match) -> str:
-    """Keep a matched URL's scheme and host; redact credentials and the rest."""
-    url, suffix = _split_trailing_punctuation(match[0])
+def _redact_url_value(url: str) -> str | None:
+    """Keep a URL's scheme and host; redact credentials and the rest.
+
+    :return: The redacted URL, or None if the value has no scheme.
+    """
     parts = _URL_PARTS_PATTERN.fullmatch(url)
     if parts is None:
-        return match[0]
+        return None
     host = parts["authority"].rpartition("@")[2]
     rest = parts["rest"]
     if rest not in ("", "/"):
         rest = "/" + REDACTED_LOG_VALUE
-    return f"{parts['scheme']}{host}{rest}{suffix}"
+    return f"{parts['scheme']}{host}{rest}"
+
+
+def _redact_url_match(match: re.Match) -> str:
+    """Redact a URL found in text, keeping the punctuation that follows it."""
+    url, suffix = _split_trailing_punctuation(match[0])
+    redacted = _redact_url_value(url)
+    if redacted is None:
+        return match[0]
+    return redacted + suffix
 
 
 def _redact_url_path_match(match: re.Match) -> str:
@@ -61,13 +72,36 @@ def redact_urls(text: object) -> str:
     ``[REDACTED]``, and does the same for bare request paths reported by
     urllib3. Hosts and ports are kept to identify the failing endpoint.
     A URL extends to the next whitespace, so text attached to it without a
-    space is redacted with it.
+    space is redacted with it. Use :func:`redact_url` for a value that is a
+    single URL, such as a configured endpoint.
 
     :param text: The text, or an object such as an exception, to redact.
     :return: The redacted text.
     """
     redacted = _URL_PATTERN.sub(_redact_url_match, str(text))
     return _URL_PATH_PATTERN.sub(_redact_url_path_match, redacted)
+
+
+def redact_url(url: str | None) -> str | None:
+    """Reduce one complete URL value, such as a configured endpoint, to its
+    scheme and host.
+
+    :func:`redact_urls` finds URLs in free text, where a URL ends at
+    whitespace. Requests accepts whitespace in a configured URL's credentials,
+    so use this function when the whole value is a single URL. Like
+    :func:`redact_urls`, it removes credentials and replaces any path, query,
+    or fragment with ``[REDACTED]``. A value without a scheme is replaced with
+    ``[REDACTED]``.
+
+    :param url: The complete URL value.
+    :return: The redacted URL, or the original empty value.
+    """
+    if not url:
+        return url
+    redacted = _redact_url_value(url)
+    if redacted is None:
+        return REDACTED_LOG_VALUE
+    return redacted
 
 
 class RedactUrlsFilter(logging.Filter):  # pylint: disable=too-few-public-methods

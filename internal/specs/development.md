@@ -82,8 +82,13 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   Modules that log it attach `vbase.utils.log.RedactUrlsFilter` to their
   logger, including loggers passed to `retry_call`. The filter applies
   `vbase.utils.log.redact_urls`, which keeps each URL's scheme and host and
-  redacts userinfo, paths, queries, and fragments. Apply `redact_urls` directly
-  to URLs placed in exception messages. Do not log service objects.
+  redacts userinfo, paths, queries, and fragments. Do not log service objects.
+- Before placing a configured URL, such as a node RPC URL, in a log or
+  exception message, reduce it with `vbase.utils.log.redact_url`. It treats
+  the whole value as one URL. `redact_urls` finds URLs in free text and ends
+  each at whitespace, which requests accepts in URL credentials, so it cannot
+  safely redact a raw configured value. Use `redact_urls` for other text that
+  may contain URLs.
 
 ## Public Dev Tests
 

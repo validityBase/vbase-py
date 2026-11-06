@@ -12,7 +12,7 @@ from typing import List, Optional, Union, cast
 from dotenv import load_dotenv
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
-from web3.exceptions import Web3Exception
+from web3.exceptions import Web3RPCError
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
@@ -298,8 +298,9 @@ class Web3HTTPIndexingService(IndexingService):
 
         eth_getLogs is stateless, so it works with load-balanced endpoints
         that do not preserve eth_newFilter state between requests.
-        Transport errors (requests exceptions are OSErrors) and errors reported
-        by web3 are retried. Invalid arguments fail immediately.
+        Transport errors (requests exceptions are OSErrors) and JSON-RPC error
+        responses from the node (Web3RPCError) are retried. Other errors, such
+        as web3 validation errors for invalid arguments, fail immediately.
         """
         return retry_call(
             event.get_logs,
@@ -308,7 +309,7 @@ class Web3HTTPIndexingService(IndexingService):
                 "from_block": from_block,
                 "to_block": "latest",
             },
-            exceptions=(OSError, Web3Exception),
+            exceptions=(OSError, Web3RPCError),
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,
             backoff=self.RETRY_BACKOFF,

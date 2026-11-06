@@ -39,8 +39,10 @@ for prior changes.
   Code that parses the message should use the error's attributes (#99).
 - `Web3HTTPIndexingService` queries events with stateless `eth_getLogs`
   requests instead of `eth_newFilter` and `eth_getFilterLogs`, so queries work
-  with load-balanced endpoints. A query that fails with a connection or node
-  error is retried in full; previously, only log retrieval was retried.
+  with load-balanced endpoints. A query that fails with a connection error or
+  a JSON-RPC error from the node is retried in full. Other errors, such as
+  invalid query arguments, are raised without a retry. Previously, only log
+  retrieval was retried, for any error.
 - `IndexingService.create_instance_from_commitment_service()` passes only
   `node_rpc_url` and `commitment_service_address` from the forwarder's
   commitment service data to `Web3HTTPCommitmentService` and ignores other
@@ -78,7 +80,7 @@ for prior changes.
     error text but reduce each URL to its scheme and host. URL credentials,
     paths, queries, and fragments are replaced with `[REDACTED]`.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
-    host of the node URL.
+    host of the node URL, including when its credentials contain whitespace.
   - `ProblemDetailsError` messages omit the server-supplied `type` URI and
     redact URLs in `detail`.
 
