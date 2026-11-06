@@ -218,6 +218,16 @@ def redact_exception(error: BaseException) -> BaseException:
     and ``response``, so callers can still catch and inspect it. Redaction is
     idempotent.
 
+    By design, some text is not redacted. The title of an exception group is
+    its read-only ``message`` attribute, which cannot be changed in place, so
+    ``str()`` and tracebacks show the title unchanged; the exceptions in the
+    group are redacted. Messages that an exception builds in its own
+    ``__str__`` method from other attributes are not covered either. The
+    exceptions that the SDK, requests, urllib3, and web3's HTTP provider raise
+    do not put URLs in such text. The full list of limits is in the "URL
+    Redaction Limits" section of ``internal/specs/development.md`` in the
+    repository.
+
     :param error: The exception to redact.
     :return: The same exception.
     """
@@ -242,6 +252,8 @@ def redact_exception(error: BaseException) -> BaseException:
             current.args = tuple(args)
         _redact_exception_attributes(current)
         if isinstance(current, BaseExceptionGroup):
+            # By design, the group's title keeps its text: it is the read-only
+            # message attribute (see the docstring). Its exceptions are redacted.
             pending.extend(current.exceptions)
         pending.extend(
             chained
@@ -258,7 +270,9 @@ class RedactUrlsFilter(logging.Filter):  # pylint: disable=too-few-public-method
     Formatters add the traceback of a record's exception after the message,
     so the filter also redacts that exception in place with
     :func:`redact_exception`, and redacts traceback text that a handler
-    formatted before the filter ran.
+    formatted before the filter ran. Stack information from
+    ``stack_info=True`` shows source lines, not runtime values, and is not
+    changed.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:

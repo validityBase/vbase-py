@@ -48,11 +48,18 @@ _LOG.addFilter(RedactUrlsFilter())
 
 
 def _redact_json_text(value: Any) -> Any:
-    """Apply :func:`redact_urls` to the strings in a decoded JSON value."""
+    """Apply :func:`redact_urls` to the strings in a decoded JSON value.
+
+    Object keys are redacted too. Keys that reduce to the same text, such as
+    two URLs on the same host, are merged, and the last value is kept.
+    """
     if isinstance(value, str):
         return redact_urls(value)
     if isinstance(value, dict):
-        return {key: _redact_json_text(item) for key, item in value.items()}
+        return {
+            _redact_json_text(key): _redact_json_text(item)
+            for key, item in value.items()
+        }
     if isinstance(value, list):
         return [_redact_json_text(item) for item in value]
     return value
@@ -70,8 +77,8 @@ class _RedactingHTTPProvider(HTTPProvider):
     responses, such as ``Web3RPCError``, and for malformed responses. Their
     messages, and the ``rpc_response`` attribute of ``Web3RPCError``, include
     the response text, such as the node's error message, so URLs in the
-    response are redacted too. The ``result`` member holds node data and is
-    returned unchanged.
+    response, including in object keys, are redacted too. The ``result``
+    member holds node data and is returned unchanged.
     """
 
     def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
@@ -85,7 +92,9 @@ class _RedactingHTTPProvider(HTTPProvider):
         return cast(
             RPCResponse,
             {
-                key: value if key == "result" else _redact_json_text(value)
+                _redact_json_text(key): (
+                    value if key == "result" else _redact_json_text(value)
+                )
                 for key, value in response.items()
             },
         )

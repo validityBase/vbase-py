@@ -281,6 +281,22 @@ class TestSensitiveLogging(unittest.TestCase):
             f"Request endpoint: {_REDACTED_RPC_URL}", _traceback_text(noted_error)
         )
 
+    def test_redact_exception_keeps_exception_group_title(self):
+        """By design, an exception group's title keeps its text.
+
+        The title is the group's read-only message attribute, so it cannot be
+        redacted in place; the exceptions in the group are redacted. See "URL
+        Redaction Limits" in internal/specs/development.md.
+        """
+        title = f"Requests to {_RPC_URL} failed"
+        inner_error = _connection_error(f"/v2/{_RPC_SECRET}")
+        error_group = ExceptionGroup(title, [inner_error])
+
+        redact_exception(error_group)
+
+        self.assertEqual(error_group.message, title)
+        self.assertNotIn(_RPC_SECRET, _traceback_text(inner_error))
+
     @patch("requests.Session.post")
     def test_node_request_errors_redact_rpc_url(self, post_mock):
         """Errors from node requests do not show the node URL's credentials."""
@@ -320,16 +336,25 @@ class TestSensitiveLogging(unittest.TestCase):
     def test_node_error_responses_redact_urls(self, post_mock):
         """Errors that web3 raises for node responses omit URL credentials."""
         node_text = f"upstream {_RPC_URL} failed"
+        # URLs can also appear as object keys, such as in error.data or in a
+        # malformed response.
         cases = (
             (
                 Web3RPCError,
                 {
                     "jsonrpc": "2.0",
                     "id": 0,
-                    "error": {"code": -1, "message": node_text},
+                    "error": {
+                        "code": -1,
+                        "message": node_text,
+                        "data": {_RPC_URL: "timeout"},
+                    },
                 },
             ),
-            (BadResponseFormat, {"jsonrpc": "2.0", "id": 0, "error": node_text}),
+            (
+                BadResponseFormat,
+                {"jsonrpc": "2.0", "id": 0, "error": node_text, _RPC_URL: "x"},
+            ),
         )
         bodies = [(error_type, json.dumps(body).encode()) for error_type, body in cases]
         # web3 raises JSONDecodeError, with the body in its message, for a

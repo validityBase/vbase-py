@@ -89,11 +89,6 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
   the scheme. Do not log service objects.
-- URL redaction is best effort. It covers the credential forms expected in
-  SDK messages and in error text from requests, urllib3, web3, and the vBase
-  forwarder. Unencoded credentials that combine whitespace with `@`, `/`, `?`,
-  or `#` are not expected and may be only partly redacted. If such a case is
-  identified, handle it separately.
 - Before placing a configured URL, such as a node RPC URL, in a log or
   exception message, reduce it with `vbase.utils.log.redact_url`. It treats
   the whole value as one URL, so it keeps the host even when requests-accepted
@@ -117,22 +112,76 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   so `redact_exception` redacts those attributes too.
 - Every node request that the SDK sends, including indexing queries, goes
   through the `make_request` method of the HTTP provider that
-  `Web3HTTPCommitmentService` installs. The SDK does not send JSON-RPC batch
-  requests, which use another provider method. The provider redacts the
-  errors raised by the request. web3 raises errors for JSON-RPC error
-  responses, such as `Web3RPCError`, after the provider returns the
-  response, and includes the response text in them, so the provider also
-  redacts URLs in the response outside its `result`. Forwarder request
-  errors are redacted where they are caught, and `FailoverIndexingService`
-  redacts each service error before logging or chaining it.
-- Dependency logs include request URLs: the debug logs of
-  `web3.providers.HTTPProvider` and `urllib3.connectionpool`, and some
-  urllib3 warnings, such as the warning for response headers that it cannot
-  parse. The SDK does not change dependency loggers. Applications that
-  enable these logs can add `vbase.utils.log.RedactUrlsFilter` to their
-  handlers. For a record with exception information, the filter also
-  redacts the exception in place with `redact_exception`, so the traceback
-  that a formatter adds after the message is redacted too.
+  `Web3HTTPCommitmentService` installs. The provider redacts the errors
+  raised by the request. web3 raises errors for JSON-RPC error responses,
+  such as `Web3RPCError`, after the provider returns the response, and
+  includes the response text in them, so the provider also redacts URLs in
+  the response outside its `result`. Forwarder request errors are redacted
+  where they are caught, and `FailoverIndexingService` redacts each service
+  error before logging or chaining it.
+
+### URL Redaction Limits
+
+The limits below are by design, and reviews should not report them as
+defects. Report a finding only when a change affects one of these limits, or
+when it shows a path that the SDK, requests, urllib3, or web3 takes that
+leaves a credential in a message, traceback, or log. A change that affects a
+limit updates this list and its short copy for Copilot code review in
+[`.github/instructions/url-redaction.instructions.md`](../../.github/instructions/url-redaction.instructions.md).
+
+- **Free-text matching is best effort.** `redact_urls` covers the credential
+  forms expected in SDK messages and in error text from requests, urllib3,
+  web3, and the vBase forwarder. Unencoded credentials that combine
+  whitespace with `@`, `/`, `?`, or `#` are not expected and may be only
+  partly redacted. When a quote or bracket comes before a URL, the
+  punctuation from the matching closing character onward is kept as
+  surrounding text, even if that character ends a credential, because the
+  text does not show which it is.
+- **Attributes that callers use keep their values.** The `request` and
+  `response` of a requests error keep the full URL and the response body,
+  `ProblemDetailsError` attributes keep the server's values,
+  `JSONDecodeError.doc` keeps the decoded text, and the node provider keeps
+  the configured URL in `endpoint_uri` because it sends requests to it.
+  Redacting them would break error handling and retries. Do not log these
+  attributes, or provider or database engine objects.
+- **Exception text outside the redacted attributes is kept.**
+  `redact_exception` redacts arguments, notes, the `OSError` attributes, and
+  the attributes that urllib3 errors and `JSONDecodeError` are rebuilt from.
+  An exception group's title is its read-only `message` attribute, which
+  cannot be changed in place, so `str()` and tracebacks show the title
+  unchanged. The exceptions in the group, and a copy of the group rebuilt in
+  another process from its redacted arguments, are redacted. Rebuilding the
+  group in place of the original would break the in-place contract, because
+  callers re-raise the original object. Messages that an exception builds in
+  its own `__str__` method from other attributes are not covered either. The
+  exceptions that the SDK, requests, urllib3, and web3's HTTP provider raise
+  do not put URLs in such text. Code that creates an exception group must not
+  put a URL in its title.
+- **Local variables and object state are not redacted.** Tools that show
+  local variables or object attributes, such as
+  `traceback.TracebackException(capture_locals=True)`, debuggers, and error
+  trackers, read process state directly. Configure scrubbing in those tools.
+- **Only requests that the SDK sends are covered.** The SDK does not send
+  JSON-RPC batch requests, which use the provider's `make_batch_request`
+  method, so the provider does not redact them.
+- **Node results are returned unchanged.** The provider redacts URLs
+  everywhere in a response except its `result` member, which is node data.
+  Object keys are redacted too. Two keys that reduce to the same text are
+  merged, and the last value is kept.
+- **Dependency loggers are not changed.** Dependency logs include request
+  URLs: the debug logs of `web3.providers.HTTPProvider` and
+  `urllib3.connectionpool`, and some urllib3 warnings, such as the warning
+  for response headers that it cannot parse. Applications that enable these
+  logs can add `vbase.utils.log.RedactUrlsFilter` to their handlers. For a
+  record with exception information, the filter redacts the exception in
+  place with `redact_exception`. The traceback that a formatter adds after
+  the message is then redacted, and so is the application's exception
+  object. The filter does not change stack information from
+  `stack_info=True`, which shows source lines, not runtime values.
+- **SQL database URLs are left to SQLAlchemy.** `SQLIndexingService` and the
+  set matching services pass their `db_url` argument to SQLAlchemy, which
+  hides the password, but not credentials in the query string, when it shows
+  a database URL. The services do not log the URL.
 
 ## Public Dev Tests
 
