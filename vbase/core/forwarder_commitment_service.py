@@ -47,8 +47,20 @@ _REQUEST_TIMEOUT = 60.0
 
 
 def _is_http_url(url: object) -> bool:
-    """Return whether a value is an http or https URL with a host."""
+    """Return whether a value is an http or https URL with a host.
+
+    Leading whitespace is allowed, because requests removes it. Other
+    whitespace and control characters are rejected. urlsplit removes tabs and
+    newlines before it parses a URL, but requests does not. For a URL with
+    such a character in its scheme, host, or port, requests fails with the
+    URL in its error message, either escaped, as in ``https:\\t//``, or raw.
+    Either form hides the URL from redaction, which needs a contiguous
+    ``://`` and ends a URL at whitespace.
+    """
     if not isinstance(url, str):
+        return False
+    url = url.lstrip()
+    if any(char.isspace() or not char.isprintable() for char in url):
         return False
     try:
         parts = urlsplit(url)
@@ -78,20 +90,24 @@ class ForwarderCommitmentService(Web3CommitmentService):
         """Initialize the service object.
 
         :param forwarder_url: The forwarder URL, an http or https URL with a
-            host.
+            host and no whitespace or control characters after any leading
+            whitespace.
         :param api_key: The API key used to authenticate to the forwarder.
         :param private_key: User's private key.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
-        :raises ValueError: If forwarder_url is not an http or https URL with a
-            host.
+        :raises ValueError: If forwarder_url does not meet these requirements.
         """
-        # requests rejects any other URL on each request, with the URL in its
-        # error message as given. URL redaction recognizes a URL only by its
-        # scheme, so such a message could show credentials in the URL. Reject
-        # the URL here, without its value.
+        # requests shows a malformed URL in its error messages as given, and
+        # URL redaction may not recognize it there (see _is_http_url), so such
+        # a message could show credentials in the URL. Reject the URL here,
+        # without its value. The forwarder authenticates with the X-API-KEY
+        # header, so its URL has no credentials and needs no whitespace.
         if not _is_http_url(forwarder_url):
-            raise ValueError("forwarder_url must be an http or https URL with a host.")
+            raise ValueError(
+                "forwarder_url must be an http or https URL with a host and no "
+                "whitespace or control characters."
+            )
         self.forwarder_url = forwarder_url
         self.api_key = api_key
         self.private_key = private_key
