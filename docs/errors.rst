@@ -16,7 +16,9 @@ The exception message, ``str(error)`` and ``error.args``, has the form
 ``requests.HTTPError`` uses for other failures. The message omits the
 server-supplied ``type`` URI and reduces any URL in ``detail`` to its scheme
 and host, or to its scheme alone when the URL may have whitespace in its
-credentials, so it does not copy URL credentials into logs or tracebacks. The
+credentials, so it does not copy common forms of URL credentials into logs or
+tracebacks. This redaction is best effort; API producers must not include
+credentials in ``detail``. The
 attributes keep the original values. The message is for people to read and may
 change; do not parse it. To branch on a failure, use ``type``, ``code``,
 ``status``, or ``error.response.status_code``.

@@ -87,8 +87,13 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   credential; it is kept only after an already-redacted URL or from the
   closing quote or bracket for the character before the URL. In free text,
   whitespace can appear in URL credentials, so text from `://` across
-  whitespace to an `@` that precedes any `/`, `?`, or `#` keeps only the
-  scheme. Do not log service objects.
+  whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
+  the scheme. Do not log service objects.
+- URL redaction is best effort. It covers the credential forms expected in
+  SDK messages and in error text from requests, urllib3, web3, and the vBase
+  forwarder. Unencoded credentials that combine whitespace with `@`, `/`, `?`,
+  or `#` are not expected and may be only partly redacted. If such a case is
+  identified, handle it separately.
 - Before placing a configured URL, such as a node RPC URL, in a log or
   exception message, reduce it with `vbase.utils.log.redact_url`. It treats
   the whole value as one URL, so it keeps the host even when requests-accepted

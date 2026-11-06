@@ -12,7 +12,8 @@ _API_KEY_MIN_HIDDEN_CHARS = 16
 # match at one of them could leave the rest of a credential in the text.
 # An absolute URL, such as scheme://user:password@host:port/path?query#fragment.
 # Server-supplied text can also contain whitespace in a URL's userinfo, so a
-# match may run across whitespace to an "@" that precedes any "/", "?", or "#".
+# match may run across whitespace to the first "@" that precedes any "/", "?",
+# or "#". Coverage is limited to expected credential forms; see redact_urls.
 _URL_PATTERN = re.compile(r"\b[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?\S*", re.IGNORECASE)
 _URL_PARTS_PATTERN = re.compile(
     r"(?P<scheme>[^:]+://)(?P<authority>[^/?#]*)(?P<rest>.*)", re.DOTALL
@@ -103,11 +104,17 @@ def redact_urls(text: object) -> str:
     credential. It is kept from the closing quote or bracket for the
     character before the URL, and after a URL that is already redacted.
 
-    Text from ``://`` across whitespace to an ``@`` that precedes any ``/``,
-    ``?``, or ``#`` may be a URL with whitespace in its credentials. The whole
-    span, including the text after the ``@``, is replaced with the scheme and
-    ``[REDACTED]``. Use :func:`redact_url` for a value that is a single URL,
+    Text from ``://`` across whitespace to the first ``@`` that precedes any
+    ``/``, ``?``, or ``#`` may be a URL with whitespace in its credentials. The
+    whole span, including the text after the ``@``, is replaced with the scheme
+    and ``[REDACTED]``. Use :func:`redact_url` for a value that is a single URL,
     such as a configured endpoint.
+
+    Redaction is best effort. It covers the credential forms expected in SDK
+    messages and in error text from requests, urllib3, web3, and the vBase
+    forwarder. Unencoded credentials that combine whitespace with ``@``,
+    ``/``, ``?``, or ``#`` are not expected and may be only partly redacted.
+    If such a case is identified, handle it separately.
 
     :param text: The text, or an object such as an exception, to redact.
     :return: The redacted text.
