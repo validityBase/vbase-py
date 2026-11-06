@@ -13,7 +13,8 @@ have convenience properties. Clients should branch primarily on ``type``.
 The exception message, ``str(error)`` and ``error.args``, has the form
 ``HTTP API problem (<status>) code=<code>: <detail>``. It is not the
 ``"<status> Client Error: <reason> for url: <url>"`` message that
-``requests.HTTPError`` uses for other failures. The message omits the
+``requests.HTTPError`` uses for other failures, in which the SDK reduces the
+URL to its scheme and host. The message omits the
 server-supplied ``type`` URI and reduces any URL in ``detail`` to its scheme
 and host, or to its scheme alone when the URL may have whitespace in its
 credentials, so it does not copy common forms of URL credentials into logs or

@@ -68,8 +68,7 @@ for prior changes.
   object and set queries. Previously, `setCid` could be missing for
   commitments near the start of the `n_last_blocks` range.
 - When all services fail, `FailoverIndexingService` raises its `RuntimeError`
-  with the last service error as the cause. The cause is the original
-  exception, and its text is not redacted.
+  with the last service error as the cause.
 
 ### Security
 
@@ -84,6 +83,11 @@ for prior changes.
     its credentials keeps only its scheme.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
+  - Errors raised by node and forwarder requests, such as `requests` HTTP and
+    connection errors and the `urllib3` errors they wrap, reduce URLs in their
+    messages to scheme and host, including in tracebacks and in the cause of
+    the `FailoverIndexingService` `RuntimeError`. The errors keep their type
+    and attributes; `error.request.url` keeps the full URL.
   - `ProblemDetailsError` messages omit the server-supplied `type` URI and
     redact URLs in `detail`.
 

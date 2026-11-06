@@ -149,6 +149,47 @@ def redact_url(url: str | None) -> str | None:
     return redacted
 
 
+def redact_exception(error: BaseException) -> BaseException:
+    """Apply :func:`redact_urls` to an exception's messages, in place.
+
+    Errors from requests and urllib3 include the request URL in their
+    messages, so a traceback can show credentials in a node URL. This redacts
+    the string arguments of the exception, of exceptions in its arguments,
+    such as the urllib3 error that a requests error wraps, and of its
+    ``__cause__`` and ``__context__`` chain. The exception keeps its type and
+    attributes, such as ``request`` and ``response``, so callers can still
+    catch and inspect it. Redaction is idempotent.
+
+    :param error: The exception to redact.
+    :return: The same exception.
+    """
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        args = []
+        changed = False
+        for arg in current.args:
+            if isinstance(arg, BaseException):
+                pending.append(arg)
+            elif isinstance(arg, str):
+                redacted = redact_urls(arg)
+                changed = changed or redacted != arg
+                arg = redacted
+            args.append(arg)
+        if changed:
+            current.args = tuple(args)
+        pending.extend(
+            chained
+            for chained in (current.__cause__, current.__context__)
+            if chained is not None
+        )
+    return error
+
+
 class RedactUrlsFilter(logging.Filter):  # pylint: disable=too-few-public-methods
     """Logging filter that applies :func:`redact_urls` to each formatted message.
 

@@ -10,7 +10,8 @@ import time
 from typing import List, Optional, Union
 
 from dotenv import load_dotenv
-from web3 import Web3
+from web3 import HTTPProvider, Web3
+from web3.types import RPCEndpoint, RPCResponse
 
 try:
     # web3.py v7 middleware names
@@ -32,12 +33,33 @@ except ImportError:
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_url
+from vbase.utils.log import (
+    RedactUrlsFilter,
+    get_default_logger,
+    redact_exception,
+    redact_url,
+)
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 # Node RPC URLs and provider errors can include credentials.
 _LOG.addFilter(RedactUrlsFilter())
+
+
+class _RedactingHTTPProvider(HTTPProvider):
+    """HTTP provider that redacts URLs in the errors of node requests.
+
+    Every node request, including those of indexing services, passes through
+    ``make_request``. requests and urllib3 errors raised there include the
+    node URL, so redact them before they reach callers or tracebacks.
+    """
+
+    def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
+        try:
+            return super().make_request(method, params)
+        except Exception as error:
+            redact_exception(error)
+            raise
 
 
 # Settings for the connection retry for Web3.HTTPProvider.
@@ -103,7 +125,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         connected = False
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
-                w3 = Web3(Web3.HTTPProvider(self.node_rpc_url))
+                w3 = Web3(_RedactingHTTPProvider(self.node_rpc_url))
                 if w3.is_connected():
                     connected = True
                     _LOG.debug(

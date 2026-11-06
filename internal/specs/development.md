@@ -99,12 +99,20 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   the whole value as one URL, so it keeps the host even when requests-accepted
   whitespace appears in the URL's credentials. Use `redact_urls` for other
   text that may contain URLs.
-- Redaction applies to SDK log records and to messages the SDK builds. The SDK
-  does not rewrite exceptions from requests, urllib3, web3, or other
-  dependencies. They propagate unchanged, either directly or as the
-  `__cause__` of an SDK exception such as the `FailoverIndexingService`
-  `RuntimeError`, so callers can see what failed. Their text and tracebacks
-  can include the request URL.
+- Errors from requests and urllib3 include the request URL. The SDK redacts
+  their messages in place with `vbase.utils.log.redact_exception`, which also
+  covers wrapped errors and the `__cause__` and `__context__` chain, so
+  tracebacks do not show URL credentials. The exceptions keep their type and
+  attributes, such as `request` and `response`, so callers can catch and
+  inspect them. Every node request, including indexing queries, goes through
+  the HTTP provider that `Web3HTTPCommitmentService` installs, which redacts
+  its errors. Forwarder request errors are redacted where they are caught,
+  and `FailoverIndexingService` redacts each service error before logging or
+  chaining it.
+- Dependency debug logs, such as those of `web3.providers.HTTPProvider` and
+  `urllib3.connectionpool`, include request URLs. The SDK does not change
+  dependency loggers. Applications that enable them can add
+  `vbase.utils.log.RedactUrlsFilter` to their handlers.
 
 ## Public Dev Tests
 

@@ -2,20 +2,32 @@
 
 # pylint: disable=too-many-public-methods
 
+import io
 import json
 import os
 import time
+import traceback
 import unittest
 from unittest.mock import Mock, patch
 
 import requests
+from urllib3.exceptions import MaxRetryError
 from web3.exceptions import InvalidAddress, Web3RPCError
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.problem_details import ProblemDetailsError
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
-from vbase.utils.log import REDACTED_LOG_VALUE, mask_api_key, redact_url, redact_urls
+from vbase.core.web3_http_commitment_service import (
+    Web3HTTPCommitmentService,
+    _RedactingHTTPProvider,
+)
+from vbase.utils.log import (
+    REDACTED_LOG_VALUE,
+    mask_api_key,
+    redact_exception,
+    redact_url,
+    redact_urls,
+)
 
 _RPC_SECRET = "private-rpc-token"
 _RPC_URL = f"https://rpc.example/v2/{_RPC_SECRET}"
@@ -51,6 +63,23 @@ def _problem_response(type_uri: str, detail: str) -> requests.Response:
     ).encode("utf-8")
     response.request = requests.Request("GET", response.url).prepare()
     return response
+
+
+def _traceback_text(error: BaseException) -> str:
+    """Format an exception as a standard traceback, including its chain."""
+    return "".join(traceback.format_exception(error))
+
+
+def _connection_error(url_path: str) -> requests.ConnectionError:
+    """Build a requests connection error that wraps a urllib3 error, as requests does."""
+    max_retry_error = MaxRetryError(None, url_path, OSError("Connection refused"))
+    try:
+        raise max_retry_error
+    except MaxRetryError as error:
+        try:
+            raise requests.ConnectionError(error) from error
+        except requests.ConnectionError as connection_error:
+            return connection_error
 
 
 def _get_commitment_service_data() -> dict:
@@ -180,6 +209,57 @@ class TestSensitiveLogging(unittest.TestCase):
                 redacted = redact_urls(text)
                 self.assertLess(time.perf_counter() - start, 5)
                 self.assertNotIn(_RPC_SECRET, redacted)
+
+    def test_redact_exception_redacts_chain_in_place(self):
+        """Messages in an exception chain are redacted; types and attributes are kept."""
+        request = requests.Request("POST", _RPC_URL).prepare()
+        error = _connection_error(f"/v2/{_RPC_SECRET}")
+        error.request = request
+        max_retry_error = error.args[0]
+
+        self.assertIs(redact_exception(error), error)
+
+        self.assertNotIn(_RPC_SECRET, _traceback_text(error))
+        self.assertIn(f"url: /{REDACTED_LOG_VALUE}", str(error))
+        self.assertIs(error.args[0], max_retry_error)
+        self.assertIs(error.__cause__, max_retry_error)
+        self.assertIs(error.request, request)
+        self.assertEqual(redact_exception(error).args, error.args)
+
+    @patch("requests.Session.post")
+    def test_node_request_errors_redact_rpc_url(self, post_mock):
+        """Errors from node requests do not show the node URL's credentials."""
+        response = requests.Response()
+        response.status_code = 429
+        response.reason = "Too Many Requests"
+        response.url = _RPC_URL
+        response.raw = io.BytesIO(b"")
+        cases = (
+            (
+                requests.HTTPError,
+                {"return_value": response},
+                f"429 Client Error: Too Many Requests for url: {_REDACTED_RPC_URL}",
+            ),
+            (
+                requests.ConnectionError,
+                {"side_effect": _connection_error(f"/v2/{_RPC_SECRET}")},
+                f"None: Max retries exceeded with url: /{REDACTED_LOG_VALUE} "
+                "(Caused by OSError('Connection refused'))",
+            ),
+        )
+        for error_type, post_result, message in cases:
+            with self.subTest(error_type=error_type.__name__):
+                post_mock.reset_mock(return_value=True, side_effect=True)
+                post_mock.configure_mock(**post_result)
+                provider = _RedactingHTTPProvider(
+                    _RPC_URL, exception_retry_configuration=None
+                )
+
+                with self.assertRaises(error_type) as raised:
+                    provider.make_request("eth_blockNumber", [])
+
+                self.assertEqual(str(raised.exception), message)
+                self.assertNotIn(_RPC_SECRET, _traceback_text(raised.exception))
 
     def test_redact_urls_handles_requests_error_messages(self):
         """Error text from requests keeps its diagnostics without credentials."""
@@ -320,6 +400,10 @@ class TestSensitiveLogging(unittest.TestCase):
                     str(raised.exception),
                     f"Failed to connect to {_REDACTED_RPC_URL} after 1 retries",
                 )
+                # Node request errors are redacted by the provider.
+                self.assertIsInstance(
+                    web3_mock.call_args.args[0], _RedactingHTTPProvider
+                )
                 log_output = "\n".join(captured.output)
                 self.assertIn(
                     f"Exception connecting to {_REDACTED_RPC_URL}", log_output
@@ -384,9 +468,11 @@ class TestSensitiveLogging(unittest.TestCase):
                 with patch.object(
                     service, "get_default_user", return_value="0x" + "11" * 20
                 ):
-                    with self.assertRaises(requests.HTTPError):
+                    with self.assertRaises(requests.HTTPError) as raised:
                         service.get_commitment_service_data()
 
+        self.assertIs(raised.exception.response, response)
+        self.assertNotIn(secret, _traceback_text(raised.exception))
         self.assertEqual(
             captured.records[0].getMessage(),
             "HTTP error occurred: api=commitment-service-data status=502 "
@@ -467,9 +553,10 @@ class TestSensitiveLogging(unittest.TestCase):
                     with patch.object(
                         service, "get_default_user", return_value="0x" + "11" * 20
                     ):
-                        with self.assertRaises(requests.ConnectionError):
+                        with self.assertRaises(requests.ConnectionError) as raised:
                             service.get_commitment_service_data()
 
+                self.assertNotIn(secret, _traceback_text(raised.exception))
                 self.assertEqual(
                     captured.records[0].getMessage(),
                     "Request error occurred: api=commitment-service-data "

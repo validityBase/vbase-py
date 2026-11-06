@@ -1,5 +1,6 @@
 """Tests for FailoverIndexingService."""
 
+import traceback
 import unittest
 from unittest.mock import create_autospec
 
@@ -65,6 +66,23 @@ class TestFailoverIndexingService(unittest.TestCase):
             self.failover_service.find_user_sets("user3")
         self.assertIn("All services failed", str(cm.exception))
         self.assertIs(cm.exception.__cause__, last_error)
+
+    def test_all_services_fail_cause_redacts_rpc_url(self):
+        """The chained cause keeps its type but not provider credentials."""
+        secret = "private-rpc-token"
+        last_error = ConnectionError(f"Failed to reach https://rpc.example/v2/{secret}")
+        self.service1.find_user_sets.side_effect = Exception("fail1")
+        self.service2.find_user_sets.side_effect = last_error
+
+        with self.assertLogs("vbase.core.failover_indexing_service", level="ERROR"):
+            with self.assertRaises(RuntimeError) as cm:
+                self.failover_service.find_user_sets("user3")
+
+        self.assertIs(cm.exception.__cause__, last_error)
+        self.assertEqual(
+            str(last_error), "Failed to reach https://rpc.example/[REDACTED]"
+        )
+        self.assertNotIn(secret, "".join(traceback.format_exception(cm.exception)))
 
     def test_find_user_objects(self):
         """Delegates to the first available service for find_user_objects."""

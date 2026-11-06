@@ -20,7 +20,12 @@ from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import RedactUrlsFilter, get_default_logger, mask_api_key
+from vbase.utils.log import (
+    RedactUrlsFilter,
+    get_default_logger,
+    mask_api_key,
+    redact_exception,
+)
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
@@ -182,6 +187,9 @@ class ForwarderCommitmentService(Web3CommitmentService):
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
+            # requests errors include the request URL; redact it before the
+            # error is logged, chained, or re-raised.
+            redact_exception(http_err)
             response = http_err.response
             api_error = (
                 ProblemDetailsError.from_response(response)
@@ -198,6 +206,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 raise api_error from http_err
             raise
         except requests.RequestException as req_err:
+            redact_exception(req_err)
             _LOG.error("Request error occurred: api=%s error=%s", api, req_err)
             raise
         except ValueError as err:
