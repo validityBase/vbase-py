@@ -94,6 +94,22 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   the whole value as one URL, so it keeps the host even when requests-accepted
   whitespace appears in the URL's credentials. Use `redact_urls` for other
   text that may contain URLs.
+- URL redaction recognizes a URL by its contiguous `scheme://` and ends it at
+  whitespace. requests fails on a URL that is not an `http` or `https` URL
+  with a host, or that has a tab or newline in its scheme, host, or port, and
+  shows the URL in its error message as given. The message then shows the
+  URL without a scheme, with escapes such as `https:\t//`, or split by
+  whitespace, so redaction can miss its credentials. `urlsplit` removes tabs
+  and newlines before parsing, so it cannot detect these URLs by itself.
+  `ForwarderCommitmentService` therefore rejects a `forwarder_url` that is
+  not an `http` or `https` URL with a host, or that has whitespace or control
+  characters after any leading whitespace, which requests removes. The
+  `ValueError` omits the value. The forwarder authenticates with the
+  `X-API-KEY` header, so its URL needs no credentials or whitespace. A
+  malformed node URL fails the connection check of
+  `Web3HTTPCommitmentService`, because web3 handles the requests error, and
+  the resulting `ConnectionError` shows the URL redacted as one value, or as
+  `[REDACTED]` when it has no `scheme://`.
 - Errors from requests and urllib3 include the request URL. The SDK redacts
   their messages in place with `vbase.utils.log.redact_exception`, which also
   covers wrapped errors, the exceptions in an exception group, and the
@@ -139,7 +155,10 @@ limit updates this list and its short copy for Copilot code review in
   partly redacted. When a quote or bracket comes before a URL, the
   punctuation from the matching closing character onward is kept as
   surrounding text, even if that character ends a credential, because the
-  text does not show which it is.
+  text does not show which it is. Text is recognized as a URL only by its
+  scheme, so a URL without one, such as `rpc.example/v2/key`, is not
+  redacted in free text. Malformed configured forwarder and node URLs are
+  covered by the rule above.
 - **Attributes that callers use keep their values.** The `request` and
   `response` of a requests error keep the full URL and the response body,
   `ProblemDetailsError` attributes keep the server's values,

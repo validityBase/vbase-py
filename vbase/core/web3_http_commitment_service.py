@@ -169,6 +169,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         while retry_count < _W3_CONNECTION_MAX_RETRIES:
             try:
                 w3 = Web3(_RedactingHTTPProvider(self.node_rpc_url))
+                # is_connected() returns False for requests errors, including
+                # the error for a URL without a scheme, whose message shows the
+                # URL as given. The ConnectionError below shows the redacted URL.
                 if w3.is_connected():
                     connected = True
                     _LOG.debug(
