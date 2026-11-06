@@ -118,7 +118,10 @@ class IndexingService(ABC):
             if not node_rpc_url:
                 raise ValueError("Forwarder did not return node_rpc_url.")
         # Pass only the documented fields so new forwarder response fields
-        # cannot break construction.
+        # cannot break construction. The forwarder returns no middleware
+        # options, so inject_geth_poa_middleware keeps its default. Serving a
+        # proof-of-authority chain requires adding the option to the forwarder
+        # response and to this call.
         return Web3HTTPIndexingService(
             [
                 Web3HTTPCommitmentService(

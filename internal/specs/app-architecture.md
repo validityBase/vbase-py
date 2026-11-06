@@ -18,7 +18,10 @@ forwarder in `vbase-api-server`:
   as a failure in a 2xx response.
 - `commitment-service-data` returns `node_rpc_url` and
   `commitment_service_address`. The SDK reads only these fields and ignores
-  any others.
+  any others. The response has no middleware options, such as
+  `inject_geth_poa_middleware`, so the forwarder's chain must not need them.
+  Serving a proof-of-authority chain requires adding the option to the
+  response and to the SDK together.
 
 ## Indexing Services
 

@@ -14,7 +14,11 @@ _API_KEY_MIN_HIDDEN_CHARS = 16
 # Server-supplied text can also contain whitespace in a URL's userinfo, so a
 # match may run across whitespace to the first "@" that precedes any "/", "?",
 # or "#". Coverage is limited to expected credential forms; see redact_urls.
-_URL_PATTERN = re.compile(r"\b[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?\S*", re.IGNORECASE)
+# Schemes are matched up to 64 characters, which covers registered schemes.
+# Without a limit, long dotted or hyphenated text makes matching quadratic.
+_URL_PATTERN = re.compile(
+    r"\b[a-z][a-z0-9+.-]{0,63}://(?:[^/?#@]*@)?\S*", re.IGNORECASE
+)
 _URL_PARTS_PATTERN = re.compile(
     r"(?P<scheme>[^:]+://)(?P<authority>[^/?#]*)(?P<rest>.*)", re.DOTALL
 )

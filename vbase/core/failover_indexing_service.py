@@ -40,6 +40,10 @@ class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-meth
                 )
                 last_error = error
 
+        # Chain the last service error so callers can see what failed. The SDK
+        # does not rewrite dependency exceptions: the cause is unchanged, as it
+        # is when that service is called directly, and its text can include the
+        # request URL. Only SDK log records and SDK-built messages are redacted.
         raise RuntimeError("All services failed to execute the method.") from last_error
 
     def find_user_sets(self, user: str) -> list[dict]:

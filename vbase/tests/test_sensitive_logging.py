@@ -4,6 +4,7 @@
 
 import json
 import os
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -169,6 +170,16 @@ class TestSensitiveLogging(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(redact_urls(text), expected)
                 self.assertEqual(redact_urls(expected), expected)
+
+    def test_redact_urls_long_text_is_linear(self):
+        """Long dotted or hyphenated text is redacted in linear time."""
+        for separator in ".-+":
+            text = f"a{separator}" * 50_000 + _RPC_URL
+            with self.subTest(separator=separator):
+                start = time.perf_counter()
+                redacted = redact_urls(text)
+                self.assertLess(time.perf_counter() - start, 5)
+                self.assertNotIn(_RPC_SECRET, redacted)
 
     def test_redact_urls_handles_requests_error_messages(self):
         """Error text from requests keeps its diagnostics without credentials."""

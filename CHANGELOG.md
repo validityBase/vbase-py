@@ -68,7 +68,8 @@ for prior changes.
   object and set queries. Previously, `setCid` could be missing for
   commitments near the start of the `n_last_blocks` range.
 - When all services fail, `FailoverIndexingService` raises its `RuntimeError`
-  with the last service error as the cause.
+  with the last service error as the cause. The cause is the original
+  exception, and its text is not redacted.
 
 ### Security
 

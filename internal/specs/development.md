@@ -99,6 +99,12 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   the whole value as one URL, so it keeps the host even when requests-accepted
   whitespace appears in the URL's credentials. Use `redact_urls` for other
   text that may contain URLs.
+- Redaction applies to SDK log records and to messages the SDK builds. The SDK
+  does not rewrite exceptions from requests, urllib3, web3, or other
+  dependencies. They propagate unchanged, either directly or as the
+  `__cause__` of an SDK exception such as the `FailoverIndexingService`
+  `RuntimeError`, so callers can see what failed. Their text and tracebacks
+  can include the request URL.
 
 ## Public Dev Tests
 
