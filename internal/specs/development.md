@@ -122,10 +122,13 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 
 ### URL Redaction Limits
 
-The limits below are by design, and reviews should not report them as
-defects. Report a finding only when a change affects one of these limits, or
-when it shows a path that the SDK, requests, urllib3, or web3 takes that
-leaves a credential in a message, traceback, or log. A change that affects a
+URL redaction protects the credentials in URLs that the SDK is configured
+with, such as node and forwarder URLs, and URLs in error text from requests,
+urllib3, web3, and the forwarder. The limits below are by design, and
+reviews should not report them as defects. Report a finding only when a
+change affects one of these limits, or when it shows a path that the SDK or
+those dependencies take that leaves such a credential in a message,
+traceback, or log. A change that affects a
 limit updates this list and its short copy for Copilot code review in
 [`.github/instructions/url-redaction.instructions.md`](../../.github/instructions/url-redaction.instructions.md).
 
@@ -168,6 +171,17 @@ limit updates this list and its short copy for Copilot code review in
   everywhere in a response except its `result` member, which is node data.
   Object keys are redacted too. Two keys that reduce to the same text are
   merged, and the last value is kept.
+- **Contract revert data is kept.** For a reverted call, `error.data` holds
+  the contract's ABI-encoded error, which callers decode, for example to
+  identify the contract's custom errors. It is hex, so the provider passes it
+  through unchanged. web3 usually builds `ContractLogicError` from the
+  node's error message, which is redacted. For data in the `Reverted 0x...`
+  form, which some node clients return, web3 decodes the revert reason from
+  the data after the provider returns, so the reason keeps its text. The
+  contract sets the reason and does not see the node URL, so a reason
+  contains a credential only if the caller passed one in the call data.
+  Redacting the decoded reason would require changing the revert data, and
+  the error's arguments would still carry the same text in hex.
 - **Dependency loggers are not changed.** Dependency logs include request
   URLs: the debug logs of `web3.providers.HTTPProvider` and
   `urllib3.connectionpool`, and some urllib3 warnings, such as the warning

@@ -89,6 +89,11 @@ class _RedactingHTTPProvider(HTTPProvider):
             raise
         if not isinstance(response, dict):
             return cast(RPCResponse, _redact_json_text(response))
+        # Revert data in error.data is ABI-encoded hex, which contains no URL
+        # text, so it passes through unchanged for callers to decode. web3
+        # decodes the reason of a "Reverted 0x..." payload after this method
+        # returns. By design, that reason keeps its text: see "URL Redaction
+        # Limits" in internal/specs/development.md.
         return cast(
             RPCResponse,
             {

@@ -13,9 +13,15 @@ import unittest
 from unittest.mock import Mock, patch
 
 import requests
+from eth_abi import encode
 from urllib3.exceptions import MaxRetryError
 from web3 import Web3
-from web3.exceptions import BadResponseFormat, InvalidAddress, Web3RPCError
+from web3.exceptions import (
+    BadResponseFormat,
+    ContractLogicError,
+    InvalidAddress,
+    Web3RPCError,
+)
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.indexing_service import Web3HTTPIndexingService
@@ -93,6 +99,20 @@ def _node_response(content: bytes) -> requests.Response:
     response._content = content  # pylint: disable=protected-access
     response.raw = io.BytesIO(b"")
     return response
+
+
+def _revert_post(message: str, data: str):
+    """Build a node request mock that answers eth_call with a revert error."""
+
+    def post(*_args, **kwargs) -> requests.Response:
+        body: dict = {"jsonrpc": "2.0", "id": 0}
+        if json.loads(kwargs["data"])["method"] == "eth_chainId":
+            body["result"] = "0x1"
+        else:
+            body["error"] = {"code": 3, "message": message, "data": data}
+        return _node_response(json.dumps(body).encode())
+
+    return post
 
 
 def _get_commitment_service_data() -> dict:
@@ -387,6 +407,35 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertEqual(
             provider.make_request("web3_clientVersion", [])["result"], _RPC_URL
         )
+
+    @patch("requests.Session.post")
+    def test_node_revert_data_is_kept(self, post_mock):
+        """Revert data is kept, and the node's revert message is redacted.
+
+        By design, a reason that web3 decodes from a "Reverted 0x..." payload
+        keeps its text: the contract sets it and does not see the node URL.
+        See "URL Redaction Limits" in internal/specs/development.md.
+        """
+        reason = f"failed at {_RPC_URL}"
+        revert_data = "0x08c379a0" + encode(["string"], [reason]).hex()
+        cases = (
+            (revert_data, f"execution reverted: failed at {_REDACTED_RPC_URL}"),
+            (f"Reverted {revert_data}", f"execution reverted: {reason}"),
+        )
+        for data, message in cases:
+            with self.subTest(data=data[:10]):
+                post_mock.side_effect = _revert_post(
+                    f"execution reverted: {reason}", data
+                )
+                w3 = Web3(
+                    _RedactingHTTPProvider(_RPC_URL, exception_retry_configuration=None)
+                )
+
+                with self.assertRaises(ContractLogicError) as raised:
+                    w3.eth.call({"to": "0x" + "22" * 20, "data": "0x"})
+
+                self.assertEqual(raised.exception.message, message)
+                self.assertEqual(raised.exception.data, data)
 
     def test_redact_urls_filter_redacts_logged_tracebacks(self):
         """Tracebacks logged through a handler with the filter omit URL credentials."""

@@ -9,10 +9,12 @@ errors that node and forwarder requests raise. The code is in
 `vbase/utils/log.py` and in `_RedactingHTTPProvider` in
 `vbase/core/web3_http_commitment_service.py`.
 
-The limits below are by design. Do not report them as defects. Report a
-finding only when a change affects one of these limits, or when it shows a path
-that the SDK, requests, urllib3, or web3 takes that leaves a credential in a
-message, traceback, or log.
+Redaction protects the credentials in URLs that the SDK is configured with,
+such as node and forwarder URLs, and URLs in error text from requests,
+urllib3, web3, and the forwarder. The limits below are by design. Do not
+report them as defects. Report a finding only when a change affects one of
+these limits, or when it shows a path that the SDK or those dependencies take
+that leaves such a credential in a message, traceback, or log.
 
 - Free-text URL matching is best effort. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` may be only partly redacted. When a
@@ -35,6 +37,10 @@ message, traceback, or log.
 - The `result` member of a node response is returned unchanged. URLs in other
   members, including object keys, are redacted, and keys that reduce to the
   same text are merged.
+- Contract revert data in `error.data` is ABI-encoded hex and is kept
+  unchanged, because callers decode it. When web3 decodes the reason of a
+  `Reverted 0x...` payload into a `ContractLogicError` message, the reason
+  keeps its text. The contract sets the reason and does not see the node URL.
 - The SDK does not change dependency loggers. `RedactUrlsFilter` redacts a
   logged exception in place and does not change `stack_info`.
 - The SQL services pass `db_url` to SQLAlchemy, which hides the password but
