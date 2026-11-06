@@ -78,7 +78,9 @@ for prior changes.
   - Indexing descriptor logs show only the number of commitment services.
   - Forwarder, node connection, indexing retry, and failover logs keep the
     error text but reduce each URL to its scheme and host. URL credentials,
-    paths, queries, and fragments are replaced with `[REDACTED]`.
+    paths, queries, and fragments, and punctuation that directly follows
+    them, are replaced with `[REDACTED]`. A URL that may have whitespace in
+    its credentials keeps only its scheme.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
   - `ProblemDetailsError` messages omit the server-supplied `type` URI and

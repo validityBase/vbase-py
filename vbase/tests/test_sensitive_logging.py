@@ -33,6 +33,34 @@ _CONFIGURED_RPC_URLS = (
 )
 
 
+def _problem_response(type_uri: str, detail: str) -> requests.Response:
+    """Build a forwarder Problem Details response with the given members."""
+    response = requests.Response()
+    response.status_code = 402
+    response.url = "https://forwarder.example/commitment-service-data"
+    response.headers["Content-Type"] = "application/problem+json"
+    response._content = json.dumps(  # pylint: disable=protected-access
+        {
+            "type": type_uri,
+            "title": "Insufficient Credits",
+            "status": 402,
+            "detail": detail,
+            "code": "INSUFFICIENT_CREDITS",
+        }
+    ).encode("utf-8")
+    response.request = requests.Request("GET", response.url).prepare()
+    return response
+
+
+def _get_commitment_service_data() -> dict:
+    """Call the forwarder's commitment-service-data API with a mocked request."""
+    service = object.__new__(ForwarderCommitmentService)
+    service.forwarder_url = "https://forwarder.example/"
+    service.api_key = "test-api-key"
+    with patch.object(service, "get_default_user", return_value="0x" + "11" * 20):
+        return service.get_commitment_service_data()
+
+
 class TestSensitiveLogging(unittest.TestCase):
     """Verify credentials cannot be emitted by environment diagnostics."""
 
@@ -88,16 +116,59 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertIsNone(redact_url(None))
         self.assertEqual(redact_url(""), "")
 
-    def test_redact_urls_keeps_trailing_punctuation(self):
-        """Punctuation after a URL is not treated as part of the URL."""
-        self.assertEqual(
-            redact_urls(f"connecting to {_RPC_URL}: retrying (see {_RPC_URL})."),
-            f"connecting to {_REDACTED_RPC_URL}: retrying (see {_REDACTED_RPC_URL}).",
-        )
-        self.assertEqual(
-            redact_urls(f"Invalid URL '{_RPC_URLS_WITH_CREDENTIALS[1]}': No host"),
-            f"Invalid URL '{_REDACTED_RPC_URL}': No host",
-        )
+    def test_redact_urls_trailing_punctuation(self):
+        """Trailing punctuation is redacted unless it closes a quote or bracket.
+
+        Punctuation can be a whole credential, so it is surrounding text only
+        when it starts at the closer for the character before the URL.
+        """
+        cases = {
+            f"connecting to {_RPC_URL}: retrying.": (
+                f"connecting to {_REDACTED_RPC_URL} retrying."
+            ),
+            f"retrying ({_RPC_URL}).": f"retrying ({_REDACTED_RPC_URL}).",
+            f"Invalid URL '{_RPC_URLS_WITH_CREDENTIALS[1]}': No host": (
+                f"Invalid URL '{_REDACTED_RPC_URL}': No host"
+            ),
+            "https://rpc.example/auth?password=!!!": _REDACTED_RPC_URL,
+            "'https://rpc.example/v2/!!!'": f"'{_REDACTED_RPC_URL}'",
+            "with url: /!!! (Caused by X)": (
+                f"with url: /{REDACTED_LOG_VALUE} (Caused by X)"
+            ),
+            "with url: /v2/key!! (Caused by X)": (
+                f"with url: /{REDACTED_LOG_VALUE} (Caused by X)"
+            ),
+            # A host has no credentials to redact, so its punctuation is kept.
+            "Connected to http://127.0.0.1:8545.": "Connected to http://127.0.0.1:8545.",
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(redact_urls(text), expected)
+                self.assertEqual(redact_urls(expected), expected)
+
+    def test_redact_urls_whitespace_in_userinfo(self):
+        """A URL with whitespace before its "@" is reduced to its scheme."""
+        cases = {
+            f"Node {_CONFIGURED_RPC_URLS[-1]} is down.": (
+                f"Node https://{REDACTED_LOG_VALUE} is down."
+            ),
+            f"Node '{_CONFIGURED_RPC_URLS[-1]}' is down.": (
+                f"Node 'https://{REDACTED_LOG_VALUE}' is down."
+            ),
+            # Unrelated text up to an "@" is redacted, because it cannot be
+            # told apart from credentials.
+            "Use https://rpc.example or mail ops@corp.example": (
+                f"Use https://{REDACTED_LOG_VALUE}"
+            ),
+            # A "/", "?", or "#" ends the userinfo, so later text is kept.
+            "Use https://rpc.example/ or mail ops@corp.example": (
+                "Use https://rpc.example/ or mail ops@corp.example"
+            ),
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(redact_urls(text), expected)
+                self.assertEqual(redact_urls(expected), expected)
 
     def test_redact_urls_handles_requests_error_messages(self):
         """Error text from requests keeps its diagnostics without credentials."""
@@ -317,33 +388,16 @@ class TestSensitiveLogging(unittest.TestCase):
     def test_structured_forwarder_error_omits_untrusted_type(self, get_mock):
         """A problem type cannot copy URL credentials into logs or messages."""
         secret = "private-forwarder-token"
-        response = requests.Response()
-        response.status_code = 402
-        response.url = "https://forwarder.example/commitment-service-data"
-        response.headers["Content-Type"] = "application/problem+json"
-        response._content = json.dumps(  # pylint: disable=protected-access
-            {
-                "type": f"https://forwarder.example/problems/credits?token={secret}",
-                "title": "Insufficient Credits",
-                "status": 402,
-                "detail": "Insufficient credits.",
-                "code": "INSUFFICIENT_CREDITS",
-            }
-        ).encode("utf-8")
-        response.request = requests.Request("GET", response.url).prepare()
-        get_mock.return_value = response
-        service = object.__new__(ForwarderCommitmentService)
-        service.forwarder_url = "https://forwarder.example/"
-        service.api_key = "test-api-key"
+        get_mock.return_value = _problem_response(
+            f"https://forwarder.example/problems/credits?token={secret}",
+            "Insufficient credits.",
+        )
 
         with self.assertLogs(
             "vbase.core.forwarder_commitment_service", level="ERROR"
         ) as captured:
-            with patch.object(
-                service, "get_default_user", return_value="0x" + "11" * 20
-            ):
-                with self.assertRaises(ProblemDetailsError) as raised:
-                    service.get_commitment_service_data()
+            with self.assertRaises(ProblemDetailsError) as raised:
+                _get_commitment_service_data()
 
         self.assertEqual(
             captured.records[0].getMessage(),
@@ -353,6 +407,33 @@ class TestSensitiveLogging(unittest.TestCase):
         )
         self.assertNotIn(secret, str(raised.exception))
         self.assertIn(secret, raised.exception.type)
+
+    @patch("vbase.core.forwarder_commitment_service.requests.get")
+    def test_structured_forwarder_error_redacts_detail_urls(self, get_mock):
+        """A problem detail cannot copy URL credentials into logs or messages."""
+        detail = f"Node {_CONFIGURED_RPC_URLS[-1]} is down."
+        redacted_message = (
+            "HTTP API problem (402) code=INSUFFICIENT_CREDITS: "
+            f"Node https://{REDACTED_LOG_VALUE} is down."
+        )
+        response = _problem_response("https://forwarder.example/problems/x", detail)
+        get_mock.return_value = response
+
+        error = ProblemDetailsError.from_response(response)
+        with self.assertLogs(
+            "vbase.core.forwarder_commitment_service", level="ERROR"
+        ) as captured:
+            with self.assertRaises(ProblemDetailsError) as raised:
+                _get_commitment_service_data()
+
+        self.assertEqual(str(error), redacted_message)
+        self.assertEqual(str(raised.exception), redacted_message)
+        self.assertEqual(
+            captured.records[0].getMessage(),
+            "HTTP error occurred: api=commitment-service-data status=402 "
+            f"error={redacted_message}",
+        )
+        self.assertEqual(error.detail, detail)
 
     @patch("vbase.core.forwarder_commitment_service.requests.get")
     def test_forwarder_transport_error_log_redacts_url(self, get_mock):
@@ -429,9 +510,11 @@ class TestSensitiveLogging(unittest.TestCase):
         event.get_logs.assert_called_with(
             argument_filters={"user": "0xabc"}, from_block=5, to_block="latest"
         )
+        # The retry library appends ", retrying"; a comma directly after a URL
+        # path can belong to a credential, so it is redacted with the path.
         self.assertEqual(
             captured.records[0].getMessage(),
-            f"{_REDACTED_RPC_URL}, retrying in 2 seconds...",
+            f"{_REDACTED_RPC_URL} retrying in 2 seconds...",
         )
 
     @patch("retry.api.time.sleep")
@@ -479,7 +562,7 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertEqual(exists_mock.call_count, 2)
         self.assertEqual(
             captured.records[0].getMessage(),
-            f"{_REDACTED_RPC_URL}, retrying in 1 seconds...",
+            f"{_REDACTED_RPC_URL} retrying in 1 seconds...",
         )
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")

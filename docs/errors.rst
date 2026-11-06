@@ -14,8 +14,9 @@ The exception message, ``str(error)`` and ``error.args``, has the form
 ``HTTP API problem (<status>) code=<code>: <detail>``. It is not the
 ``"<status> Client Error: <reason> for url: <url>"`` message that
 ``requests.HTTPError`` uses for other failures. The message omits the
-server-supplied ``type`` URI and replaces any URL in ``detail`` with its scheme
-and host, so it does not copy URL credentials into logs or tracebacks. The
+server-supplied ``type`` URI and reduces any URL in ``detail`` to its scheme
+and host, or to its scheme alone when the URL may have whitespace in its
+credentials, so it does not copy URL credentials into logs or tracebacks. The
 attributes keep the original values. The message is for people to read and may
 change; do not parse it. To branch on a failure, use ``type``, ``code``,
 ``status``, or ``error.response.status_code``.

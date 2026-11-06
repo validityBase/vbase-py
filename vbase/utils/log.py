@@ -11,25 +11,41 @@ _API_KEY_MIN_HIDDEN_CHARS = 16
 # apostrophes, quotes, and other delimiters that requests accepts, so ending a
 # match at one of them could leave the rest of a credential in the text.
 # An absolute URL, such as scheme://user:password@host:port/path?query#fragment.
-_URL_PATTERN = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
+# Server-supplied text can also contain whitespace in a URL's userinfo, so a
+# match may run across whitespace to an "@" that precedes any "/", "?", or "#".
+_URL_PATTERN = re.compile(r"\b[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?\S*", re.IGNORECASE)
 _URL_PARTS_PATTERN = re.compile(
     r"(?P<scheme>[^:]+://)(?P<authority>[^/?#]*)(?P<rest>.*)", re.DOTALL
 )
 # A request path without a host, as in urllib3's "Max retries exceeded with url: /path".
 _URL_PATH_PATTERN = re.compile(r"(?P<prefix>\burl: )(?P<path>/\S+)")
-# Punctuation and closing quotes that follow a URL in error text rather than
-# ending it. "]" is excluded so that redacting a redacted URL changes nothing.
+# Punctuation and closing quotes that can follow a URL in error text.
+# "]" is excluded so that redacting a redacted URL changes nothing.
 _URL_TRAILING_PUNCTUATION = ".,:;!?)}>'\""
+# Opening characters before a URL, mapped to the characters that close them.
+_URL_CLOSERS = {"'": "'", '"': '"', "(": ")", "<": ">", "{": "}"}
 
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
 )
 
 
-def _split_trailing_punctuation(text: str) -> tuple[str, str]:
-    """Split text into a URL or path and the punctuation that follows it."""
-    stripped = text.rstrip(_URL_TRAILING_PUNCTUATION)
-    return stripped, text[len(stripped) :]
+def _closing_text(match: re.Match) -> str:
+    """Return the trailing punctuation of a matched URL that is surrounding text.
+
+    Trailing punctuation can belong to a credential. It is surrounding text
+    when the URL before it is already redacted, or from the closing quote or
+    bracket for the character before the URL; the last such closer is used.
+    """
+    url = match[0]
+    stripped = url.rstrip(_URL_TRAILING_PUNCTUATION)
+    trailing = url[len(stripped) :]
+    if _redact_url_value(stripped) == stripped:
+        return trailing
+    closer = _URL_CLOSERS.get(match.string[match.start() - 1 : match.start()])
+    if closer is None or closer not in trailing:
+        return ""
+    return trailing[trailing.rindex(closer) :]
 
 
 def _redact_url_value(url: str) -> str | None:
@@ -48,20 +64,30 @@ def _redact_url_value(url: str) -> str | None:
 
 
 def _redact_url_match(match: re.Match) -> str:
-    """Redact a URL found in text, keeping the punctuation that follows it."""
-    url, suffix = _split_trailing_punctuation(match[0])
-    redacted = _redact_url_value(url)
-    if redacted is None:
-        return match[0]
-    return redacted + suffix
+    """Redact a URL found in text."""
+    url = match[0]
+    if any(char.isspace() for char in url):
+        # Whitespace occurs only before an "@". The match is either a URL with
+        # whitespace in its credentials or a URL followed by unrelated text, so
+        # the text after the "@" is not a trusted host. Keep only the scheme.
+        redacted = f"{url.partition('://')[0]}://{REDACTED_LOG_VALUE}"
+    else:
+        redacted = _redact_url_value(url) or url
+    if redacted.endswith(REDACTED_LOG_VALUE):
+        # Trailing punctuation was redacted with the URL.
+        redacted += _closing_text(match)
+    return redacted
 
 
 def _redact_url_path_match(match: re.Match) -> str:
-    """Redact a request path reported without its host."""
-    path, suffix = _split_trailing_punctuation(match["path"])
-    if path == "/":
+    """Redact a request path reported without its host.
+
+    Trailing punctuation is redacted with the path, because it can belong to
+    a credential.
+    """
+    if match["path"] == "/":
         return match[0]
-    return f"{match['prefix']}/{REDACTED_LOG_VALUE}{suffix}"
+    return f"{match['prefix']}/{REDACTED_LOG_VALUE}"
 
 
 def redact_urls(text: object) -> str:
@@ -72,8 +98,16 @@ def redact_urls(text: object) -> str:
     ``[REDACTED]``, and does the same for bare request paths reported by
     urllib3. Hosts and ports are kept to identify the failing endpoint.
     A URL extends to the next whitespace, so text attached to it without a
-    space is redacted with it. Use :func:`redact_url` for a value that is a
-    single URL, such as a configured endpoint.
+    space is redacted with it. Punctuation at the end of a URL with a path,
+    query, or fragment is redacted with them, because it can belong to a
+    credential. It is kept from the closing quote or bracket for the
+    character before the URL, and after a URL that is already redacted.
+
+    Text from ``://`` across whitespace to an ``@`` that precedes any ``/``,
+    ``?``, or ``#`` may be a URL with whitespace in its credentials. The whole
+    span, including the text after the ``@``, is replaced with the scheme and
+    ``[REDACTED]``. Use :func:`redact_url` for a value that is a single URL,
+    such as a configured endpoint.
 
     :param text: The text, or an object such as an exception, to redact.
     :return: The redacted text.
