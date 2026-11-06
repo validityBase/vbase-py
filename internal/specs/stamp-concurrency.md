@@ -15,3 +15,7 @@ accepts pre-signed requests without a shared user guard. Full rollout requires
 routing shared-account writers through the guarded app API or a separately
 reviewed forwarder nonce/ownership protocol. Do not claim distributed exclusion
 from this SDK change or blindly replay an ambiguous execute response.
+
+Ownership includes public receipt decoding and timestamped test-contract writes.
+Direct clear operations also wait for their receipt before releasing the user, so
+ordinary and test-subclass mutations cannot overlap pending nonce use.

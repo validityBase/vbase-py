@@ -7,6 +7,7 @@ import logging
 from typing import List, Optional, Union
 
 from vbase.core.commitment_service_test import CommitmentServiceTest
+from vbase.core.user_write_queue import serialize_user_write
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.log import get_default_logger
 
@@ -42,12 +43,17 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
             **Web3HTTPCommitmentService.get_init_args_from_env(dotenv_path)
         )
 
+    @serialize_user_write
     def clear_sets(self):
-        self.csc.functions.clearSets().transact()
+        tx_hash = self.csc.functions.clearSets().transact()
+        self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
+    @serialize_user_write
     def clear_set_objects(self, set_cid: str):
-        self.csc.functions.clearSetObjects(set_cid).transact()
+        tx_hash = self.csc.functions.clearSetObjects(set_cid).transact()
+        self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
+    @serialize_user_write
     def add_object_with_timestamp(self, object_cid: str, timestamp: str) -> dict:
         _LOG.debug("Sending transaction to addObjectWithTimestamp")
         tx_hash = self.csc.functions.addObjectWithTimestamp(
@@ -56,6 +62,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return self._add_object_worker(receipt)
 
+    @serialize_user_write
     def add_set_object_with_timestamp(
         self, set_cid: str, object_cid: str, timestamp: str
     ) -> dict:
@@ -69,6 +76,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return self._add_set_object_worker(receipt)
 
+    @serialize_user_write
     def add_sets_objects_with_timestamps_batch(
         self, set_cids: List[str], object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:
@@ -82,6 +90,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return self._add_sets_objects_batch_worker(receipt)
 
+    @serialize_user_write
     def add_set_objects_with_timestamps_batch(
         self, set_cid: str, object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:

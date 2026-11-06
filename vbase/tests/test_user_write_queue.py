@@ -9,7 +9,9 @@ from unittest.mock import Mock
 from eth_account import Account
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 from vbase.core.user_write_queue import serialize_user_write
+from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 
 
 class UserWriteQueueTests(unittest.TestCase):
@@ -106,3 +108,139 @@ class QueueBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "failed holder"):
                 one.result(timeout=3)
             self.assertEqual(two.result(timeout=3), 2)
+
+
+class PublicMutationOwnershipTests(unittest.TestCase):
+    """Receipt decoding and test-contract writes retain the same ownership."""
+
+    def test_forwarder_public_mutations_hold_ownership_through_decoding(self):
+        """A second write cannot reset metadata while any receipt worker runs."""
+        cases = [
+            ("add_set", ("cid",)),
+            ("add_object", ("cid",)),
+            ("add_set_object", ("set", "cid")),
+            ("add_sets_objects_batch", (["set"], ["cid"])),
+            ("add_set_objects_batch", ("set", ["cid"])),
+            ("add_object_with_timestamp", ("cid", "2026-11-06T00:00:00Z")),
+            ("add_set_object_with_timestamp", ("set", "cid", "2026-11-06T00:00:00Z")),
+            (
+                "add_sets_objects_with_timestamps_batch",
+                (["set"], ["cid"], ["2026-11-06T00:00:00Z"]),
+            ),
+            (
+                "add_set_objects_with_timestamps_batch",
+                ("set", ["cid"], ["2026-11-06T00:00:00Z"]),
+            ),
+        ]
+        for method, args in cases:
+            with self.subTest(method=method):
+                service = ForwarderCommitmentServiceTest(
+                    "https://forwarder.test/", "test", Account().create().key
+                )
+                entered, release, second_write = (threading.Event() for _ in range(3))
+                calls = []
+
+                def execute(**_kwargs):
+                    calls.append(True)
+                    if len(calls) == 1:
+                        service._signature_data = {"domain": {"chainId": 1}}
+                    else:
+                        service._signature_data = None
+                        second_write.set()
+                    return {}
+
+                def decode(*_args):
+                    if not entered.is_set():
+                        entered.set()
+                        if not release.wait(3):
+                            raise TimeoutError("test barrier")
+                        return service._get_chain_id()
+                    return 1
+
+                service._post_execute = Mock(side_effect=execute)
+                for worker in [
+                    "_add_set_worker",
+                    "_add_object_worker",
+                    "_add_set_object_worker",
+                    "_add_sets_objects_batch_worker",
+                ]:
+                    setattr(service, worker, Mock(side_effect=decode))
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    one = executor.submit(getattr(service, method), *args)
+                    self.assertTrue(entered.wait(3))
+                    two = executor.submit(service.add_object, "other")
+                    try:
+                        self.assertFalse(second_write.wait(0.05))
+                    finally:
+                        release.set()
+                    self.assertEqual(one.result(timeout=3), 1)
+                    two.result(timeout=3)
+
+    def test_direct_test_mutations_cannot_bypass_ordinary_write(self):
+        """Timestamped and clearing operations queue behind an ordinary receipt."""
+        cases = [
+            ("clear_sets", ()),
+            ("clear_set_objects", ("set",)),
+            ("add_object_with_timestamp", ("cid", "2026-11-06T00:00:00Z")),
+            ("add_set_object_with_timestamp", ("set", "cid", "2026-11-06T00:00:00Z")),
+            (
+                "add_sets_objects_with_timestamps_batch",
+                (["set"], ["cid"], ["2026-11-06T00:00:00Z"]),
+            ),
+            (
+                "add_set_objects_with_timestamps_batch",
+                ("set", ["cid"], ["2026-11-06T00:00:00Z"]),
+            ),
+        ]
+        for method, args in cases:
+            with self.subTest(method=method):
+                service = Web3HTTPCommitmentServiceTest.__new__(
+                    Web3HTTPCommitmentServiceTest
+                )
+                service.node_rpc_url = "https://node.test"
+                service.get_default_user = Mock(return_value="alice")
+                service.w3, service.csc = Mock(), Mock()
+                entered, release, second_write = (threading.Event() for _ in range(3))
+
+                def receipt(*_args):
+                    if not entered.is_set():
+                        entered.set()
+                        if not release.wait(3):
+                            raise TimeoutError("test barrier")
+                    return {"status": 1}
+
+                service.w3.eth.wait_for_transaction_receipt.side_effect = receipt
+                for worker in [
+                    "_add_object_worker",
+                    "_add_set_object_worker",
+                    "_add_sets_objects_batch_worker",
+                ]:
+                    setattr(service, worker, Mock(return_value={}))
+                target = getattr(
+                    service.csc.functions,
+                    {
+                        "clear_sets": "clearSets",
+                        "clear_set_objects": "clearSetObjects",
+                        "add_object_with_timestamp": "addObjectWithTimestamp",
+                        "add_set_object_with_timestamp": "addSetObjectWithTimestamp",
+                        "add_sets_objects_with_timestamps_batch": "addSetsObjectsWithTimestampsBatch",
+                        "add_set_objects_with_timestamps_batch": "addSetObjectsWithTimestampsBatch",
+                    }[method],
+                )
+                target.return_value.transact.side_effect = lambda: (
+                    second_write.set(),
+                    "hash",
+                )[1]
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    one = executor.submit(service.add_object, "first")
+                    self.assertTrue(entered.wait(3))
+                    two = executor.submit(getattr(service, method), *args)
+                    try:
+                        self.assertFalse(second_write.wait(0.05))
+                    finally:
+                        release.set()
+                    one.result(timeout=3)
+                    two.result(timeout=3)
+                self.assertEqual(
+                    service.w3.eth.wait_for_transaction_receipt.call_count, 2
+                )

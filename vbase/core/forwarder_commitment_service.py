@@ -353,6 +353,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         ret = self._call_forwarder_api("commitment-service-data")
         return ret
 
+    @serialize_user_write
     def add_set(self, set_cid: str) -> dict:
         # Execute the call via the forwarder.
         _LOG.debug("Sending transaction to addSet")
@@ -413,6 +414,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             raise ValueError("signature_data['domain'] missing 'chainId'")
         return int(domain["chainId"])
 
+    @serialize_user_write
     def add_object(self, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addObject")
         receipt = self._post_execute(
@@ -435,6 +437,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return bool(int(ret, base=16))
 
+    @serialize_user_write
     def add_set_object(self, set_cid: str, object_cid: str) -> dict:
         _LOG.debug("Sending transaction to addSetObject")
         receipt = self._post_execute(
@@ -443,6 +446,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return self._add_set_object_worker(receipt)
 
+    @serialize_user_write
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
@@ -453,6 +457,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         )
         return self._add_sets_objects_batch_worker(receipt)
 
+    @serialize_user_write
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         receipt = self._post_execute(
