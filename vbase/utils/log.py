@@ -39,13 +39,18 @@ def _closing_text(match: re.Match) -> str:
     """Return the trailing punctuation of a matched URL that is surrounding text.
 
     Trailing punctuation can belong to a credential. It is surrounding text
-    when the URL before it is already redacted, or from the closing quote or
-    bracket for the character before the URL; the last such closer is used.
+    when it follows a redacted path, or from the closing quote or bracket for
+    the character before the URL; the last such closer is used.
     """
     url = match[0]
     stripped = url.rstrip(_URL_TRAILING_PUNCTUATION)
     trailing = url[len(stripped) :]
-    if _redact_url_value(stripped) == stripped:
+    # Only a redacted path is already redacted. After a bare host or "/", the
+    # punctuation is the whole path or query, such as "/!!!" or "?!!!".
+    if (
+        stripped.endswith("/" + REDACTED_LOG_VALUE)
+        and _redact_url_value(stripped) == stripped
+    ):
         return trailing
     closer = _URL_CLOSERS.get(match.string[match.start() - 1 : match.start()])
     if closer is None or closer not in trailing:
@@ -106,7 +111,7 @@ def redact_urls(text: object) -> str:
     space is redacted with it. Punctuation at the end of a URL with a path,
     query, or fragment is redacted with them, because it can belong to a
     credential. It is kept from the closing quote or bracket for the
-    character before the URL, and after a URL that is already redacted.
+    character before the URL, and after a path that is already redacted.
 
     Text from ``://`` across whitespace to the first ``@`` that precedes any
     ``/``, ``?``, or ``#`` may be a URL with whitespace in its credentials. The
@@ -149,6 +154,15 @@ def redact_url(url: str | None) -> str | None:
     return redacted
 
 
+def _redact_request_target(target: str) -> str:
+    """Redact a request URL, or a request path reported without its host."""
+    if "://" in target:
+        return redact_url(target)
+    if target.startswith("/") and target != "/":
+        return "/" + REDACTED_LOG_VALUE
+    return target
+
+
 def redact_exception(error: BaseException) -> BaseException:
     """Apply :func:`redact_urls` to an exception's messages, in place.
 
@@ -156,9 +170,20 @@ def redact_exception(error: BaseException) -> BaseException:
     messages, so a traceback can show credentials in a node URL. This redacts
     the string arguments of the exception, of exceptions in its arguments,
     such as the urllib3 error that a requests error wraps, and of its
-    ``__cause__`` and ``__context__`` chain. The exception keeps its type and
-    attributes, such as ``request`` and ``response``, so callers can still
-    catch and inspect it. Redaction is idempotent.
+    ``__cause__`` and ``__context__`` chain.
+
+    It also redacts the ``url`` and ``_message`` attributes of urllib3
+    errors. An exception that is passed to another process, for example from
+    a ``concurrent.futures.ProcessPoolExecutor`` or ``multiprocessing`` worker
+    to its parent, is serialized with :mod:`pickle` and rebuilt in the
+    receiving process. Most exceptions are rebuilt from their arguments,
+    which are already redacted. urllib3 errors are rebuilt from these two
+    attributes instead, so leaving them unredacted would put the original
+    URL back into the rebuilt message.
+
+    The exception keeps its type and other attributes, such as ``request``
+    and ``response``, so callers can still catch and inspect it. Redaction is
+    idempotent.
 
     :param error: The exception to redact.
     :return: The same exception.
@@ -182,6 +207,15 @@ def redact_exception(error: BaseException) -> BaseException:
             args.append(arg)
         if changed:
             current.args = tuple(args)
+        # urllib3 errors rebuild their message from these attributes when
+        # passed to another process (see the docstring). Write to the instance
+        # dictionary, because other classes may define these names as
+        # read-only properties.
+        attributes = getattr(current, "__dict__", {})
+        if isinstance(attributes.get("url"), str):
+            attributes["url"] = _redact_request_target(attributes["url"])
+        if isinstance(attributes.get("_message"), str):
+            attributes["_message"] = redact_urls(attributes["_message"])
         pending.extend(
             chained
             for chained in (current.__cause__, current.__context__)

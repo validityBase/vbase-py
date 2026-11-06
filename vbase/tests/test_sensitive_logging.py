@@ -5,6 +5,7 @@
 import io
 import json
 import os
+import pickle
 import time
 import traceback
 import unittest
@@ -162,6 +163,14 @@ class TestSensitiveLogging(unittest.TestCase):
             ),
             "https://rpc.example/auth?password=!!!": _REDACTED_RPC_URL,
             "'https://rpc.example/v2/!!!'": f"'{_REDACTED_RPC_URL}'",
+            # Punctuation can be the whole path or query after the host.
+            "https://rpc.example/!!!": _REDACTED_RPC_URL,
+            "https://rpc.example?.:;": _REDACTED_RPC_URL,
+            "https://rpc.example/?!!!": _REDACTED_RPC_URL,
+            "Node https://rpc.example/!!! is down": (
+                f"Node {_REDACTED_RPC_URL} is down"
+            ),
+            "'https://rpc.example/!!!'": f"'{_REDACTED_RPC_URL}'",
             "with url: /!!! (Caused by X)": (
                 f"with url: /{REDACTED_LOG_VALUE} (Caused by X)"
             ),
@@ -225,6 +234,13 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertIs(error.__cause__, max_retry_error)
         self.assertIs(error.request, request)
         self.assertEqual(redact_exception(error).args, error.args)
+        # A worker process passes an exception to its parent by pickling it,
+        # and urllib3 rebuilds the message from its url attribute when the
+        # exception is unpickled. Simulate that round trip.
+        self.assertEqual(max_retry_error.url, f"/{REDACTED_LOG_VALUE}")
+        self.assertNotIn(
+            _RPC_SECRET, _traceback_text(pickle.loads(pickle.dumps(error)))
+        )
 
     @patch("requests.Session.post")
     def test_node_request_errors_redact_rpc_url(self, post_mock):

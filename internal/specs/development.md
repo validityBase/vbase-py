@@ -84,7 +84,7 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   `vbase.utils.log.redact_urls`, which keeps each URL's scheme and host and
   redacts userinfo, paths, queries, and fragments. Trailing punctuation after
   a path, query, or fragment is redacted too, because it can belong to a
-  credential; it is kept only after an already-redacted URL or from the
+  credential; it is kept only after an already-redacted path or from the
   closing quote or bracket for the character before the URL. In free text,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
@@ -103,11 +103,18 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   their messages in place with `vbase.utils.log.redact_exception`, which also
   covers wrapped errors and the `__cause__` and `__context__` chain, so
   tracebacks do not show URL credentials. The exceptions keep their type and
-  attributes, such as `request` and `response`, so callers can catch and
-  inspect them. Every node request, including indexing queries, goes through
-  the HTTP provider that `Web3HTTPCommitmentService` installs, which redacts
-  its errors. Forwarder request errors are redacted where they are caught,
-  and `FailoverIndexingService` redacts each service error before logging or
+  other attributes, such as `request` and `response`, so callers can catch
+  and inspect them.
+- An exception passed to another process, for example from a
+  `concurrent.futures.ProcessPoolExecutor` or `multiprocessing` worker to its
+  parent, is serialized with `pickle` and rebuilt in the receiving process.
+  Most exceptions are rebuilt from their arguments, which are already
+  redacted. urllib3 errors are rebuilt from their `url` and `_message`
+  attributes instead, so `redact_exception` redacts those attributes too.
+- Every node request, including indexing queries, goes through the HTTP
+  provider that `Web3HTTPCommitmentService` installs, which redacts its
+  errors. Forwarder request errors are redacted where they are caught, and
+  `FailoverIndexingService` redacts each service error before logging or
   chaining it.
 - Dependency debug logs, such as those of `web3.providers.HTTPProvider` and
   `urllib3.connectionpool`, include request URLs. The SDK does not change

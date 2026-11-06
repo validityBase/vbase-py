@@ -85,9 +85,13 @@ for prior changes.
     host of the node URL, including when its credentials contain whitespace.
   - Errors raised by node and forwarder requests, such as `requests` HTTP and
     connection errors and the `urllib3` errors they wrap, reduce URLs in their
-    messages to scheme and host, including in tracebacks and in the cause of
-    the `FailoverIndexingService` `RuntimeError`. The errors keep their type
-    and attributes; `error.request.url` keeps the full URL.
+    messages to scheme and host. This applies to tracebacks, to the cause of
+    the `FailoverIndexingService` `RuntimeError`, and to errors passed to
+    another process, for example from a `ProcessPoolExecutor` worker to its
+    parent. The errors keep their type and attributes, except the `url`
+    attribute of `urllib3` errors: `urllib3` rebuilds its message from that
+    attribute in the receiving process, so the attribute is redacted too.
+    `error.request.url` keeps the full URL.
   - `ProblemDetailsError` messages omit the server-supplied `type` URI and
     redact URLs in `detail`.
 
