@@ -304,6 +304,9 @@ class Web3HTTPIndexingService(IndexingService):
         Transport errors (requests exceptions are OSErrors) and JSON-RPC error
         responses from the node (Web3RPCError) are retried. Other errors, such
         as web3 validation errors for invalid arguments, fail immediately.
+        The HTTP provider of Web3HTTPCommitmentService redacts URLs in both
+        kinds of errors, so the error raised after the last retry does not
+        show URL credentials.
         """
         return retry_call(
             event.get_logs,

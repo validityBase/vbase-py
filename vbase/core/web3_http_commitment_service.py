@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import time
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from web3 import HTTPProvider, Web3
@@ -38,6 +38,7 @@ from vbase.utils.log import (
     get_default_logger,
     redact_exception,
     redact_url,
+    redact_urls,
 )
 
 _LOG = get_default_logger(__name__)
@@ -46,20 +47,62 @@ _LOG.setLevel(logging.INFO)
 _LOG.addFilter(RedactUrlsFilter())
 
 
+def _redact_json_text(value: Any) -> Any:
+    """Apply :func:`redact_urls` to the strings in a decoded JSON value.
+
+    Object keys are redacted too. Keys that reduce to the same text, such as
+    two URLs on the same host, are merged, and the last value is kept.
+    """
+    if isinstance(value, str):
+        return redact_urls(value)
+    if isinstance(value, dict):
+        return {
+            _redact_json_text(key): _redact_json_text(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_json_text(item) for item in value]
+    return value
+
+
 class _RedactingHTTPProvider(HTTPProvider):
     """HTTP provider that redacts URLs in the errors of node requests.
 
-    Every node request, including those of indexing services, passes through
-    ``make_request``. requests and urllib3 errors raised there include the
+    Every node request that the SDK sends, including those of indexing
+    services, passes through ``make_request``; the SDK does not send JSON-RPC
+    batch requests. requests and urllib3 errors raised there include the
     node URL, so redact them before they reach callers or tracebacks.
+
+    After ``make_request`` returns, web3 raises errors for JSON-RPC error
+    responses, such as ``Web3RPCError``, and for malformed responses. Their
+    messages, and the ``rpc_response`` attribute of ``Web3RPCError``, include
+    the response text, such as the node's error message, so URLs in the
+    response, including in object keys, are redacted too. The ``result``
+    member holds node data and is returned unchanged.
     """
 
     def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
         try:
-            return super().make_request(method, params)
+            response = super().make_request(method, params)
         except Exception as error:
             redact_exception(error)
             raise
+        if not isinstance(response, dict):
+            return cast(RPCResponse, _redact_json_text(response))
+        # Revert data in error.data is ABI-encoded hex, which contains no URL
+        # text, so it passes through unchanged for callers to decode. web3
+        # decodes the reason of a "Reverted 0x..." payload after this method
+        # returns. By design, that reason keeps its text: see "URL Redaction
+        # Limits" in internal/specs/development.md.
+        return cast(
+            RPCResponse,
+            {
+                _redact_json_text(key): (
+                    value if key == "result" else _redact_json_text(value)
+                )
+                for key, value in response.items()
+            },
+        )
 
 
 # Settings for the connection retry for Web3.HTTPProvider.

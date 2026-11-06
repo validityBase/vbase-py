@@ -83,14 +83,18 @@ for prior changes.
     its credentials keeps only its scheme.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
-  - Errors raised by node and forwarder requests, such as `requests` HTTP and
-    connection errors and the `urllib3` errors they wrap, reduce URLs in their
-    messages to scheme and host. This applies to tracebacks, to the cause of
-    the `FailoverIndexingService` `RuntimeError`, and to errors passed to
-    another process, for example from a `ProcessPoolExecutor` worker to its
-    parent. The errors keep their type and attributes, except the `url`
-    attribute of `urllib3` errors: `urllib3` rebuilds its message from that
-    attribute in the receiving process, so the attribute is redacted too.
+  - Errors raised by node and forwarder requests reduce URLs in their
+    messages and notes to scheme and host. These include `requests` HTTP and
+    connection errors, the `urllib3` errors they wrap, and the errors that
+    web3 raises for JSON-RPC error responses from the node, such as
+    `Web3RPCError`. This applies to tracebacks, to the cause of the
+    `FailoverIndexingService` `RuntimeError`, and to errors passed to another
+    process, for example from a `ProcessPoolExecutor` worker to its parent.
+  - These errors keep their type and attributes, except attributes that hold
+    the same text, which are redacted too: `Web3RPCError.rpc_response`, the
+    `strerror` and file names of an `OSError`, and the `url` attribute of
+    `urllib3` errors and the `msg` attribute of `JSONDecodeError`, from which
+    these errors rebuild their messages in the receiving process.
     `error.request.url` keeps the full URL.
   - `ProblemDetailsError` messages omit the server-supplied `type` URI and
     redact URLs in `detail`.
