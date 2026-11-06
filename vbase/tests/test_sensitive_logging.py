@@ -893,6 +893,57 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertNotIn(_RPC_SECRET, str(raised.exception))
         self.assertNotIn(_RPC_SECRET, "\n".join(captured.output))
 
+    @patch("vbase.core.web3_http_commitment_service.time.sleep")
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
+    def test_web3_node_url_without_scheme_is_redacted(self, _sleep_mock):
+        """A node URL without a scheme fails to connect without showing it."""
+        # requests shows these URLs as given in its errors, which web3's
+        # connection check handles.
+        for node_rpc_url in (
+            f"rpc.example/v2/{_RPC_SECRET}",
+            f"user:{_RPC_SECRET}@rpc.example/",
+        ):
+            with self.subTest(node_rpc_url=node_rpc_url):
+                with self.assertLogs(
+                    "vbase.core.web3_http_commitment_service", level="ERROR"
+                ) as captured:
+                    with self.assertRaises(ConnectionError) as raised:
+                        Web3HTTPCommitmentService(
+                            node_rpc_url=node_rpc_url,
+                            commitment_service_address="0x" + "33" * 20,
+                        )
+
+                self.assertIn(REDACTED_LOG_VALUE, str(raised.exception))
+                self.assertNotIn(_RPC_SECRET, _traceback_text(raised.exception))
+                self.assertNotIn(_RPC_SECRET, "\n".join(captured.output))
+
+    def test_forwarder_rejects_url_without_http_scheme_and_host(self):
+        """A forwarder URL that requests would show without a scheme is rejected."""
+        for forwarder_url in (
+            f"forwarder.example/v1/{_RPC_SECRET}/",
+            f"user:{_RPC_SECRET}@forwarder.example/",
+            f"http:/forwarder.example/{_RPC_SECRET}/",
+            f"ftp://forwarder.example/{_RPC_SECRET}/",
+            "",
+        ):
+            with self.subTest(forwarder_url=forwarder_url):
+                with self.assertRaises(ValueError) as raised:
+                    ForwarderCommitmentService(
+                        forwarder_url=forwarder_url, api_key="test-api-key"
+                    )
+
+                self.assertNotIn(_RPC_SECRET, _traceback_text(raised.exception))
+
+        for forwarder_url in (
+            "https://forwarder.example/",
+            "http://127.0.0.1:3000/forwarder-test/",
+        ):
+            with self.subTest(forwarder_url=forwarder_url):
+                service = ForwarderCommitmentService(
+                    forwarder_url=forwarder_url, api_key="test-api-key"
+                )
+                self.assertEqual(service.forwarder_url, forwarder_url)
+
 
 if __name__ == "__main__":
     unittest.main()

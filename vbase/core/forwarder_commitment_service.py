@@ -8,6 +8,7 @@ import logging
 import os
 from enum import Enum
 from typing import List, Optional, Union
+from urllib.parse import urlsplit
 
 import requests
 from dotenv import load_dotenv
@@ -45,6 +46,17 @@ _LOG.addFilter(RedactUrlsFilter())
 _REQUEST_TIMEOUT = 60.0
 
 
+def _is_http_url(url: object) -> bool:
+    """Return whether a value is an http or https URL with a host."""
+    if not isinstance(url, str):
+        return False
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme in ("http", "https") and bool(parts.hostname)
+
+
 class RequestType(Enum):
     """Encodes the request type with type safety."""
 
@@ -65,12 +77,21 @@ class ForwarderCommitmentService(Web3CommitmentService):
     ):
         """Initialize the service object.
 
-        :param forwarder_url: The forwarder URL.
+        :param forwarder_url: The forwarder URL, an http or https URL with a
+            host.
         :param api_key: The API key used to authenticate to the forwarder.
         :param private_key: User's private key.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
+        :raises ValueError: If forwarder_url is not an http or https URL with a
+            host.
         """
+        # requests rejects any other URL on each request, with the URL in its
+        # error message as given. URL redaction recognizes a URL only by its
+        # scheme, so such a message could show credentials in the URL. Reject
+        # the URL here, without its value.
+        if not _is_http_url(forwarder_url):
+            raise ValueError("forwarder_url must be an http or https URL with a host.")
         self.forwarder_url = forwarder_url
         self.api_key = api_key
         self.private_key = private_key

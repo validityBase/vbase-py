@@ -20,6 +20,11 @@ that leaves such a credential in a message, traceback, or log.
   whitespace with `@`, `/`, `?`, or `#` may be only partly redacted. When a
   quote or bracket comes before a URL, the punctuation from the matching
   closing character onward is kept.
+- Free text is recognized as a URL only by its scheme. Configured endpoints
+  without a scheme are covered: `ForwarderCommitmentService` rejects a
+  `forwarder_url` that is not an `http` or `https` URL with a host, and a node
+  URL without a scheme fails the connection check of
+  `Web3HTTPCommitmentService`, which shows it as `[REDACTED]`.
 - Attributes that callers use keep their values: `request` and `response` of
   requests errors, `ProblemDetailsError` attributes, `JSONDecodeError.doc`,
   and the provider's `endpoint_uri`.

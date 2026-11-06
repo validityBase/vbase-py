@@ -94,6 +94,13 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   the whole value as one URL, so it keeps the host even when requests-accepted
   whitespace appears in the URL's credentials. Use `redact_urls` for other
   text that may contain URLs.
+- URL redaction recognizes a URL by its scheme. requests rejects a URL that
+  is not an `http` or `https` URL with a host, and shows it in the error
+  message as given, without a scheme. `ForwarderCommitmentService` therefore
+  rejects such a `forwarder_url` when it is created, with a `ValueError` that
+  omits the value. A node URL without a scheme fails the connection check of
+  `Web3HTTPCommitmentService`, because web3 handles the requests error, and
+  the resulting `ConnectionError` shows the URL as `[REDACTED]`.
 - Errors from requests and urllib3 include the request URL. The SDK redacts
   their messages in place with `vbase.utils.log.redact_exception`, which also
   covers wrapped errors, the exceptions in an exception group, and the
@@ -139,7 +146,10 @@ limit updates this list and its short copy for Copilot code review in
   partly redacted. When a quote or bracket comes before a URL, the
   punctuation from the matching closing character onward is kept as
   surrounding text, even if that character ends a credential, because the
-  text does not show which it is.
+  text does not show which it is. Text is recognized as a URL only by its
+  scheme, so a URL without one, such as `rpc.example/v2/key`, is not
+  redacted in free text. Configured forwarder and node URLs without a scheme
+  are covered by the rule above.
 - **Attributes that callers use keep their values.** The `request` and
   `response` of a requests error keep the full URL and the response body,
   `ProblemDetailsError` attributes keep the server's values,

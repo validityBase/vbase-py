@@ -83,6 +83,12 @@ for prior changes.
     its credentials keeps only its scheme.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
+    A node URL without a scheme is shown as `[REDACTED]`.
+  - `ForwarderCommitmentService` raises `ValueError` when it is created with
+    a `forwarder_url` that is not an `http` or `https` URL with a host. Such
+    a URL fails on every request, and `requests` shows it in its error
+    messages without a scheme, which URL redaction cannot recognize. The
+    `ValueError` message does not include the URL.
   - Errors raised by node and forwarder requests reduce URLs in their
     messages and notes to scheme and host. These include `requests` HTTP and
     connection errors, the `urllib3` errors they wrap, and the errors that
