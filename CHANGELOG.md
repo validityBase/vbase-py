@@ -82,8 +82,8 @@ for prior changes.
     them, are replaced with `[REDACTED]`. A URL that may have whitespace in
     its credentials keeps only its scheme. So does a malformed URL whose host
     part may hold credentials: one with an `@` after the host part, as when
-    a password has an unencoded `/`, `?`, or `#`, or one with a port that is
-    not a number.
+    a password has an unencoded `/`, `?`, or `#`, or one whose port is not a
+    number from 0 to 65535.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
     A node URL without a scheme is shown as `[REDACTED]`, and a malformed node

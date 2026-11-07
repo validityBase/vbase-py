@@ -29,6 +29,9 @@ _URL_PATH_PATTERN = re.compile(r"(?P<prefix>\burl: )(?P<path>/\S+)")
 _URL_TRAILING_PUNCTUATION = ".,:;!?)}>'\""
 # Opening characters before a URL, mapped to the characters that close them.
 _URL_CLOSERS = {"'": "'", '"': '"', "(": ")", "<": ">", "{": "}"}
+# Text that can follow a port when a URL is in brackets or other text.
+_PORT_TRAILING_TEXT = _URL_TRAILING_PUNCTUATION + "]"
+_MAX_PORT = 65535
 
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
@@ -59,16 +62,33 @@ def _closing_text(match: re.Match) -> str:
 
 
 def _has_invalid_port(host: str) -> bool:
-    """Return whether a URL's host part has a port that is not a number.
+    """Return whether a URL's host part has a port that is not a valid number.
 
-    Trailing punctuation, which can follow a URL in text, is ignored. An IPv6
-    address in brackets has a port only after the closing bracket.
+    The host part is a host name, IPv4 address, or bracketed IPv6 address,
+    optionally followed by ":" and a port from 0 to 65535. A host name or IPv4
+    address cannot contain ":", so the port is all the text after the first
+    ":". Punctuation that can follow a URL in text, and "]", are ignored after
+    the port's digits, but a port without digits, such as ":!!!", is invalid.
+
+    A URL with credentials but no host, such as ``https://user:1234``, has the
+    form of a host and port, so it is not detected. See "URL Redaction Limits"
+    in ``internal/specs/development.md``.
     """
-    host = host.rstrip(_URL_TRAILING_PUNCTUATION)
-    if host.endswith("]") or ":" not in host:
+    if host.startswith("["):
+        _, bracket, after = host.partition("]")
+        if not bracket:
+            return True
+        if not after.startswith(":"):
+            return bool(after.rstrip(_PORT_TRAILING_TEXT))
+        port = after[1:]
+    else:
+        _, colon, port = host.partition(":")
+        if not colon:
+            return False
+    if not port:
         return False
-    port = host.rpartition(":")[2]
-    return not (port.isascii() and port.isdigit())
+    digits = port.rstrip(_PORT_TRAILING_TEXT)
+    return not (digits.isascii() and digits.isdigit() and int(digits) <= _MAX_PORT)
 
 
 def _redact_url_value(url: str) -> str | None:
@@ -77,8 +97,8 @@ def _redact_url_value(url: str) -> str | None:
     In a malformed URL, the text in the host position can be credentials. An
     "@" after the host part means that the credentials contain an unencoded
     "/", "?", or "#", which ended the host part early. A port that is not a
-    number can be a password whose "@host" is missing. For such a URL, only
-    the scheme is kept.
+    number from 0 to 65535 can be a password whose "@host" is missing. For
+    such a URL, only the scheme is kept.
 
     :return: The redacted URL, or None if the value has no scheme.
     """
@@ -143,8 +163,8 @@ def redact_urls(text: object) -> str:
     A malformed URL whose host part may hold credentials is also replaced with
     its scheme and ``[REDACTED]``. This applies when an ``@`` follows the host
     part, because an unencoded ``/``, ``?``, or ``#`` in the credentials ended
-    it early, or when the port is not a number, because it may be a password
-    whose ``@host`` is missing.
+    it early. It also applies when the port is not a number from 0 to 65535,
+    because it may be a password whose ``@host`` is missing.
 
     Redaction is best effort. It covers the credential forms expected in SDK
     messages and in error text from requests, urllib3, web3, and the vBase

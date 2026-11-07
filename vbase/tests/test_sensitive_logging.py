@@ -182,7 +182,7 @@ class TestSensitiveLogging(unittest.TestCase):
     def test_redact_url_keeps_only_scheme_of_malformed_url(self):
         """Text in the host position of a malformed URL can be credentials."""
         # An unencoded "/", "?", or "#" in a password ends the host part early,
-        # and a password whose "@host" is missing looks like a port.
+        # and a password whose "@host" is missing is in the port's position.
         for url in (
             f"https://user:{_RPC_SECRET}/x@rpc.example/v2/key",
             f"https://user:{_RPC_SECRET}?x@rpc.example/v2/key",
@@ -190,6 +190,10 @@ class TestSensitiveLogging(unittest.TestCase):
             f"https://user:p@{_RPC_SECRET}/x@rpc.example/v2/key",
             f"https://user:{_RPC_SECRET}",
             f"https://rpc.example:{_RPC_SECRET}/v2/",
+            f"https://user:{_RPC_SECRET}]",
+            f"https://user:{_RPC_SECRET}:123",
+            "https://user:!!!",
+            "https://user:123456",
         ):
             with self.subTest(url=url):
                 self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
@@ -210,10 +214,13 @@ class TestSensitiveLogging(unittest.TestCase):
                     redact_url(f"https://{host}/v2/key"),
                     f"https://{host}/{REDACTED_LOG_VALUE}",
                 )
-        self.assertEqual(
-            redact_urls("Connecting to (https://rpc.example:8545)."),
+        for text in (
             "Connecting to (https://rpc.example:8545).",
-        )
+            "Connecting to [https://rpc.example:8545].",
+            "Connecting to https://[::1]:8545.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(redact_urls(text), text)
 
     def test_redact_urls_trailing_punctuation(self):
         """Trailing punctuation is redacted unless it closes a quote or bracket.

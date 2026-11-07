@@ -30,7 +30,10 @@ that leaves such a credential in a message, traceback, or log.
 - Hosts and numeric ports are kept to identify endpoints, so a credential
   placed in a host, such as a subdomain key, is not redacted. A malformed URL
   whose host part may hold credentials keeps only its scheme: one with an `@`
-  after the host part, even in a query, or with a port that is not a number.
+  after the host part, even in a query, or whose port is not a number from 0
+  to 65535. A URL with credentials but no host, such as `https://user:1234`
+  or `https://user:p@ss`, has the form of a valid URL with a host, so its
+  host part is kept.
 - Attributes that callers use keep their values: `request` and `response` of
   requests errors, `ProblemDetailsError` attributes, `JSONDecodeError.doc`,
   and the provider's `endpoint_uri`.

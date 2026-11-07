@@ -90,9 +90,12 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
   the scheme. A malformed URL whose host part may hold credentials also keeps
   only its scheme. An `@` after the host part means that an unencoded `/`,
-  `?`, or `#` in the credentials ended the host part early, and a port that
-  is not a number may be a password whose `@host` is missing. Do not log
-  service objects.
+  `?`, or `#` in the credentials ended the host part early. A port that is
+  not a number from 0 to 65535 may be a password whose `@host` is missing.
+  The port is all the text after the first `:` of a host name or IPv4
+  address, or after the `]` of a bracketed IPv6 address. Punctuation that
+  can follow a URL in text is ignored only after the port's digits. Do not
+  log service objects.
 - Before placing a configured URL, such as a node RPC URL, in a log or
   exception message, reduce it with `vbase.utils.log.redact_url`. It treats
   the whole value as one URL, so it keeps the host even when requests-accepted
@@ -167,7 +170,11 @@ limit updates this list and its short copy for Copilot code review in
   so a credential placed in a host, such as a key used as a subdomain, is
   not redacted. A URL with an `@` after its host part loses its host, even
   when the `@` is in a query, such as `?email=a@b`. The text in its host
-  position may be credentials.
+  position may be credentials. A URL with credentials but no host, such as
+  `https://user:1234` or `https://user:p@ss`, has the form of a valid URL
+  with host `user` and port `1234`, or user `user`, password `p`, and host
+  `ss`. Its host part is therefore kept. Such a URL cannot connect, and the
+  text cannot show that it is a credential.
 - **Attributes that callers use keep their values.** The `request` and
   `response` of a requests error keep the full URL and the response body,
   `ProblemDetailsError` attributes keep the server's values,
