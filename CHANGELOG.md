@@ -80,10 +80,14 @@ for prior changes.
     error text but reduce each URL to its scheme and host. URL credentials,
     paths, queries, and fragments, and punctuation that directly follows
     them, are replaced with `[REDACTED]`. A URL that may have whitespace in
-    its credentials keeps only its scheme.
+    its credentials keeps only its scheme. So does a malformed URL whose host
+    part may hold credentials: one with an `@` after the host part, as when
+    a password has an unencoded `/`, `?`, or `#`, or one whose port is not a
+    number from 0 to 65535.
   - `Web3HTTPCommitmentService` connection errors show only the scheme and
     host of the node URL, including when its credentials contain whitespace.
-    A node URL without a scheme is shown as `[REDACTED]`.
+    A node URL without a scheme is shown as `[REDACTED]`, and a malformed node
+    URL whose host part may hold credentials shows only its scheme.
   - `ForwarderCommitmentService` raises `ValueError` when it is created with
     a `forwarder_url` that is not an `http` or `https` URL with a host, or
     that has whitespace or control characters after any leading whitespace.

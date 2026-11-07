@@ -1,6 +1,6 @@
 """Unit tests for sensitive-value logging safeguards."""
 
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods,too-many-lines
 
 import io
 import json
@@ -178,6 +178,61 @@ class TestSensitiveLogging(unittest.TestCase):
         # An unset URL selects web3's default local endpoint.
         self.assertIsNone(redact_url(None))
         self.assertEqual(redact_url(""), "")
+
+    def test_redact_url_keeps_only_scheme_of_malformed_url(self):
+        """Text in the host position of a malformed URL can be credentials."""
+        # An unencoded "/", "?", or "#" in a password ends the host part early,
+        # and a password whose "@host" is missing is in the port's position.
+        for url in (
+            f"https://user:{_RPC_SECRET}/x@rpc.example/v2/key",
+            f"https://user:{_RPC_SECRET}?x@rpc.example/v2/key",
+            f"https://user:{_RPC_SECRET}#x@rpc.example/v2/key",
+            f"https://user:p@{_RPC_SECRET}/x@rpc.example/v2/key",
+            f"https://user:{_RPC_SECRET}",
+            f"https://rpc.example:{_RPC_SECRET}/v2/",
+            f"https://user:{_RPC_SECRET}]",
+            f"https://user:{_RPC_SECRET}:123",
+            "https://user:!!!",
+            "https://user:123456",
+            # Too long for int(), which must not make redaction raise.
+            "https://user:" + "1" * 5000,
+            # A path follows, so the punctuation is part of the port.
+            "https://user:123!!!/v2/",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
+                self.assertEqual(
+                    redact_urls(f"Node {url} failed."),
+                    f"Node https://{REDACTED_LOG_VALUE} failed.",
+                )
+        # A configured URL has no surrounding text, so its whole port must be
+        # digits. In free text, punctuation after a port that ends a URL is
+        # surrounding text, as in "https://rpc.example:8545: refused".
+        for url in ("https://user:1234!!!", "https://user:1234:"):
+            with self.subTest(url=url):
+                self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
+
+        # Hosts and numeric ports are kept to identify the endpoint.
+        for host in (
+            "rpc.example:8545",
+            "rpc.example:08545",
+            "[::1]:8545",
+            "[::1]",
+            "node-name.provider.example",
+        ):
+            with self.subTest(host=host):
+                self.assertEqual(
+                    redact_url(f"https://{host}/v2/key"),
+                    f"https://{host}/{REDACTED_LOG_VALUE}",
+                )
+        for text in (
+            "Connecting to (https://rpc.example:8545).",
+            "Connecting to [https://rpc.example:8545].",
+            "Connecting to https://[::1]:8545.",
+            "Failed to connect to https://rpc.example:8545: refused.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(redact_urls(text), text)
 
     def test_redact_urls_trailing_punctuation(self):
         """Trailing punctuation is redacted unless it closes a quote or bracket.
@@ -898,12 +953,15 @@ class TestSensitiveLogging(unittest.TestCase):
     def test_web3_malformed_node_url_is_redacted(self, _sleep_mock):
         """A malformed node URL fails to connect without showing its credentials."""
         # requests shows these URLs as given in its errors, which web3's
-        # connection check handles.
+        # connection check handles. The connection error and its log show the
+        # configured URL redacted as one value.
         for node_rpc_url in (
             f"rpc.example/v2/{_RPC_SECRET}",
             f"user:{_RPC_SECRET}@rpc.example/",
             f"https:\t//rpc.example/v2/{_RPC_SECRET}",
             f"https://rpc.example:\t443/v2/{_RPC_SECRET}",
+            f"https://user:{_RPC_SECRET}/x@rpc.example/v2/key",
+            f"https://user:{_RPC_SECRET}",
         ):
             with self.subTest(node_rpc_url=node_rpc_url):
                 with self.assertLogs(

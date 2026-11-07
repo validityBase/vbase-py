@@ -88,12 +88,21 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   closing quote or bracket for the character before the URL. In free text,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
-  the scheme. Do not log service objects.
+  the scheme. A malformed URL whose host part may hold credentials also keeps
+  only its scheme. An `@` after the host part means that an unencoded `/`,
+  `?`, or `#` in the credentials ended the host part early. A port that is
+  not a number from 0 to 65535 may be a password whose `@host` is missing.
+  The port is all the text after the first `:` of a host name or IPv4
+  address, or after the `]` of a bracketed IPv6 address. In free text,
+  punctuation that can follow a URL is ignored after the port's digits when
+  the host part ends the URL, as in `https://rpc.example:8545: refused`. In
+  a configured URL, or when a path, query, or fragment follows, the whole
+  port must be digits. Do not log service objects.
 - Before placing a configured URL, such as a node RPC URL, in a log or
   exception message, reduce it with `vbase.utils.log.redact_url`. It treats
   the whole value as one URL, so it keeps the host even when requests-accepted
-  whitespace appears in the URL's credentials. Use `redact_urls` for other
-  text that may contain URLs.
+  whitespace appears in the URL's credentials. It applies the same rule for
+  malformed URLs. Use `redact_urls` for other text that may contain URLs.
 - URL redaction recognizes a URL by its contiguous `scheme://` and ends it at
   whitespace. requests fails on a URL that is not an `http` or `https` URL
   with a host, or that has a tab or newline in its scheme, host, or port, and
@@ -159,6 +168,18 @@ limit updates this list and its short copy for Copilot code review in
   scheme, so a URL without one, such as `rpc.example/v2/key`, is not
   redacted in free text. Malformed configured forwarder and node URLs are
   covered by the rule above.
+- **Hosts and numeric ports are kept.** They identify the failing endpoint,
+  so a credential placed in a host, such as a key used as a subdomain, is
+  not redacted. A URL with an `@` after its host part loses its host, even
+  when the `@` is in a query, such as `?email=a@b`. The text in its host
+  position may be credentials. A URL with credentials but no host, such as
+  `https://user:1234` or `https://user:p@ss`, has the form of a valid URL
+  with host `user` and port `1234`, or user `user`, password `p`, and host
+  `ss`. Its host part is therefore kept. Such a URL cannot connect, and the
+  text cannot show that it is a credential. In free text, punctuation after
+  such a port at the end of a URL, as in `https://user:1234!!!`, is read as
+  surrounding text. In a configured URL, the port must be all digits, so
+  `redact_url` keeps only the scheme of that value.
 - **Attributes that callers use keep their values.** The `request` and
   `response` of a requests error keep the full URL and the response body,
   `ProblemDetailsError` attributes keep the server's values,

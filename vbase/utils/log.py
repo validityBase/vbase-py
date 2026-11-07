@@ -29,6 +29,9 @@ _URL_PATH_PATTERN = re.compile(r"(?P<prefix>\burl: )(?P<path>/\S+)")
 _URL_TRAILING_PUNCTUATION = ".,:;!?)}>'\""
 # Opening characters before a URL, mapped to the characters that close them.
 _URL_CLOSERS = {"'": "'", '"': '"', "(": ")", "<": ">", "{": "}"}
+# Text that can follow a port when a URL is in brackets or other text.
+_PORT_TRAILING_TEXT = _URL_TRAILING_PUNCTUATION + "]"
+_MAX_PORT = 65535
 
 _LOG_FORMATTER = logging.Formatter(
     "[%(asctime)s][%(threadName)s][%(levelname)s]:%(message)s"
@@ -58,9 +61,63 @@ def _closing_text(match: re.Match) -> str:
     return trailing[trailing.rindex(closer) :]
 
 
-def _redact_url_value(url: str) -> str | None:
+def _has_invalid_port(host: str, ends_text_url: bool) -> bool:
+    """Return whether a URL's host part has a port that is not a valid number.
+
+    The host part is a host name, IPv4 address, or bracketed IPv6 address,
+    optionally followed by ":" and a port from 0 to 65535. A host name or IPv4
+    address cannot contain ":", so the port is all the text after the first
+    ":".
+
+    When the host part ends a URL found in free text, punctuation that can
+    follow a URL in text, and "]", may follow the port's digits as
+    surrounding text, as in "https://rpc.example:8545: refused". A port
+    without digits, such as ":!!!", is still invalid. Otherwise, as in a
+    configured URL or a host part that a path follows, the whole port must be
+    digits.
+
+    A URL with credentials but no host, such as ``https://user:1234``, has the
+    form of a host and port, so it is not detected. See "URL Redaction Limits"
+    in ``internal/specs/development.md``.
+
+    :param host: The host part of the URL's authority.
+    :param ends_text_url: Whether the host part ends a URL found in text.
+    """
+    trailing_text = _PORT_TRAILING_TEXT if ends_text_url else ""
+    if host.startswith("["):
+        _, bracket, after = host.partition("]")
+        if not bracket:
+            return True
+        if not after.startswith(":"):
+            return bool(after.rstrip(trailing_text))
+        port = after[1:]
+    else:
+        _, colon, port = host.partition(":")
+        if not colon:
+            return False
+    if not port:
+        return False
+    digits = port.rstrip(trailing_text)
+    if not (digits.isascii() and digits.isdigit()):
+        return True
+    # Check the length before converting: int() raises ValueError for very
+    # long digit strings, and redaction must not raise.
+    digits = digits.lstrip("0") or "0"
+    return len(digits) > len(str(_MAX_PORT)) or int(digits) > _MAX_PORT
+
+
+def _redact_url_value(url: str, in_text: bool = False) -> str | None:
     """Keep a URL's scheme and host; redact credentials and the rest.
 
+    In a malformed URL, the text in the host position can be credentials. An
+    "@" after the host part means that the credentials contain an unencoded
+    "/", "?", or "#", which ended the host part early. A port that is not a
+    number from 0 to 65535 can be a password whose "@host" is missing. For
+    such a URL, only the scheme is kept.
+
+    :param url: The URL.
+    :param in_text: Whether the URL was found in free text, where punctuation
+        after a host part that ends the URL can be surrounding text.
     :return: The redacted URL, or None if the value has no scheme.
     """
     parts = _URL_PARTS_PATTERN.fullmatch(url)
@@ -68,6 +125,8 @@ def _redact_url_value(url: str) -> str | None:
         return None
     host = parts["authority"].rpartition("@")[2]
     rest = parts["rest"]
+    if "@" in rest or _has_invalid_port(host, ends_text_url=in_text and not rest):
+        return parts["scheme"] + REDACTED_LOG_VALUE
     if rest not in ("", "/"):
         rest = "/" + REDACTED_LOG_VALUE
     return f"{parts['scheme']}{host}{rest}"
@@ -82,7 +141,7 @@ def _redact_url_match(match: re.Match) -> str:
         # the text after the "@" is not a trusted host. Keep only the scheme.
         redacted = f"{url.partition('://')[0]}://{REDACTED_LOG_VALUE}"
     else:
-        redacted = _redact_url_value(url) or url
+        redacted = _redact_url_value(url, in_text=True) or url
     if redacted.endswith(REDACTED_LOG_VALUE):
         # Trailing punctuation was redacted with the URL.
         redacted += _closing_text(match)
@@ -119,6 +178,12 @@ def redact_urls(text: object) -> str:
     and ``[REDACTED]``. Use :func:`redact_url` for a value that is a single URL,
     such as a configured endpoint.
 
+    A malformed URL whose host part may hold credentials is also replaced with
+    its scheme and ``[REDACTED]``. This applies when an ``@`` follows the host
+    part, because an unencoded ``/``, ``?``, or ``#`` in the credentials ended
+    it early. It also applies when the port is not a number from 0 to 65535,
+    because it may be a password whose ``@host`` is missing.
+
     Redaction is best effort. It covers the credential forms expected in SDK
     messages and in error text from requests, urllib3, web3, and the vBase
     forwarder. Unencoded credentials that combine whitespace with ``@``,
@@ -139,9 +204,10 @@ def redact_url(url: str | None) -> str | None:
     :func:`redact_urls` finds URLs in free text, where a URL ends at
     whitespace. Requests accepts whitespace in a configured URL's credentials,
     so use this function when the whole value is a single URL. Like
-    :func:`redact_urls`, it removes credentials and replaces any path, query,
-    or fragment with ``[REDACTED]``. A value without a scheme is replaced with
-    ``[REDACTED]``.
+    :func:`redact_urls`, it removes credentials, replaces any path, query, or
+    fragment with ``[REDACTED]``, and keeps only the scheme of a malformed URL
+    whose host part may hold credentials. A value without a scheme is
+    replaced with ``[REDACTED]``.
 
     :param url: The complete URL value.
     :return: The redacted URL, or the original empty value.
