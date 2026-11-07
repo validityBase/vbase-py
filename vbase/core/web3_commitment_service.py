@@ -22,10 +22,12 @@ from web3.types import TxReceipt
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.utils.crypto_utils import bytes_to_hex_str, hash_typed_values
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import RedactUrlsFilter, get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Retry warnings include provider errors, which can include credential-bearing URLs.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 class Web3CommitmentService(CommitmentService, ABC):

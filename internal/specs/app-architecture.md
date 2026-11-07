@@ -8,11 +8,29 @@
 for writing commitments. Concrete implementations include direct Web3 HTTP
 services, forwarder-backed services, and deterministic test variants.
 
+`ForwarderCommitmentService` depends on the response format of the vBase
+forwarder in `vbase-api-server`:
+
+- Failures use HTTP error statuses with `application/problem+json` bodies,
+  which the SDK raises as `ProblemDetailsError`.
+- Successful responses have the form `{"success": true, "data": ..., "log": ...}`.
+  The SDK treats only `"success": false`, which older forwarders returned,
+  as a failure in a 2xx response.
+- `commitment-service-data` returns `node_rpc_url` and
+  `commitment_service_address`. The SDK reads only these fields and ignores
+  any others. The response has no middleware options, such as
+  `inject_geth_poa_middleware`, so the forwarder's chain must not need them.
+  Serving a proof-of-authority chain requires adding the option to the
+  response and to the SDK together.
+
 ## Indexing Services
 
 `vbase/core/indexing_service.py` defines query abstractions for past
 commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
+
+See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
+for endpoint selection and event-query requirements.
 
 ## Client
 

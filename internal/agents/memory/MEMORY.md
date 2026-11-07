@@ -22,8 +22,15 @@ matching utilities for auditable data provenance workflows.
 - Documentation publishing delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
 - Test and docs workflows install hashed requirements with `require-hashes`.
 - `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
-  without hashes across Ubuntu, macOS, and Windows for Python 3.11 and 3.12.
+  without hashes across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
 - `test-localhost.yml` uses the workflow `GITHUB_TOKEN` with `packages: read` to pull the localhost commitment service image.
+
+## Sensitive Logging
+
+- URL redaction rules and their by-design limits are canonical in the
+  Sensitive Logging section of `internal/specs/development.md`, including
+  "URL Redaction Limits". `.github/instructions/url-redaction.instructions.md`
+  is a short copy of the limits for Copilot code review; update both together.
 
 ## Documentation Layout
 
