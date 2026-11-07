@@ -58,8 +58,27 @@ def _closing_text(match: re.Match) -> str:
     return trailing[trailing.rindex(closer) :]
 
 
+def _has_invalid_port(host: str) -> bool:
+    """Return whether a URL's host part has a port that is not a number.
+
+    Trailing punctuation, which can follow a URL in text, is ignored. An IPv6
+    address in brackets has a port only after the closing bracket.
+    """
+    host = host.rstrip(_URL_TRAILING_PUNCTUATION)
+    if host.endswith("]") or ":" not in host:
+        return False
+    port = host.rpartition(":")[2]
+    return not (port.isascii() and port.isdigit())
+
+
 def _redact_url_value(url: str) -> str | None:
     """Keep a URL's scheme and host; redact credentials and the rest.
+
+    In a malformed URL, the text in the host position can be credentials. An
+    "@" after the host part means that the credentials contain an unencoded
+    "/", "?", or "#", which ended the host part early. A port that is not a
+    number can be a password whose "@host" is missing. For such a URL, only
+    the scheme is kept.
 
     :return: The redacted URL, or None if the value has no scheme.
     """
@@ -68,6 +87,8 @@ def _redact_url_value(url: str) -> str | None:
         return None
     host = parts["authority"].rpartition("@")[2]
     rest = parts["rest"]
+    if "@" in rest or _has_invalid_port(host):
+        return parts["scheme"] + REDACTED_LOG_VALUE
     if rest not in ("", "/"):
         rest = "/" + REDACTED_LOG_VALUE
     return f"{parts['scheme']}{host}{rest}"
@@ -119,6 +140,12 @@ def redact_urls(text: object) -> str:
     and ``[REDACTED]``. Use :func:`redact_url` for a value that is a single URL,
     such as a configured endpoint.
 
+    A malformed URL whose host part may hold credentials is also replaced with
+    its scheme and ``[REDACTED]``. This applies when an ``@`` follows the host
+    part, because an unencoded ``/``, ``?``, or ``#`` in the credentials ended
+    it early, or when the port is not a number, because it may be a password
+    whose ``@host`` is missing.
+
     Redaction is best effort. It covers the credential forms expected in SDK
     messages and in error text from requests, urllib3, web3, and the vBase
     forwarder. Unencoded credentials that combine whitespace with ``@``,
@@ -139,9 +166,10 @@ def redact_url(url: str | None) -> str | None:
     :func:`redact_urls` finds URLs in free text, where a URL ends at
     whitespace. Requests accepts whitespace in a configured URL's credentials,
     so use this function when the whole value is a single URL. Like
-    :func:`redact_urls`, it removes credentials and replaces any path, query,
-    or fragment with ``[REDACTED]``. A value without a scheme is replaced with
-    ``[REDACTED]``.
+    :func:`redact_urls`, it removes credentials, replaces any path, query, or
+    fragment with ``[REDACTED]``, and keeps only the scheme of a malformed URL
+    whose host part may hold credentials. A value without a scheme is
+    replaced with ``[REDACTED]``.
 
     :param url: The complete URL value.
     :return: The redacted URL, or the original empty value.

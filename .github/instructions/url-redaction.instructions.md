@@ -27,6 +27,10 @@ that leaves such a credential in a message, traceback, or log.
   after any leading whitespace. A malformed node URL fails the connection
   check of `Web3HTTPCommitmentService`, which shows the configured URL
   redacted as one value.
+- Hosts and numeric ports are kept to identify endpoints, so a credential
+  placed in a host, such as a subdomain key, is not redacted. A malformed URL
+  whose host part may hold credentials keeps only its scheme: one with an `@`
+  after the host part, even in a query, or with a port that is not a number.
 - Attributes that callers use keep their values: `request` and `response` of
   requests errors, `ProblemDetailsError` attributes, `JSONDecodeError.doc`,
   and the provider's `endpoint_uri`.
