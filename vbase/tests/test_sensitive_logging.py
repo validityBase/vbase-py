@@ -1,6 +1,6 @@
 """Unit tests for sensitive-value logging safeguards."""
 
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods,too-many-lines
 
 import io
 import json
@@ -194,6 +194,8 @@ class TestSensitiveLogging(unittest.TestCase):
             f"https://user:{_RPC_SECRET}:123",
             "https://user:!!!",
             "https://user:123456",
+            # Too long for int(), which must not make redaction raise.
+            "https://user:" + "1" * 5000,
         ):
             with self.subTest(url=url):
                 self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
@@ -205,6 +207,7 @@ class TestSensitiveLogging(unittest.TestCase):
         # Hosts and numeric ports are kept to identify the endpoint.
         for host in (
             "rpc.example:8545",
+            "rpc.example:08545",
             "[::1]:8545",
             "[::1]",
             "node-name.provider.example",

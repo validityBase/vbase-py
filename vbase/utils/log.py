@@ -88,7 +88,12 @@ def _has_invalid_port(host: str) -> bool:
     if not port:
         return False
     digits = port.rstrip(_PORT_TRAILING_TEXT)
-    return not (digits.isascii() and digits.isdigit() and int(digits) <= _MAX_PORT)
+    if not (digits.isascii() and digits.isdigit()):
+        return True
+    # Check the length before converting: int() raises ValueError for very
+    # long digit strings, and redaction must not raise.
+    digits = digits.lstrip("0") or "0"
+    return len(digits) > len(str(_MAX_PORT)) or int(digits) > _MAX_PORT
 
 
 def _redact_url_value(url: str) -> str | None:
