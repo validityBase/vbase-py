@@ -61,25 +61,35 @@ def _closing_text(match: re.Match) -> str:
     return trailing[trailing.rindex(closer) :]
 
 
-def _has_invalid_port(host: str) -> bool:
+def _has_invalid_port(host: str, ends_text_url: bool) -> bool:
     """Return whether a URL's host part has a port that is not a valid number.
 
     The host part is a host name, IPv4 address, or bracketed IPv6 address,
     optionally followed by ":" and a port from 0 to 65535. A host name or IPv4
     address cannot contain ":", so the port is all the text after the first
-    ":". Punctuation that can follow a URL in text, and "]", are ignored after
-    the port's digits, but a port without digits, such as ":!!!", is invalid.
+    ":".
+
+    When the host part ends a URL found in free text, punctuation that can
+    follow a URL in text, and "]", may follow the port's digits as
+    surrounding text, as in "https://rpc.example:8545: refused". A port
+    without digits, such as ":!!!", is still invalid. Otherwise, as in a
+    configured URL or a host part that a path follows, the whole port must be
+    digits.
 
     A URL with credentials but no host, such as ``https://user:1234``, has the
     form of a host and port, so it is not detected. See "URL Redaction Limits"
     in ``internal/specs/development.md``.
+
+    :param host: The host part of the URL's authority.
+    :param ends_text_url: Whether the host part ends a URL found in text.
     """
+    trailing_text = _PORT_TRAILING_TEXT if ends_text_url else ""
     if host.startswith("["):
         _, bracket, after = host.partition("]")
         if not bracket:
             return True
         if not after.startswith(":"):
-            return bool(after.rstrip(_PORT_TRAILING_TEXT))
+            return bool(after.rstrip(trailing_text))
         port = after[1:]
     else:
         _, colon, port = host.partition(":")
@@ -87,7 +97,7 @@ def _has_invalid_port(host: str) -> bool:
             return False
     if not port:
         return False
-    digits = port.rstrip(_PORT_TRAILING_TEXT)
+    digits = port.rstrip(trailing_text)
     if not (digits.isascii() and digits.isdigit()):
         return True
     # Check the length before converting: int() raises ValueError for very
@@ -96,7 +106,7 @@ def _has_invalid_port(host: str) -> bool:
     return len(digits) > len(str(_MAX_PORT)) or int(digits) > _MAX_PORT
 
 
-def _redact_url_value(url: str) -> str | None:
+def _redact_url_value(url: str, in_text: bool = False) -> str | None:
     """Keep a URL's scheme and host; redact credentials and the rest.
 
     In a malformed URL, the text in the host position can be credentials. An
@@ -105,6 +115,9 @@ def _redact_url_value(url: str) -> str | None:
     number from 0 to 65535 can be a password whose "@host" is missing. For
     such a URL, only the scheme is kept.
 
+    :param url: The URL.
+    :param in_text: Whether the URL was found in free text, where punctuation
+        after a host part that ends the URL can be surrounding text.
     :return: The redacted URL, or None if the value has no scheme.
     """
     parts = _URL_PARTS_PATTERN.fullmatch(url)
@@ -112,7 +125,7 @@ def _redact_url_value(url: str) -> str | None:
         return None
     host = parts["authority"].rpartition("@")[2]
     rest = parts["rest"]
-    if "@" in rest or _has_invalid_port(host):
+    if "@" in rest or _has_invalid_port(host, ends_text_url=in_text and not rest):
         return parts["scheme"] + REDACTED_LOG_VALUE
     if rest not in ("", "/"):
         rest = "/" + REDACTED_LOG_VALUE
@@ -128,7 +141,7 @@ def _redact_url_match(match: re.Match) -> str:
         # the text after the "@" is not a trusted host. Keep only the scheme.
         redacted = f"{url.partition('://')[0]}://{REDACTED_LOG_VALUE}"
     else:
-        redacted = _redact_url_value(url) or url
+        redacted = _redact_url_value(url, in_text=True) or url
     if redacted.endswith(REDACTED_LOG_VALUE):
         # Trailing punctuation was redacted with the URL.
         redacted += _closing_text(match)

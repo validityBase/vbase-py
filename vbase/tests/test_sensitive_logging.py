@@ -196,6 +196,8 @@ class TestSensitiveLogging(unittest.TestCase):
             "https://user:123456",
             # Too long for int(), which must not make redaction raise.
             "https://user:" + "1" * 5000,
+            # A path follows, so the punctuation is part of the port.
+            "https://user:123!!!/v2/",
         ):
             with self.subTest(url=url):
                 self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
@@ -203,6 +205,12 @@ class TestSensitiveLogging(unittest.TestCase):
                     redact_urls(f"Node {url} failed."),
                     f"Node https://{REDACTED_LOG_VALUE} failed.",
                 )
+        # A configured URL has no surrounding text, so its whole port must be
+        # digits. In free text, punctuation after a port that ends a URL is
+        # surrounding text, as in "https://rpc.example:8545: refused".
+        for url in ("https://user:1234!!!", "https://user:1234:"):
+            with self.subTest(url=url):
+                self.assertEqual(redact_url(url), f"https://{REDACTED_LOG_VALUE}")
 
         # Hosts and numeric ports are kept to identify the endpoint.
         for host in (
@@ -221,6 +229,7 @@ class TestSensitiveLogging(unittest.TestCase):
             "Connecting to (https://rpc.example:8545).",
             "Connecting to [https://rpc.example:8545].",
             "Connecting to https://[::1]:8545.",
+            "Failed to connect to https://rpc.example:8545: refused.",
         ):
             with self.subTest(text=text):
                 self.assertEqual(redact_urls(text), text)

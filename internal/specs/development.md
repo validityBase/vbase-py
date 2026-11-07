@@ -93,9 +93,11 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   `?`, or `#` in the credentials ended the host part early. A port that is
   not a number from 0 to 65535 may be a password whose `@host` is missing.
   The port is all the text after the first `:` of a host name or IPv4
-  address, or after the `]` of a bracketed IPv6 address. Punctuation that
-  can follow a URL in text is ignored only after the port's digits. Do not
-  log service objects.
+  address, or after the `]` of a bracketed IPv6 address. In free text,
+  punctuation that can follow a URL is ignored after the port's digits when
+  the host part ends the URL, as in `https://rpc.example:8545: refused`. In
+  a configured URL, or when a path, query, or fragment follows, the whole
+  port must be digits. Do not log service objects.
 - Before placing a configured URL, such as a node RPC URL, in a log or
   exception message, reduce it with `vbase.utils.log.redact_url`. It treats
   the whole value as one URL, so it keeps the host even when requests-accepted
@@ -174,7 +176,10 @@ limit updates this list and its short copy for Copilot code review in
   `https://user:1234` or `https://user:p@ss`, has the form of a valid URL
   with host `user` and port `1234`, or user `user`, password `p`, and host
   `ss`. Its host part is therefore kept. Such a URL cannot connect, and the
-  text cannot show that it is a credential.
+  text cannot show that it is a credential. In free text, punctuation after
+  such a port at the end of a URL, as in `https://user:1234!!!`, is read as
+  surrounding text. In a configured URL, the port must be all digits, so
+  `redact_url` keeps only the scheme of that value.
 - **Attributes that callers use keep their values.** The `request` and
   `response` of a requests error keep the full URL and the response body,
   `ProblemDetailsError` attributes keep the server's values,
