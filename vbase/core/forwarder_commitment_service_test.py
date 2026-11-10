@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 
 from vbase.core.commitment_service_test import CommitmentServiceTest
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.user_write_queue import serialize_user_write
 from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
@@ -47,6 +48,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
     def clear_set_objects(self, set_cid: str):
         self._post_execute(fn_name="clearSetObjects", args=[set_cid])
 
+    @serialize_user_write
     def add_object_with_timestamp(self, object_cid: str, timestamp: str) -> dict:
         _LOG.debug("Sending forward request to addObjectWithTimestamp")
         receipt = self._post_execute(
@@ -55,6 +57,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
         )
         return self._add_object_worker(receipt)
 
+    @serialize_user_write
     def add_set_object_with_timestamp(
         self, set_cid: str, object_cid: str, timestamp: str
     ) -> dict:
@@ -69,6 +72,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
         )
         return self._add_set_object_worker(receipt)
 
+    @serialize_user_write
     def add_sets_objects_with_timestamps_batch(
         self, set_cids: List[str], object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:
@@ -83,6 +87,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
         )
         return self._add_sets_objects_batch_worker(receipt)
 
+    @serialize_user_write
     def add_set_objects_with_timestamps_batch(
         self, set_cid: str, object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:
