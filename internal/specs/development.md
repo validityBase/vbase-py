@@ -280,8 +280,10 @@ the provider.
 runs the forwarder test modules against a forwarder service on this machine.
 It can run from any directory. It loads
 [`config/.env.forwarder.localhost`](../../config/.env.forwarder.localhost),
-which sets the forwarder endpoint to `http://127.0.0.1:8081/forwarder-test/`.
-Set `VBASE_FORWARDER_PORT` to use another port. The runner requires
+which supplies the default forwarder endpoint. Set `VBASE_FORWARDER_PORT`
+to match a different listener, for example a local API server configuration
+using port 8081. The default remains compatible with the API server's
+localhost CI. The runner requires
 `VBASE_API_KEY` from the environment and generates a fresh signer private key
 for each run; the forwarder pays gas, so the signer needs no funds. It then
 runs [`check_forwarder.py`](../../vbase/tests/scripts/check_forwarder.py),
@@ -307,8 +309,8 @@ appropriate secret endpoint before running tests.
 export VBASE_API_KEY="<API key that the forwarder accepts>"
 # Only if the forwarder uses a different node or chain:
 export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on that chain>"
-# Only if the forwarder does not listen on port 8081:
-export VBASE_FORWARDER_PORT=8082
+# If the local API server configuration selects port 8081:
+export VBASE_FORWARDER_PORT=8081
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh vbase.tests.test_vbase_client
 ```

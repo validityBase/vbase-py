@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the forwarder tests against a forwarder service on this machine.
-# Set VBASE_FORWARDER_PORT if the forwarder does not listen on port 8081.
+# Set VBASE_FORWARDER_PORT if the forwarder uses a different port than the config.
 # Pass test names to run only those; by default all forwarder modules run.
 # See "Localhost Forwarder Tests" in internal/specs/development.md.
 
