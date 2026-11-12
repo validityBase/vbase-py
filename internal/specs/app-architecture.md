@@ -17,8 +17,8 @@ forwarder:
   The SDK treats only `"success": false`, which older forwarders returned,
   as a failure in a 2xx response.
 - `commitment-service-data` returns `node_rpc_url` and
-  `commitment_service_address`. The URL is the server's keyless
-  `PUBLIC_NODE_RPC_URL`; its private `NODE_RPC_URL` remains server-side.
+  `commitment_service_address`. The URL is the forwarder's keyless public
+  node; the forwarder does not return its private node URL.
   The SDK reads only these fields and ignores
   any others. The response has no middleware options, such as
   `inject_geth_poa_middleware`, so the forwarder's chain must not need them.

@@ -48,10 +48,10 @@ raised without a retry.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the
-node URL returned by the forwarder unless you supply `node_rpc_url`. The API
-returns its keyless `PUBLIC_NODE_RPC_URL`; the server's private `NODE_RPC_URL`
-is not exposed. Supply your own archival RPC endpoint when the public node
-cannot support indexing. Results depend on the endpoint:
+node URL returned by the forwarder unless you supply `node_rpc_url`. The
+forwarder returns a keyless public node URL and does not return its private
+node URL. Supply your own archival RPC endpoint when the public node cannot
+support indexing. Results depend on the endpoint:
 
 - Many public endpoints limit the block range or result count of an
   `eth_getLogs` request. Full-history queries can fail on these endpoints.
@@ -111,18 +111,18 @@ contract address from the forwarder. This is test configuration; setting it
 does not change SDK defaults in an application. The test helper supports
 published packages without the factory's `node_rpc_url` argument.
 
-For a localhost API server and commitment-service node:
+For a forwarder and commitment-service node on this machine:
 
 ```bash
 export VBASE_API_KEY="<key accepted by the localhost forwarder>"
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 ```
 
-The localhost config uses the forwarder on port 8081 and the node on port
-8545, so port 3000 can remain occupied by another service. Start the API
-server with its localhost configuration. If you change its listener, set
-`VBASE_FORWARDER_PORT` to the same port. If it uses a remote chain, set
-`VBASE_TEST_INDEXING_NODE_RPC_URL` to an archival endpoint on that chain.
+The localhost config expects the forwarder on port 8081 and the node on port
+8545, so port 3000 can remain occupied by another service. If the forwarder
+listens on another port, set `VBASE_FORWARDER_PORT` to that port. If it uses a
+remote chain, set `VBASE_TEST_INDEXING_NODE_RPC_URL` to an archival endpoint
+on that chain.
 
 For the public dev service:
 
@@ -135,5 +135,5 @@ bash .github/scripts/run_tests_forwarder_pub_dev.sh
 Both public-dev GitHub workflows require secrets with these names. The
 runner generates its own signer, so no signer-private-key secret is needed.
 The PyPI workflow runs checkout tests against the installed package. See the
-[development guide](internal/specs/development.md#forwarder-indexing-configuration)
+[development guide](https://github.com/validityBase/vbase-py/blob/main/internal/specs/development.md#forwarder-indexing-configuration)
 for node requirements, secret setup, and source/PyPI test behavior.

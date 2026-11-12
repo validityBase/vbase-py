@@ -240,12 +240,12 @@ limit updates this list and its short copy for Copilot code review in
 
 ## Forwarder Indexing Configuration
 
-The API server uses its private `NODE_RPC_URL` for chain reads and transaction
-submission. Both `/forwarder/commitment-service-data` and
-`/forwarder-test/commitment-service-data` return its keyless
-`PUBLIC_NODE_RPC_URL` as `node_rpc_url`, alongside the corresponding contract
-address. The public endpoint can restrict event queries. Keep the server's
-private URL out of these responses.
+The forwarder reads the chain and submits transactions through a private
+node. Both `/forwarder/commitment-service-data` and
+`/forwarder-test/commitment-service-data` return a keyless public node URL as
+`node_rpc_url`, alongside the corresponding contract address. The public
+endpoint can restrict event queries, and the forwarder does not return its
+private node URL.
 
 Forwarder integration tests require `VBASE_TEST_INDEXING_NODE_RPC_URL` to
 select a node independently of the API response. The shared
@@ -280,11 +280,9 @@ the provider.
 runs the forwarder test modules against a forwarder service on this machine.
 It can run from any directory. It loads
 [`config/.env.forwarder.localhost`](../../config/.env.forwarder.localhost),
-which selects port 8081 to match the API server's localhost configuration
-and avoid services using port 3000. Start the API server with
-`npm run start:debug:localhost` in its checkout. Set `VBASE_FORWARDER_PORT`
-to match `VBASE_API_SERVER_PORT` if you override the API server's listener.
-The runner requires
+which selects port 8081 so that other local services can keep port 3000.
+Start the forwarder service on port 8081, or set `VBASE_FORWARDER_PORT` to
+the port it listens on. The runner requires
 `VBASE_API_KEY` from the environment and generates a fresh signer private key
 for each run; the forwarder pays gas, so the signer needs no funds. It then
 runs [`check_forwarder.py`](../../vbase/tests/scripts/check_forwarder.py),
@@ -310,7 +308,7 @@ appropriate secret endpoint before running tests.
 export VBASE_API_KEY="<API key that the forwarder accepts>"
 # Only if the forwarder uses a different node or chain:
 export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on that chain>"
-# Only if VBASE_API_SERVER_PORT selects a different port, for example 8082:
+# Only if the forwarder listens on another port, for example 8082:
 export VBASE_FORWARDER_PORT=8082
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh vbase.tests.test_vbase_client
@@ -321,11 +319,11 @@ only the client module. The public-dev client-only wrapper delegates to the
 public runner and requires its API key and indexing RPC configuration too.
 Both wrappers use the shared runner's signer and configuration rules.
 
-The API server's cross-repository CI must use an SDK revision containing
-these runner changes and pass its listener port as `VBASE_FORWARDER_PORT`.
-Older SDK runners hard-code port 3000. A localhost API server backed by the
-local test chain needs no private RPC secret; the config supplies the local
-node URL. Direct-node tests in this repository do not use an API server port.
+CI that runs these tests against its own forwarder must use an SDK revision
+with this runner and pass the forwarder's port as `VBASE_FORWARDER_PORT`;
+older runners hard-code port 3000. A localhost forwarder backed by the local
+test chain needs no private RPC secret, because the config supplies the local
+node URL. Direct-node tests in this repository do not use a forwarder port.
 
 ## Public Dev Tests
 
@@ -359,6 +357,12 @@ Both the source and PyPI public-dev workflows map this secret into the runner.
 `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY` is not needed as a secret by these
 workflows. `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL` configures direct Web3
 commitment services and does not select a forwarder test's indexing endpoint.
+GitHub masks only a secret's whole value, but connection errors from
+published packages can print the URL's path alone. In GitHub Actions,
+[`run_tests_forwarder_pub_dev.py`](../../.github/scripts/run_tests_forwarder_pub_dev.py)
+therefore also masks the trimmed URL and its path, path segments, query, and
+userinfo before any test runs. Parts shorter than eight characters, such as
+`v2`, are not masked.
 Do not commit RPC credentials or enable shell tracing around them.
 
 The public-dev workflows run from `main`, including manual dispatch; they do
