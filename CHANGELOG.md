@@ -31,6 +31,14 @@ for prior changes.
 
 ### Changed
 
+- Forwarder integration tests require an explicit
+  `VBASE_TEST_INDEXING_NODE_RPC_URL` instead of indexing through the public
+  node returned by the API. Both public-dev workflows read it from a GitHub
+  secret. See [test setup](internal/specs/development.md#forwarder-indexing-configuration)
+  (#142).
+- Localhost forwarder tests use port 8081 by default, support
+  `VBASE_FORWARDER_PORT`, generate a fresh signer, and check the forwarder and
+  configured indexing node before running the suite (#142).
 - For Forwarder errors raised as `ProblemDetailsError`, `str(error)` and
   `error.args` contain `HTTP API problem (<status>) code=<code>: <detail>`
   instead of the `requests` message

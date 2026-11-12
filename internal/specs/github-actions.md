@@ -28,6 +28,9 @@
 - Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
+- These are direct-node tests. Localhost forwarder tests run in the API server
+  repository; see [Localhost Forwarder Tests](development.md#localhost-forwarder-tests)
+  for the coordinated port and SDK revision requirements.
 
 ### `.github/workflows/run-setup-matrix.yaml`
 

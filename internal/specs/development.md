@@ -280,10 +280,11 @@ the provider.
 runs the forwarder test modules against a forwarder service on this machine.
 It can run from any directory. It loads
 [`config/.env.forwarder.localhost`](../../config/.env.forwarder.localhost),
-which supplies the default forwarder endpoint. Set `VBASE_FORWARDER_PORT`
-to match a different listener, for example a local API server configuration
-using port 8081. The default remains compatible with the API server's
-localhost CI. The runner requires
+which selects port 8081 to match the API server's localhost configuration
+and avoid services using port 3000. Start the API server with
+`npm run start:debug:localhost` in its checkout. Set `VBASE_FORWARDER_PORT`
+to match `VBASE_API_SERVER_PORT` if you override the API server's listener.
+The runner requires
 `VBASE_API_KEY` from the environment and generates a fresh signer private key
 for each run; the forwarder pays gas, so the signer needs no funds. It then
 runs [`check_forwarder.py`](../../vbase/tests/scripts/check_forwarder.py),
@@ -309,11 +310,22 @@ appropriate secret endpoint before running tests.
 export VBASE_API_KEY="<API key that the forwarder accepts>"
 # Only if the forwarder uses a different node or chain:
 export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on that chain>"
-# If the local API server configuration selects port 8081:
-export VBASE_FORWARDER_PORT=8081
+# Only if VBASE_API_SERVER_PORT selects a different port, for example 8082:
+export VBASE_FORWARDER_PORT=8082
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh vbase.tests.test_vbase_client
 ```
+
+`run_test_vbase_client_forwarder_localhost.sh` invokes the same runner with
+only the client module. The public-dev client-only wrapper delegates to the
+public runner and requires its API key and indexing RPC configuration too.
+Both wrappers use the shared runner's signer and configuration rules.
+
+The API server's cross-repository CI must use an SDK revision containing
+these runner changes and pass its listener port as `VBASE_FORWARDER_PORT`.
+Older SDK runners hard-code port 3000. A localhost API server backed by the
+local test chain needs no private RPC secret; the config supplies the local
+node URL. Direct-node tests in this repository do not use an API server port.
 
 ## Public Dev Tests
 
