@@ -47,8 +47,9 @@ def create_test_indexing_service(
     methods of the package under test. See internal/specs/development.md.
     """
     if isinstance(commitment_service, ForwarderCommitmentService):
-        node_rpc_url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL")
-        if not node_rpc_url or not node_rpc_url.strip():
+        # A secret saved with a trailing newline would otherwise reach requests.
+        node_rpc_url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL", "").strip()
+        if not node_rpc_url:
             raise EnvironmentError(
                 "VBASE_TEST_INDEXING_NODE_RPC_URL is required for forwarder "
                 "indexing tests; supply an archival RPC endpoint on the "

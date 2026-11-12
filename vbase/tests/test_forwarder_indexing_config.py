@@ -52,6 +52,15 @@ class TestForwarderIndexingConfig(unittest.TestCase):
 
         self.assertEqual(init.call_args.kwargs["node_rpc_url"], _ARCHIVAL_RPC_URL)
 
+    @mock.patch.object(Web3HTTPCommitmentService, "__init__", return_value=None)
+    def test_strips_whitespace_from_rpc(self, init: mock.MagicMock) -> None:
+        """A secret saved with surrounding whitespace still selects its node."""
+        os.environ["VBASE_TEST_INDEXING_NODE_RPC_URL"] = f" {_ARCHIVAL_RPC_URL}\n"
+
+        create_test_indexing_service(self.forwarder)
+
+        self.assertEqual(init.call_args.kwargs["node_rpc_url"], _ARCHIVAL_RPC_URL)
+
     def test_requires_rpc_before_contacting_forwarder(self) -> None:
         """Missing or blank RPC configuration must never use the public node."""
         for value in (None, "", "   "):

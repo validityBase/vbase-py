@@ -2,7 +2,8 @@
 
 The localhost forwarder test runner calls this before the tests, so that a
 missing service or a wrong API key fails once with a clear message instead of
-in every test. Messages show only the scheme, host, and port of URLs.
+in every test. Messages show only the scheme, host, and port of URLs, or only
+the scheme when the host part may hold credentials.
 """
 
 import os
@@ -17,6 +18,10 @@ _TIMEOUT = 10.0
 def _origin(url: str) -> str:
     """Return the scheme, host, and port of a URL, without credentials or path.
 
+    As in the SDK's URL redaction, an "@" after the host part means that
+    credentials with an unencoded "/", "?", or "#" ended the host part early,
+    so only the scheme is returned.
+
     :param url: The URL.
     :return: The origin, or a placeholder if the URL cannot be parsed.
     """
@@ -25,6 +30,8 @@ def _origin(url: str) -> str:
         port = f":{parts.port}" if parts.port else ""
     except ValueError:
         return "<unparsable URL>"
+    if "@" in parts.path + parts.query + parts.fragment:
+        return f"{parts.scheme}://[REDACTED]"
     return f"{parts.scheme}://{parts.hostname}{port}"
 
 
@@ -80,13 +87,21 @@ def _check_node(node_rpc_url: str, commitment_service_address: str) -> int:
     :param node_rpc_url: The explicitly configured indexing node RPC URL.
     :param commitment_service_address: The contract address.
     :return: The node's chain ID.
-    :raises SystemExit: If the node is unreachable or has no contract.
+    :raises SystemExit: If the address is invalid, or the node is unreachable
+        or has no contract.
     """
+    try:
+        address = Web3.to_checksum_address(commitment_service_address)
+    except (TypeError, ValueError) as err:
+        raise SystemExit(
+            "Forwarder check failed: the forwarder returned an invalid "
+            f"commitment service address {commitment_service_address!r}."
+        ) from err
     origin = _origin(node_rpc_url)
     w3 = Web3(Web3.HTTPProvider(node_rpc_url, request_kwargs={"timeout": _TIMEOUT}))
     try:
         chain_id = w3.eth.chain_id
-        code = w3.eth.get_code(Web3.to_checksum_address(commitment_service_address))
+        code = w3.eth.get_code(address)
     # Node errors can include the node URL, so report only the error type.
     except Exception as err:  # pylint: disable=broad-exception-caught
         raise SystemExit(
@@ -106,7 +121,8 @@ def main() -> None:
     """Check the forwarder configured in the environment."""
     forwarder_url = os.environ.get("VBASE_FORWARDER_URL")
     api_key = os.environ.get("VBASE_API_KEY")
-    node_rpc_url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL")
+    # Strip like the test helper, so the check and the tests use the same node.
+    node_rpc_url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL", "").strip()
     if not forwarder_url or not api_key or not node_rpc_url:
         raise SystemExit(
             "Forwarder check failed: set VBASE_FORWARDER_URL, VBASE_API_KEY, "

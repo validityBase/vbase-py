@@ -8,15 +8,42 @@ import sys
 import unittest
 from pathlib import Path
 from types import ModuleType
+from urllib.parse import urlsplit
 
 TEST_MODULES = (
     "vbase.tests.test_vbase_client",
     "vbase.tests.test_indexing_service",
 )
 
+# Shorter URL parts, such as "v2", are too common in logs to mask usefully.
+_MIN_MASKED_LENGTH = 8
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _mask_indexing_rpc_url_parts() -> None:
+    """Mask the parts of the indexing RPC URL that can hold credentials.
+
+    GitHub Actions masks only a secret's whole value, but connection errors
+    from published packages can print the URL's path alone. In GitHub Actions,
+    register the trimmed URL, its path, path segments, query, and userinfo as
+    masks before any test output.
+    """
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL", "").strip()
+    if not url:
+        return
+    parts = urlsplit(url)
+    values = {url, parts.path.strip("/"), parts.query, parts.username, parts.password}
+    values.update(parts.path.split("/"))
+    for value in sorted(v for v in values if v and len(v) >= _MIN_MASKED_LENGTH):
+        # Escape the characters that workflow commands decode.
+        escaped = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        # Flush so the runner applies the mask before any test writes stderr.
+        print(f"::add-mask::{escaped}", flush=True)
 
 
 def _package_source() -> str:
@@ -91,6 +118,7 @@ def _assert_pypi_runtime_imports_are_external(repo_root: Path) -> None:
 
 def main() -> int:
     """Run the shared public forwarder test suite."""
+    _mask_indexing_rpc_url_parts()
     repo_root = _repo_root()
     _configure_test_package()
     loader = unittest.defaultTestLoader
