@@ -10,6 +10,7 @@ source "${REPO_ROOT}/config/.env.forwarder.pub.dev"
 set +a
 
 : "${VBASE_API_KEY:?VBASE_API_KEY must be supplied by the environment or a secret manager}"
+: "${VBASE_TEST_INDEXING_NODE_RPC_URL:?VBASE_TEST_INDEXING_NODE_RPC_URL must supply an archival RPC endpoint on the same chain as the forwarder}"
 
 if [[ -z "${PYTHON_BIN:-}" ]]; then
     if command -v python3 >/dev/null 2>&1; then

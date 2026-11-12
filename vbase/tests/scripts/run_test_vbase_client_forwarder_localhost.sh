@@ -1,7 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -a
-source config/.env.forwarder.localhost
-set +a
+set -euo pipefail
 
-python3 -m unittest vbase.tests.test_vbase_client
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+bash "${SCRIPT_DIR}/run_tests_forwarder_localhost.sh" vbase.tests.test_vbase_client

@@ -1,12 +1,15 @@
 """Tests of the indexing service for the vbase package"""
 
-import os
 import secrets
 import unittest
 
-from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.vbase_client_test import VBaseClientTest
-from vbase.tests.utils import TEST_HASH1, compare_dict_subset, int_to_hash
+from vbase.tests.utils import (
+    TEST_HASH1,
+    compare_dict_subset,
+    create_test_indexing_service,
+    int_to_hash,
+)
 
 
 class TestIndexingService(unittest.TestCase):
@@ -18,16 +21,9 @@ class TestIndexingService(unittest.TestCase):
         # for instance when testing on a public testnet.
         if not hasattr(self, "vbc"):
             self.vbc = VBaseClientTest.create_instance_from_env()
-            self.indexing_service = (
-                Web3HTTPIndexingService.create_instance_from_commitment_service(
-                    self.vbc.commitment_service
-                )
+            self.indexing_service = create_test_indexing_service(
+                self.vbc.commitment_service
             )
-            # These tests check freshly written commitments, so a recent-block
-            # lookback is sufficient; see internal/specs/development.md.
-            n_last_blocks = os.environ.get("VBASE_TEST_INDEXING_N_LAST_BLOCKS")
-            if n_last_blocks:
-                self.indexing_service.n_last_blocks = int(n_last_blocks)
         self.assertTrue(self.indexing_service is not None)
         self.assertEqual(len(self.indexing_service.commitment_services), 1)
         self.chain_id = self.indexing_service.commitment_services[0].w3.eth.chain_id
