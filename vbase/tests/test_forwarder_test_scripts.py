@@ -189,28 +189,47 @@ class TestPublicDevRunnerMasks(unittest.TestCase):
         self.assertNotIn("::add-mask::user", masks)
         self.assertNotIn("::add-mask::rpc", masks)
 
-    def test_escapes_workflow_command_characters(self) -> None:
-        """A percent sign in the URL survives workflow command decoding."""
-        masks = self._masks(
-            {
-                "GITHUB_ACTIONS": "true",
-                "VBASE_TEST_INDEXING_NODE_RPC_URL": "https://rpc.example/v2/FAKE%2FKEY",
-            }
-        )
-        self.assertIn("::add-mask::FAKE%252FKEY", masks)
+    def test_stops_for_url_that_libraries_print_differently(self) -> None:
+        """The run stops without showing a URL that the masks could miss."""
+        for url in (
+            # requests prints these paths decoded or percent-encoded.
+            "https://rpc.example/v2/FAKE%7eKEY",
+            "https://rpc.example/v2/FAKE KEY",
+            "https://rpc.example/v2/FAKE-KEY" + chr(0xE9),
+            # U+FF03 normalizes to "#", so urlsplit's error quotes the password.
+            "https://user:FAKE" + chr(0xFF03) + "SECRET@rpc.example/v2/key",
+            "https://[::1]:8545/v2/FAKE-KEY",
+            "https://rpc.example/v2/FAKE-KEY#fragment",
+            "wss://rpc.example/v2/FAKE-KEY",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(SystemExit) as raised:
+                    self._masks(
+                        {
+                            "GITHUB_ACTIONS": "true",
+                            "VBASE_TEST_INDEXING_NODE_RPC_URL": url,
+                        }
+                    )
+                self.assertIn("must be an http(s) URL", str(raised.exception))
+                self.assertNotIn("FAKE", str(raised.exception))
 
-    def test_stops_without_showing_parse_error(self) -> None:
-        """A URL that cannot be parsed stops the run; its error is not shown."""
-        # U+FF03 normalizes to "#", so urlsplit rejects this URL with an error
-        # that quotes its user name, password, and host.
-        url = "https://user:FAKE＃SECRET@rpc.example/v2/key"
-        with self.assertRaises(SystemExit) as raised:
-            self._masks(
-                {"GITHUB_ACTIONS": "true", "VBASE_TEST_INDEXING_NODE_RPC_URL": url}
-            )
-        self.assertIn("cannot be parsed as a URL", str(raised.exception))
-        self.assertNotIn("SECRET", str(raised.exception))
-        self.assertTrue(raised.exception.__suppress_context__)
+    def test_accepts_typical_provider_urls(self) -> None:
+        """Tokens in the path, query, or userinfo pass the check."""
+        for url in (
+            "https://rpc.example/v2/FAKE_KEY-0123456789",
+            "https://name.network.example/0123456789abcdef/",
+            "https://rpc.example/rpc?network=arbitrum-sepolia&key=FAKE-KEY-0123",
+            "http://127.0.0.1:8545/",
+        ):
+            with self.subTest(url=url):
+                self.assertTrue(
+                    self._masks(
+                        {
+                            "GITHUB_ACTIONS": "true",
+                            "VBASE_TEST_INDEXING_NODE_RPC_URL": url,
+                        }
+                    )
+                )
 
     def test_masks_nothing_outside_github_actions(self) -> None:
         """Local runs print no workflow commands."""
