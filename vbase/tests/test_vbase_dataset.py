@@ -23,6 +23,7 @@ from vbase.core.vbase_object import (
 from vbase.tests.test_crypto_utils import sha3_256_hash_bytes
 from vbase.tests.utils import (
     create_dataset_worker,
+    create_test_indexing_service,
     dataset_add_record_checks,
     dataset_from_json_checks,
 )
@@ -257,6 +258,7 @@ class TestVBaseDataset(unittest.TestCase):
         assert len(l_log) == 4
         assert l_log[0].startswith("Invalid record: Failed object verification")
         # Fix the timestamps.
+        dsw.indexing_service = create_test_indexing_service(self.vbc.commitment_service)
         success, l_log = dsw.try_restore_timestamps_from_index()
         assert success
         success, l_log = dsw.verify_commitments()
@@ -283,6 +285,7 @@ class TestVBaseDataset(unittest.TestCase):
         assert l_log[0].startswith("Invalid record: Failed object verification")
         assert l_log[1].startswith("Invalid records: Failed object set verification")
         # Try to fix the timestamps.
+        dsw.indexing_service = create_test_indexing_service(self.vbc.commitment_service)
         success, l_log = dsw.try_restore_timestamps_from_index()
         assert not success
         assert l_log[0].startswith(

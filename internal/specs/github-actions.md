@@ -28,6 +28,9 @@
 - Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
+- These are direct-node tests. Localhost forwarder tests run in the
+  forwarder service's CI; see [Localhost Forwarder Tests](development.md#localhost-forwarder-tests)
+  for the port and SDK revision requirements.
 
 ### `.github/workflows/run-setup-matrix.yaml`
 
@@ -45,8 +48,9 @@
 - Runs on pushes to `main` and manual `workflow_dispatch` on `main`; it does
   not run on pull requests because the job requires a live dev-service API key.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
-- Runs the forwarder tests against the public dev service using the GitHub
-  Actions secret `VBASE_API_KEY`.
+- Runs the forwarder tests against the public dev service using `VBASE_API_KEY`
+  and `VBASE_TEST_INDEXING_NODE_RPC_URL` from GitHub Actions secrets. See
+  [Public Dev Tests](development.md#public-dev-tests) for configuration.
 - Labels the package source as `source` so the shared test runner verifies that
   the checkout package is imported.
 - The shared runner creates a fresh ephemeral signer for each invocation, so no
@@ -70,8 +74,8 @@
 - Runs the same `test_vbase_client` and `test_indexing_service` modules as the
   source-install forwarder workflow. The runner loads those test modules from
   the checkout while keeping the imported `vbase` package in site-packages.
-- The shared runner generates a fresh signer for each matrix leg; only
-  `VBASE_API_KEY` is required as a CI secret.
+- Uses the same API key and indexing RPC secrets as the source workflow;
+  the shared runner generates a fresh signer for each matrix leg.
 - Shares the source-install workflow's concurrency group because all matrix
   legs use the same API key and account-level limits.
 

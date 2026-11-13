@@ -48,8 +48,10 @@ raised without a retry.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the
-node URL returned by the forwarder unless you supply `node_rpc_url`. Results
-depend on the endpoint:
+node URL returned by the forwarder unless you supply `node_rpc_url`. The
+forwarder returns a keyless public node URL and does not return its private
+node URL. Supply your own archival RPC endpoint when the public node cannot
+support indexing. Results depend on the endpoint:
 
 - Many public endpoints limit the block range or result count of an
   `eth_getLogs` request. Full-history queries can fail on these endpoints.
@@ -84,6 +86,11 @@ a configured indexing service to that attribute first.
 For large histories, use an indexer that does not query the node directly,
 such as `SQLIndexingService`.
 
+Published packages that use `eth_newFilter` and `eth_getFilterLogs` also need
+an endpoint that supports those methods and preserves filter state between
+requests. A provider's "archive" label alone does not guarantee suitable
+block-range or result limits.
+
 ## Development
 
 Install the generated development lock and package locally:
@@ -96,3 +103,37 @@ python -m pip install --no-deps --no-build-isolation -e .
 See `internal/specs/python-dependency-hashes.md` in this repository for the
 dependency layout, lock policy, package metadata rules, and regeneration
 commands.
+
+### Forwarder integration tests
+
+The tests use `VBASE_TEST_INDEXING_NODE_RPC_URL` for indexing and obtain the
+contract address from the forwarder. This is test configuration; setting it
+does not change SDK defaults in an application. The test helper supports
+published packages without the factory's `node_rpc_url` argument.
+
+For a forwarder and commitment-service node on this machine:
+
+```bash
+export VBASE_API_KEY="<key accepted by the localhost forwarder>"
+bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
+```
+
+The localhost config expects the forwarder on port 8081 and the node on port
+8545, so port 3000 can remain occupied by another service. If the forwarder
+listens on another port, set `VBASE_FORWARDER_PORT` to that port. If it uses a
+remote chain, set `VBASE_TEST_INDEXING_NODE_RPC_URL` to an archival endpoint
+on that chain.
+
+For the public dev service:
+
+```bash
+export VBASE_API_KEY="<public dev API key>"
+export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on the dev chain>"
+bash .github/scripts/run_tests_forwarder_pub_dev.sh
+```
+
+Both public-dev GitHub workflows require secrets with these names. The
+runner generates its own signer, so no signer-private-key secret is needed.
+The PyPI workflow runs checkout tests against the installed package. See the
+[development guide](https://github.com/validityBase/vbase-py/blob/main/internal/specs/development.md#forwarder-indexing-configuration)
+for node requirements, secret setup, and source/PyPI test behavior.

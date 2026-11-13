@@ -57,6 +57,7 @@ jobs:
         env:
           VBASE_API_KEY: ${{ secrets.VBASE_API_KEY }}
           VBASE_PACKAGE_SOURCE: pypi
+          VBASE_TEST_INDEXING_NODE_RPC_URL: ${{ secrets.VBASE_TEST_INDEXING_NODE_RPC_URL }}
         shell: bash
         run: |
           cd "$RUNNER_TEMP"

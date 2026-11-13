@@ -34,6 +34,7 @@ jobs:
       - name: Run vbase-py forwarder tests using the public dev service
         env:
           VBASE_API_KEY: ${{ secrets.VBASE_API_KEY }}
+          VBASE_TEST_INDEXING_NODE_RPC_URL: ${{ secrets.VBASE_TEST_INDEXING_NODE_RPC_URL }}
           VBASE_PACKAGE_SOURCE: source
         run: |
           chmod +x .github/scripts/run_tests_forwarder_pub_dev.sh

@@ -9,7 +9,7 @@ for writing commitments. Concrete implementations include direct Web3 HTTP
 services, forwarder-backed services, and deterministic test variants.
 
 `ForwarderCommitmentService` depends on the response format of the vBase
-forwarder in `vbase-api-server`:
+forwarder:
 
 - Failures use HTTP error statuses with `application/problem+json` bodies,
   which the SDK raises as `ProblemDetailsError`.
@@ -17,7 +17,9 @@ forwarder in `vbase-api-server`:
   The SDK treats only `"success": false`, which older forwarders returned,
   as a failure in a 2xx response.
 - `commitment-service-data` returns `node_rpc_url` and
-  `commitment_service_address`. The SDK reads only these fields and ignores
+  `commitment_service_address`. The URL is the forwarder's keyless public
+  node; the forwarder does not return its private node URL.
+  The SDK reads only these fields and ignores
   any others. The response has no middleware options, such as
   `inject_geth_poa_middleware`, so the forwarder's chain must not need them.
   Serving a proof-of-authority chain requires adding the option to the
@@ -30,7 +32,9 @@ commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
 
 See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
-for endpoint selection and event-query requirements.
+for endpoint selection and event-query requirements, and
+[Forwarder Indexing Configuration](development.md#forwarder-indexing-configuration)
+for the integration tests' explicit RPC selection.
 
 ## Client
 

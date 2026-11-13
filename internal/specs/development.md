@@ -30,6 +30,7 @@ forwarder, or localhost commitment service.
 
 ```bash
 bash vbase/tests/scripts/run_tests_localhost.sh
+bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 bash .github/scripts/run_tests_forwarder_pub_dev.sh
 source config/.env.localhost
 python3 -m unittest discover -s vbase/tests
@@ -237,17 +238,147 @@ limit updates this list and its short copy for Copilot code review in
   hides the password, but not credentials in the query string, when it shows
   a database URL. The services do not log the URL.
 
+## Forwarder Indexing Configuration
+
+The forwarder reads the chain and submits transactions through a private
+node. Both `/forwarder/commitment-service-data` and
+`/forwarder-test/commitment-service-data` return a keyless public node URL as
+`node_rpc_url`, alongside the corresponding contract address. The public
+endpoint can restrict event queries, and the forwarder does not return its
+private node URL.
+
+Forwarder integration tests require `VBASE_TEST_INDEXING_NODE_RPC_URL` to
+select a node independently of the API response. The shared
+[`create_test_indexing_service`](../../vbase/tests/utils.py) helper obtains only
+the contract address from the forwarder and creates the read connection using
+this variable. The indexing tests and dataset timestamp-restoration tests use
+this helper. Direct Web3 tests reuse their existing connection and ignore this
+forwarder-specific setting. This variable configures tests, not SDK defaults.
+
+Supply an archival RPC endpoint on the **same chain** as the forwarder's
+private node, reachable from the test runner and able to see its newly mined
+commitments. It must support `eth_getLogs` for the source package and
+`eth_newFilter` / `eth_getFilterLogs` with persistent filter state for published
+packages that use filters. Verify the provider's block-range and result limits;
+an "archive" label alone does not guarantee unrestricted event queries.
+The helper uses constructors shared by the source and published packages,
+including releases without the factory's `node_rpc_url` argument.
+
+The helper reads `VBASE_TEST_INDEXING_N_LAST_BLOCKS` for tests of newly written
+commitments. The public-dev config sets a recent-block window; localhost tests
+leave it unset to query their short chain from genesis. A lookback cannot make
+unsupported filter methods work. See
+[Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
+for SDK endpoint selection and event visibility. Neither the helper nor the
+localhost readiness check verifies that two endpoints use the same chain or
+that historical event queries are supported; configure and verify these at
+the provider.
+
+## Localhost Forwarder Tests
+
+[`run_tests_forwarder_localhost.sh`](../../vbase/tests/scripts/run_tests_forwarder_localhost.sh)
+runs the forwarder test modules against a forwarder service on this machine.
+It can run from any directory. It loads
+[`config/.env.forwarder.localhost`](../../config/.env.forwarder.localhost),
+which selects port 8081 so that other local services can keep port 3000.
+Start the forwarder service on port 8081, or set `VBASE_FORWARDER_PORT` to
+the port it listens on. The runner requires
+`VBASE_API_KEY` from the environment and generates a fresh signer private key
+for each run; the forwarder pays gas, so the signer needs no funds. It then
+runs [`check_forwarder.py`](../../vbase/tests/scripts/check_forwarder.py),
+which stops the run with one message if the forwarder, the API key, or the
+node is not ready. All modules run in one `unittest` process, so the exit
+status covers every test. Arguments replace the default module list.
+
+The forwarder at that endpoint must:
+
+- Accept `VBASE_API_KEY` for enough transactions to complete a run.
+- Serve the test commitment service, which the tests clear and write with
+  set timestamps.
+- Return the test contract address from `commitment-service-data`. The
+  configured indexing node must serve that contract on the same chain.
+
+The localhost config supplies a local indexing RPC default. The readiness
+check uses that configured endpoint, not the response's public node URL, and
+checks connectivity and deployed contract code. If the localhost forwarder
+uses a remote chain, override `VBASE_TEST_INDEXING_NODE_RPC_URL` with the
+appropriate secret endpoint before running tests.
+
+```bash
+export VBASE_API_KEY="<API key that the forwarder accepts>"
+# Only if the forwarder uses a different node or chain:
+export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on that chain>"
+# Only if the forwarder listens on another port, for example 8082:
+export VBASE_FORWARDER_PORT=8082
+bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
+bash vbase/tests/scripts/run_tests_forwarder_localhost.sh vbase.tests.test_vbase_client
+```
+
+`run_test_vbase_client_forwarder_localhost.sh` invokes the same runner with
+only the client module. The public-dev client-only wrapper delegates to the
+public runner and requires its API key and indexing RPC configuration too.
+Both wrappers use the shared runner's signer and configuration rules.
+
+CI that runs these tests against its own forwarder must use an SDK revision
+with this runner and pass the forwarder's port as `VBASE_FORWARDER_PORT`;
+older runners hard-code port 3000. A localhost forwarder backed by the local
+test chain needs no private RPC secret, because the config supplies the local
+node URL. Direct-node tests in this repository do not use a forwarder port.
+
 ## Public Dev Tests
 
-The public-dev forwarder runner requires `VBASE_API_KEY` from the environment
-or a secret manager. It generates a fresh signer private key for each invocation
-and does not use a committed or externally supplied signer key.
+The public-dev forwarder runner requires `VBASE_API_KEY` and
+`VBASE_TEST_INDEXING_NODE_RPC_URL` from the environment or a secret manager.
+It stops before sending transactions if either is missing; an indexing URL of
+only whitespace counts as missing, because the tests trim it. It generates a
+fresh signer private key for each invocation and does not use a committed or
+externally supplied signer key.
+
+```bash
+export VBASE_API_KEY="<public dev API key>"
+export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on the public dev chain>"
+bash .github/scripts/run_tests_forwarder_pub_dev.sh
+```
+
+For GitHub Actions, set these repository secrets in `validityBase/vbase-py`:
+
+| Secret | Purpose |
+| --- | --- |
+| `VBASE_API_KEY` | Authenticates a public dev account with enough transaction credits. |
+| `VBASE_TEST_INDEXING_NODE_RPC_URL` | Full credential-bearing URL of the indexing endpoint described above. |
+
+Set the new secret through Settings → Secrets and variables → Actions, or use
+the interactive CLI prompt so the value is not stored in shell history:
+
+```bash
+gh secret set VBASE_TEST_INDEXING_NODE_RPC_URL --repo validityBase/vbase-py
+```
+
+Both the source and PyPI public-dev workflows map this secret into the runner.
+`VBASE_COMMITMENT_SERVICE_PRIVATE_KEY` is not needed as a secret by these
+workflows. `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL` configures direct Web3
+commitment services and does not select a forwarder test's indexing endpoint.
+GitHub masks only a secret's whole value, but connection errors from
+published packages can print the URL's path alone. In GitHub Actions,
+[`run_tests_forwarder_pub_dev.py`](../../.github/scripts/run_tests_forwarder_pub_dev.py)
+therefore also masks the trimmed URL and its path, path segments, query, and
+userinfo before any test runs. Parts shorter than eight characters, such as
+`v2`, are not masked. Libraries can print some characters in another form,
+for example percent-encoded, which the masks would miss. In GitHub Actions the
+runner therefore accepts only an `http` or `https` URL without a fragment
+whose user name, password, path, and query use letters, digits, and
+`-._~/=&`. For any other URL it stops before the first test without showing
+the URL. Provider URLs with an alphanumeric token in the path or query meet
+this.
+Do not commit RPC credentials or enable shell tracing around them.
+
+The public-dev workflows run from `main`, including manual dispatch; they do
+not run on a PR to `dev`. After the fix reaches `main` and the secrets are set,
+dispatch both workflows described in [GitHub Actions](github-actions.md).
+The PyPI workflow loads tests from the checkout while exercising the installed
+package, so this test-configuration fix does not require publishing a new SDK.
 
 The indexing tests use unique object CIDs for global object lookups so old
 public-chain test data does not accumulate in those queries.
-The [`TestIndexingService` setup](../../vbase/tests/test_indexing_service.py)
-reads `VBASE_TEST_INDEXING_N_LAST_BLOCKS` to configure its block lookback.
-[`config/.env.forwarder.pub.dev`](../../config/.env.forwarder.pub.dev) sets it
-for public-dev runs. See
-[Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
-for endpoint requirements and event visibility.
+See [Forwarder Indexing Configuration](#forwarder-indexing-configuration) for
+the shared test helper and node requirements.
