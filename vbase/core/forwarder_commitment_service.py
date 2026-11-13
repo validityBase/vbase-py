@@ -6,9 +6,9 @@ This implementation uses a forwarder to execute meta-transactions on a user's be
 import json
 import logging
 import os
-import pprint
 from enum import Enum
 from typing import List, Optional, Union
+from urllib.parse import urlsplit
 
 import requests
 from dotenv import load_dotenv
@@ -17,13 +17,21 @@ from eth_account.messages import encode_typed_data
 from hexbytes import HexBytes
 from web3 import Web3
 
+from vbase.core.problem_details import ProblemDetailsError
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes
 from vbase.utils.error_utils import check_for_missing_env_vars
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import (
+    RedactUrlsFilter,
+    get_default_logger,
+    mask_api_key,
+    redact_exception,
+)
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
+# Error messages from requests can include credential-bearing URLs.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 # Default timeout for HTTP requests.
@@ -36,6 +44,29 @@ _LOG.setLevel(logging.INFO)
 # The forwarder knows what commitment service it is ultimately calling
 # and what the expected transaction submission and execution times are.
 _REQUEST_TIMEOUT = 60.0
+
+
+def _is_http_url(url: object) -> bool:
+    """Return whether a value is an http or https URL with a host.
+
+    Leading whitespace is allowed, because requests removes it. Other
+    whitespace and control characters are rejected. urlsplit removes tabs and
+    newlines before it parses a URL, but requests does not. For a URL with
+    such a character in its scheme, host, or port, requests fails with the
+    URL in its error message, either escaped, as in ``https:\\t//``, or raw.
+    Either form hides the URL from redaction, which needs a contiguous
+    ``://`` and ends a URL at whitespace.
+    """
+    if not isinstance(url, str):
+        return False
+    url = url.lstrip()
+    if any(char.isspace() or not char.isprintable() for char in url):
+        return False
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 
 class RequestType(Enum):
@@ -58,12 +89,25 @@ class ForwarderCommitmentService(Web3CommitmentService):
     ):
         """Initialize the service object.
 
-        :param forwarder_url: The forwarder URL.
+        :param forwarder_url: The forwarder URL, an http or https URL with a
+            host and no whitespace or control characters after any leading
+            whitespace.
         :param api_key: The API key used to authenticate to the forwarder.
         :param private_key: User's private key.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
+        :raises ValueError: If forwarder_url does not meet these requirements.
         """
+        # requests shows a malformed URL in its error messages as given, and
+        # URL redaction may not recognize it there (see _is_http_url), so such
+        # a message could show credentials in the URL. Reject the URL here,
+        # without its value. The forwarder authenticates with the X-API-KEY
+        # header, so its URL has no credentials and needs no whitespace.
+        if not _is_http_url(forwarder_url):
+            raise ValueError(
+                "forwarder_url must be an http or https URL with a host and no "
+                "whitespace or control characters."
+            )
         self.forwarder_url = forwarder_url
         self.api_key = api_key
         self.private_key = private_key
@@ -115,9 +159,14 @@ class ForwarderCommitmentService(Web3CommitmentService):
         }
         # Check for missing environment variables since these are unrecoverable.
         check_for_missing_env_vars(init_args)
+        safe_log_args = {
+            "forwarder_url_configured": bool(init_args["forwarder_url"]),
+            "api_key": mask_api_key(init_args["api_key"]),
+            "private_key_configured": bool(init_args["private_key"]),
+        }
         _LOG.debug(
-            "ForwarderCommitmentService.get_init_args_from_env(): init_args =\n%s",
-            pprint.pformat(init_args),
+            "ForwarderCommitmentService.get_init_args_from_env(): config = %s",
+            safe_log_args,
         )
         return init_args
 
@@ -164,20 +213,39 @@ class ForwarderCommitmentService(Web3CommitmentService):
             # Check if the request was successful.
             response.raise_for_status()
             response_json = response.json()
-            # Newer servers may not return a "success" field.
-            # They signal error with HTTPError only.
-            # Check whether the "success" field is present and False
-            # to determine if an older server is returning a failure via this field.
-            if "success" in response_json and not response_json["success"]:
-                raise requests.RequestException(response_json["log"])
+            # The forwarder reports failures with HTTP error statuses and
+            # Problem Details bodies, and returns "success": true with "data"
+            # on success. Older forwarders reported some failures in a 2xx
+            # response with "success": false.
+            if response_json.get("success") is False:
+                raise requests.RequestException(
+                    response_json.get("log", "Forwarder API request failed.")
+                )
             response_data = response_json["data"]
 
         except requests.HTTPError as http_err:
-            _LOG.error("HTTP error occurred: %s", http_err)
-            raise http_err
+            # requests errors include the request URL; redact it before the
+            # error is logged, chained, or re-raised.
+            redact_exception(http_err)
+            response = http_err.response
+            api_error = (
+                ProblemDetailsError.from_response(response)
+                if response is not None
+                else None
+            )
+            _LOG.error(
+                "HTTP error occurred: api=%s status=%s error=%s",
+                api,
+                response.status_code if response is not None else None,
+                api_error or http_err,
+            )
+            if api_error is not None:
+                raise api_error from http_err
+            raise
         except requests.RequestException as req_err:
-            _LOG.error("Request error occurred: %s", req_err)
-            raise req_err
+            redact_exception(req_err)
+            _LOG.error("Request error occurred: api=%s error=%s", api, req_err)
+            raise
         except ValueError as err:
             _LOG.error("Invalid JSON received!")
             raise err
@@ -345,8 +413,12 @@ class ForwarderCommitmentService(Web3CommitmentService):
 
     def get_commitment_service_data(self) -> dict:
         """Get commitment service data from the API server.
-        This returns the node_rpc_url and the commitment_service_address
-        for the web3 commitment service abstracted by the forwarder.
+        This returns the commitment_service_address of the contract the
+        forwarder uses and a node_rpc_url that clients can use to read the
+        chain directly.
+
+        For indexing service construction and endpoint requirements, see
+        :meth:`vbase.IndexingService.create_instance_from_commitment_service`.
 
         :return: The commitment service data for the API server.
         """

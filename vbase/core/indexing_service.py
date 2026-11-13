@@ -6,14 +6,13 @@ Such services enable queries of past commitments.
 import json
 import logging
 import os
-import pprint
 from abc import ABC
-from typing import List, Union, cast
+from typing import List, Optional, Union, cast
 
-import web3
 from dotenv import load_dotenv
 from retry.api import retry_call
 from web3.contract.contract import ContractEvent
+from web3.exceptions import Web3RPCError
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
@@ -25,24 +24,12 @@ from vbase.utils.crypto_utils import (
     bytes_to_hex_str_auto,
     hex_str_to_bytes,
 )
-from vbase.utils.log import get_default_logger
+from vbase.utils.log import RedactUrlsFilter, get_default_logger
 
 _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
-
-# web3 v7 renamed the start-block kwarg on create_filter from 'fromBlock'
-# (camelCase, v6) to 'from_block' (snake_case, v7). Detect once at import.
-_CREATE_FILTER_FROM_BLOCK_KWARG = (
-    "from_block" if int(web3.__version__.split(".", 1)[0]) >= 7 else "fromBlock"
-)
-
-
-def _create_event_filter(event: ContractEvent, from_block: int, argument_filters: dict):
-    """Create an event filter, compatible with web3 v6 and v7."""
-    return event.create_filter(
-        argument_filters=argument_filters,
-        **{_CREATE_FILTER_FROM_BLOCK_KWARG: from_block},
-    )
+# Retry warnings include provider errors, which can include credential-bearing URLs.
+_LOG.addFilter(RedactUrlsFilter())
 
 
 # The indexing service will grow to have more features
@@ -84,20 +71,37 @@ class IndexingService(ABC):
     @staticmethod
     def create_instance_from_commitment_service(
         commitment_service: CommitmentService,
+        node_rpc_url: Optional[str] = None,
     ) -> "IndexingService":
-        """Creates an instance initialized from a commitment service.
-        Handles the complexities of initializing an IndexingService
-        using a forwarded commitment service.
-        We need to query this service for the information needed to connect to a commitment
-        service directly, and this method abstracts this initialization.
+        """Create an indexing service from a commitment service.
+
+        For a forwarder, read the contract address from
+        ``get_commitment_service_data()`` and query events directly through
+        the selected node. For a Web3 commitment service, reuse its connection.
+        See `Indexing and Node Requirements
+        <https://github.com/validityBase/vbase-py/blob/main/README.md#indexing-and-node-requirements>`_
+        for endpoint requirements.
 
         :param commitment_service: The commitment service used.
+        :param node_rpc_url: Optional node RPC URL to use instead of the one
+            returned by the forwarder. Applies only to forwarder commitment
+            services; a Web3 commitment service already uses its own node.
+            The caller is responsible for supplying a node on the forwarder's
+            chain. The SDK does not check this; a node on another chain
+            returns empty query results rather than an error.
         :return: The IndexingService created.
         """
+        if node_rpc_url is not None and not node_rpc_url:
+            raise ValueError("node_rpc_url must be a non-empty URL or None.")
         if isinstance(
             commitment_service,
             (Web3HTTPCommitmentService, Web3HTTPCommitmentServiceTest),
         ):
+            if node_rpc_url is not None:
+                raise ValueError(
+                    "node_rpc_url applies only to forwarder commitment services; "
+                    "a Web3 commitment service already uses its own node."
+                )
             # This is the trivial case where we pass through the commitment_service.
             return Web3HTTPIndexingService([commitment_service])
 
@@ -105,18 +109,28 @@ class IndexingService(ABC):
             commitment_service,
             (ForwarderCommitmentService, ForwarderCommitmentServiceTest),
         )
-        # Query the forwarder commitment service for the JSON descriptor
-        # required to init the Web3HTTPCommitmentService.
-        # This allows us to create a local web3 commitment and indexing services
-        # using data provided by the forwarder, eliminating additional settings
-        # and ensuring consistency with the forwarder.
+        # Read the contract address even when the caller supplies a node URL.
         commitment_service_data = commitment_service.get_commitment_service_data()
-        if "node_rpc_url" not in commitment_service_data:
-            raise ValueError("Forwarder did not return node_rpc_url.")
         if "commitment_service_address" not in commitment_service_data:
             raise ValueError("Forwarder did not return commitment_service_address.")
+        if node_rpc_url is None:
+            node_rpc_url = commitment_service_data.get("node_rpc_url")
+            if not node_rpc_url:
+                raise ValueError("Forwarder did not return node_rpc_url.")
+        # Pass only the documented fields so new forwarder response fields
+        # cannot break construction. The forwarder returns no middleware
+        # options, so inject_geth_poa_middleware keeps its default. Serving a
+        # proof-of-authority chain requires adding the option to the forwarder
+        # response and to this call.
         return Web3HTTPIndexingService(
-            [Web3HTTPCommitmentService(**commitment_service_data)]
+            [
+                Web3HTTPCommitmentService(
+                    node_rpc_url=node_rpc_url,
+                    commitment_service_address=commitment_service_data[
+                        "commitment_service_address"
+                    ],
+                )
+            ]
         )
 
     def find_user_sets(self, user: str) -> List[dict]:
@@ -218,11 +232,11 @@ class Web3HTTPIndexingService(IndexingService):
         # Process the environment variable and create the defined commitment services.
         is_dict = json.loads(is_json)
         cs_list = []
+        _LOG.info(
+            "Initializing indexing service. commitment_service_count=%d",
+            len(is_dict["commitment_services"]),
+        )
         for cs_dict in is_dict["commitment_services"]:
-            _LOG.info(
-                "IndexingService.create_instance_from_env_json_descriptor(): cs_dict =\n%s",
-                pprint.pformat(cs_dict),
-            )
             cs_class = cs_dict["class"]
             cs_init_args = cs_dict["init_args"]
             if cs_class == "Web3HTTPCommitmentService":
@@ -250,12 +264,6 @@ class Web3HTTPIndexingService(IndexingService):
             raise EnvironmentError(
                 "Missing required environment variable VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR"
             )
-        _LOG.info(
-            "IndexingService.create_instance_from_env_json_descriptor(): "
-            "VBASE_INDEXING_SERVICE_JSON_DESCRIPTOR =\n%s",
-            pprint.pformat(is_json),
-        )
-
         return Web3HTTPIndexingService.create_instance_from_json_descriptor(is_json)
 
     @staticmethod
@@ -286,15 +294,28 @@ class Web3HTTPIndexingService(IndexingService):
         ]
         return cs_receipts
 
-    def _get_all_entries(self, event_filter):
-        """Wrapper to get all entries from an event filter."""
-        return event_filter.get_all_entries()
+    def _get_event_logs(
+        self, event: ContractEvent, from_block: int, argument_filters: dict
+    ) -> List[dict]:
+        """Get matching events with eth_getLogs, retrying failed requests.
 
-    def _retry_get_all_entries(self, event_filter):
-        """Get all entries from an event filter with retry logic."""
+        eth_getLogs is stateless, so it works with load-balanced endpoints
+        that do not preserve eth_newFilter state between requests.
+        Transport errors (requests exceptions are OSErrors) and JSON-RPC error
+        responses from the node (Web3RPCError) are retried. Other errors, such
+        as web3 validation errors for invalid arguments, fail immediately.
+        The HTTP provider of Web3HTTPCommitmentService redacts URLs in both
+        kinds of errors, so the error raised after the last retry does not
+        show URL credentials.
+        """
         return retry_call(
-            self._get_all_entries,
-            fargs=[event_filter],
+            event.get_logs,
+            fkwargs={
+                "argument_filters": argument_filters,
+                "from_block": from_block,
+                "to_block": "latest",
+            },
+            exceptions=(OSError, Web3RPCError),
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,
             backoff=self.RETRY_BACKOFF,
@@ -306,23 +327,20 @@ class Web3HTTPIndexingService(IndexingService):
         if self.n_last_blocks is None:
             return 0
         block_number = commitment_service.w3.eth.block_number
-        return block_number - self.n_last_blocks
+        # Clamp at the genesis block for chains shorter than n_last_blocks.
+        return max(0, block_number - self.n_last_blocks)
 
     def find_user_sets(self, user: str) -> List[dict]:
         # Find events across all commitment services.
         receipts = []
         for cs in self.commitment_services:
-            # Create the event filter for AddSetObject events.
-            # For some reason Web3 does not convert set_cid to a byte strings,
-            # so we must convert it explicitly.
-            event_filter = _create_event_filter(
+            events = self._get_event_logs(
                 cast(ContractEvent, cs.csc.events.AddSet),
                 from_block=self._get_from_block(cs),
                 argument_filters={
                     "user": user,
                 },
             )
-            events = self._retry_get_all_entries(event_filter)
             # Build the commitment receipts from the events.
             cs_receipts = self._process_add_set_events(cs, events)
             receipts += cs_receipts
@@ -406,35 +424,28 @@ class Web3HTTPIndexingService(IndexingService):
         # The operation is similar to find_user_sets and find_objects.
 
         receipts = []
+        set_receipts = []
+        argument_filters = {"user": user}
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
-            # Create the event filter for AddObject events.
-            event_filter = _create_event_filter(
+            # Use one start block for both queries so that the set CID join
+            # covers the same block range as the object commitments.
+            from_block = self._get_from_block(cs)
+            events = self._get_event_logs(
                 cast(ContractEvent, cs.csc.events.AddObject),
-                from_block=self._get_from_block(cs),
-                argument_filters={
-                    "user": user,
-                },
+                from_block=from_block,
+                argument_filters=argument_filters,
             )
-            events = self._retry_get_all_entries(event_filter)
-            cs_receipts = self._process_add_object_events(cs, events)
-            receipts += cs_receipts
+            receipts += self._process_add_object_events(cs, events)
+            if return_set_cids:
+                events = self._get_event_logs(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
+                    from_block=from_block,
+                    argument_filters=argument_filters,
+                )
+                set_receipts += self._process_add_set_object_events(cs, events)
 
         if return_set_cids:
-            set_receipts = []
-            # Find set commitments across all commitment services.
-            # This is a substantially similar loop to the one above.
-            for cs in self.commitment_services:
-                event_filter = _create_event_filter(
-                    cast(ContractEvent, cs.csc.events.AddSetObject),
-                    from_block=self._get_from_block(cs),
-                    argument_filters={
-                        "user": user,
-                    },
-                )
-                events = self._retry_get_all_entries(event_filter)
-                cs_receipts = self._process_add_set_object_events(cs, events)
-                set_receipts += cs_receipts
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
 
         receipts = sorted(receipts, key=lambda x: x["timestamp"])
@@ -446,7 +457,7 @@ class Web3HTTPIndexingService(IndexingService):
 
         receipts = []
         for cs in self.commitment_services:
-            event_filter = _create_event_filter(
+            events = self._get_event_logs(
                 cast(ContractEvent, cs.csc.events.AddSetObject),
                 from_block=self._get_from_block(cs),
                 argument_filters={
@@ -454,7 +465,6 @@ class Web3HTTPIndexingService(IndexingService):
                     "setCid": hex_str_to_bytes(set_cid),
                 },
             )
-            events = self._retry_get_all_entries(event_filter)
             cs_receipts = self._process_add_set_object_events(cs, events)
             receipts += cs_receipts
 
@@ -475,42 +485,32 @@ class Web3HTTPIndexingService(IndexingService):
         # The operation is similar to find_user_sets.
 
         receipts = []
+        set_receipts = []
+        # For some reason Web3 does not convert object_cid to a byte strings,
+        # so we must convert it explicitly.
+        argument_filters = {
+            "objectCid": [hex_str_to_bytes(object_cid) for object_cid in object_cids],
+        }
         # Find receipts across all commitment services.
         for cs in self.commitment_services:
-            # Create the event filter for AddObject events.
-            # For some reason Web3 does not convert object_cid to a byte strings,
-            # so we must convert it explicitly.
-            event_filter = _create_event_filter(
+            # Use one start block for both queries so that the set CID join
+            # covers the same block range as the object commitments.
+            from_block = self._get_from_block(cs)
+            events = self._get_event_logs(
                 cast(ContractEvent, cs.csc.events.AddObject),
-                from_block=self._get_from_block(cs),
-                argument_filters={
-                    "objectCid": [
-                        hex_str_to_bytes(object_cid) for object_cid in object_cids
-                    ],
-                },
+                from_block=from_block,
+                argument_filters=argument_filters,
             )
-            events = self._retry_get_all_entries(event_filter)
-            cs_receipts = self._process_add_object_events(cs, events)
-            receipts += cs_receipts
+            receipts += self._process_add_object_events(cs, events)
+            if return_set_cids:
+                events = self._get_event_logs(
+                    cast(ContractEvent, cs.csc.events.AddSetObject),
+                    from_block=from_block,
+                    argument_filters=argument_filters,
+                )
+                set_receipts += self._process_add_set_object_events(cs, events)
 
         if return_set_cids:
-            set_receipts = []
-            # Find set commitments across all commitment services.
-            # This is a substantially similar loop to the one above.
-            for cs in self.commitment_services:
-                event_filter = _create_event_filter(
-                    cast(ContractEvent, cs.csc.events.AddSetObject),
-                    from_block=self._get_from_block(cs),
-                    argument_filters={
-                        "objectCid": [
-                            hex_str_to_bytes(object_cid) for object_cid in object_cids
-                        ],
-                    },
-                )
-                events = self._retry_get_all_entries(event_filter)
-                cs_receipts = self._process_add_set_object_events(cs, events)
-                set_receipts += cs_receipts
-
             receipts = self._join_receipts_on_object_cid(receipts, set_receipts)
 
         receipts = sorted(receipts, key=lambda x: x["timestamp"])
