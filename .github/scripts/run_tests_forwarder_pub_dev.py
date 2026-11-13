@@ -29,14 +29,22 @@ def _mask_indexing_rpc_url_parts() -> None:
     GitHub Actions masks only a secret's whole value, but connection errors
     from published packages can print the URL's path alone. In GitHub Actions,
     register the trimmed URL, its path, path segments, query, and userinfo as
-    masks before any test output.
+    masks before any test output, or stop the run if the URL cannot be parsed.
     """
     if os.environ.get("GITHUB_ACTIONS") != "true":
         return
     url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL", "").strip()
     if not url:
         return
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        # The error can quote the URL's user name, password, and host, and no
+        # mask is registered yet, so stop without showing it.
+        raise SystemExit(
+            "VBASE_TEST_INDEXING_NODE_RPC_URL cannot be parsed as a URL. "
+            "Percent-encode special characters in its user name and password."
+        ) from None
     values = {url, parts.path.strip("/"), parts.query, parts.username, parts.password}
     values.update(parts.path.split("/"))
     for value in sorted(v for v in values if v and len(v) >= _MIN_MASKED_LENGTH):

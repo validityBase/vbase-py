@@ -363,7 +363,8 @@ published packages can print the URL's path alone. In GitHub Actions,
 [`run_tests_forwarder_pub_dev.py`](../../.github/scripts/run_tests_forwarder_pub_dev.py)
 therefore also masks the trimmed URL and its path, path segments, query, and
 userinfo before any test runs. Parts shorter than eight characters, such as
-`v2`, are not masked.
+`v2`, are not masked. If the URL cannot be parsed, the runner stops without
+showing the parse error, which can quote the URL's credentials.
 Do not commit RPC credentials or enable shell tracing around them.
 
 The public-dev workflows run from `main`, including manual dispatch; they do

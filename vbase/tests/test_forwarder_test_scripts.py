@@ -199,6 +199,19 @@ class TestPublicDevRunnerMasks(unittest.TestCase):
         )
         self.assertIn("::add-mask::FAKE%252FKEY", masks)
 
+    def test_stops_without_showing_parse_error(self) -> None:
+        """A URL that cannot be parsed stops the run; its error is not shown."""
+        # U+FF03 normalizes to "#", so urlsplit rejects this URL with an error
+        # that quotes its user name, password, and host.
+        url = "https://user:FAKE＃SECRET@rpc.example/v2/key"
+        with self.assertRaises(SystemExit) as raised:
+            self._masks(
+                {"GITHUB_ACTIONS": "true", "VBASE_TEST_INDEXING_NODE_RPC_URL": url}
+            )
+        self.assertIn("cannot be parsed as a URL", str(raised.exception))
+        self.assertNotIn("SECRET", str(raised.exception))
+        self.assertTrue(raised.exception.__suppress_context__)
+
     def test_masks_nothing_outside_github_actions(self) -> None:
         """Local runs print no workflow commands."""
         masks = self._masks(
