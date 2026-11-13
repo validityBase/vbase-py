@@ -53,8 +53,8 @@ def _get_commitment_service_data(forwarder_url: str, api_key: str) -> dict:
     except requests.RequestException as err:
         raise SystemExit(
             f"Forwarder check failed: cannot connect to {origin} "
-            f"({type(err).__name__}). Start the forwarder service or check "
-            "the forwarder port."
+            f"({type(err).__name__}). Start the forwarder service, or set "
+            "VBASE_FORWARDER_PORT to the port it listens on."
         ) from err
     if response.status_code == 401:
         raise SystemExit(

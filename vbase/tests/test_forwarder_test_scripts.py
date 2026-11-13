@@ -1,10 +1,12 @@
-"""Offline tests of how the forwarder test scripts handle credentials."""
+"""Offline tests of the forwarder test scripts' checks and credential handling."""
 
 # pylint: disable=protected-access
 
 import importlib.util
 import io
 import os
+import shutil
+import subprocess
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -31,6 +33,10 @@ def _load_script(relative_path: str) -> ModuleType:
 
 _CHECK_FORWARDER = _load_script("vbase/tests/scripts/check_forwarder.py")
 _PUB_DEV_RUNNER = _load_script(".github/scripts/run_tests_forwarder_pub_dev.py")
+_PUB_DEV_SHELL_RUNNER = (
+    _REPO_ROOT / ".github" / "scripts" / "run_tests_forwarder_pub_dev.sh"
+)
+_MISSING_URL_MESSAGE = "VBASE_TEST_INDEXING_NODE_RPC_URL must supply"
 
 
 class TestCheckForwarderOrigin(unittest.TestCase):
@@ -77,6 +83,64 @@ class TestCheckForwarderNode(unittest.TestCase):
             ):
                 _CHECK_FORWARDER._check_node("http://127.0.0.1:8545/", "0x1234")
         provider.assert_not_called()
+
+
+class TestCheckForwarderConnection(unittest.TestCase):
+    """An unreachable forwarder fails with the setting that selects its port."""
+
+    def test_unreachable_forwarder_names_port_setting(self) -> None:
+        """A forwarder on another port, such as 3000, needs VBASE_FORWARDER_PORT."""
+        error = _CHECK_FORWARDER.requests.ConnectionError("connection refused")
+        with mock.patch.object(_CHECK_FORWARDER.requests, "get", side_effect=error):
+            with self.assertRaisesRegex(
+                SystemExit,
+                r"cannot connect to http://127\.0\.0\.1:8081 .*VBASE_FORWARDER_PORT",
+            ):
+                _CHECK_FORWARDER._get_commitment_service_data(
+                    "http://127.0.0.1:8081/forwarder-test/", "FAKE-KEY"
+                )
+
+
+@unittest.skipUnless(shutil.which("bash"), "requires bash")
+class TestPublicDevRunnerRequiresIndexingUrl(unittest.TestCase):
+    """The public-dev runner checks the indexing URL before any test runs."""
+
+    @staticmethod
+    def _run(url: str | None) -> subprocess.CompletedProcess[str]:
+        """Run the shell runner with a fake API key and the given URL.
+
+        PYTHON_BIN is set to `false`, so a run that passes the check fails when
+        it tries to generate a signer, before any test can send a transaction.
+        """
+        environment = {
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHON_BIN": "false",
+            "VBASE_API_KEY": "FAKE-KEY",
+        }
+        if url is not None:
+            environment["VBASE_TEST_INDEXING_NODE_RPC_URL"] = url
+        return subprocess.run(
+            ["bash", str(_PUB_DEV_SHELL_RUNNER)],
+            env=environment,
+            capture_output=True,
+            encoding="utf-8",
+            check=False,
+            timeout=60,
+        )
+
+    def test_rejects_missing_or_whitespace_url(self) -> None:
+        """An unset, empty, or whitespace-only URL stops the runner."""
+        for url in (None, "", " ", " \n"):
+            with self.subTest(url=url):
+                result = self._run(url)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(_MISSING_URL_MESSAGE, result.stderr)
+
+    def test_accepts_url_with_surrounding_whitespace(self) -> None:
+        """The tests trim the URL, so the check accepts a padded URL."""
+        result = self._run(" https://rpc.example/v2/FAKE-KEY\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn(_MISSING_URL_MESSAGE, result.stderr)
 
 
 class TestPublicDevRunnerMasks(unittest.TestCase):

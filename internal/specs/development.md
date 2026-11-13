@@ -329,7 +329,8 @@ node URL. Direct-node tests in this repository do not use a forwarder port.
 
 The public-dev forwarder runner requires `VBASE_API_KEY` and
 `VBASE_TEST_INDEXING_NODE_RPC_URL` from the environment or a secret manager.
-It stops before sending transactions if either is missing. It generates a
+It stops before sending transactions if either is missing; an indexing URL of
+only whitespace counts as missing, because the tests trim it. It generates a
 fresh signer private key for each invocation and does not use a committed or
 externally supplied signer key.
 
