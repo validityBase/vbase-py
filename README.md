@@ -86,10 +86,10 @@ a configured indexing service to that attribute first.
 For large histories, use an indexer that does not query the node directly,
 such as `SQLIndexingService`.
 
-Published packages that use `eth_newFilter` and `eth_getFilterLogs` also need
-an endpoint that supports those methods and preserves filter state between
-requests. A provider's "archive" label alone does not guarantee suitable
-block-range or result limits.
+Releases before 2.1.0 use `eth_newFilter` and `eth_getFilterLogs` instead of
+`eth_getLogs`, so they need an endpoint that supports those methods and
+preserves filter state between requests. A provider's "archive" label alone
+does not guarantee suitable block-range or result limits.
 
 ## Development
 
@@ -108,8 +108,7 @@ commands.
 
 The tests use `VBASE_TEST_INDEXING_NODE_RPC_URL` for indexing and obtain the
 contract address from the forwarder. This is test configuration; setting it
-does not change SDK defaults in an application. The test helper supports
-published packages without the factory's `node_rpc_url` argument.
+does not change SDK defaults in an application.
 
 For a forwarder and commitment-service node on this machine:
 

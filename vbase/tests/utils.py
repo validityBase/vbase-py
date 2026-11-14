@@ -5,7 +5,7 @@ import logging
 import os
 import pprint
 import time
-from typing import Type
+from typing import Optional, Type
 
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
@@ -14,7 +14,6 @@ from vbase.core.vbase_client import VBaseClient
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_dataset import VBaseDataset
 from vbase.core.vbase_object import VBaseObject
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.log import get_default_logger
 
 _LOG = get_default_logger(__name__)
@@ -46,6 +45,7 @@ def create_test_indexing_service(
     The endpoint must serve the forwarder's chain and support the indexing
     methods of the package under test. See internal/specs/development.md.
     """
+    node_rpc_url: Optional[str] = None
     if isinstance(commitment_service, ForwarderCommitmentService):
         # A secret saved with a trailing newline would otherwise reach requests.
         node_rpc_url = os.environ.get("VBASE_TEST_INDEXING_NODE_RPC_URL", "").strip()
@@ -55,15 +55,8 @@ def create_test_indexing_service(
                 "indexing tests; supply an archival RPC endpoint on the "
                 "forwarder's chain."
             )
-        data = commitment_service.get_commitment_service_data()
-        # Use constructors available in the published package as well as the
-        # checkout; older releases lack the factory's node_rpc_url argument.
-        commitment_service = Web3HTTPCommitmentService(
-            node_rpc_url=node_rpc_url,
-            commitment_service_address=data["commitment_service_address"],
-        )
     indexing_service = Web3HTTPIndexingService.create_instance_from_commitment_service(
-        commitment_service
+        commitment_service, node_rpc_url=node_rpc_url
     )
     n_last_blocks = os.environ.get("VBASE_TEST_INDEXING_N_LAST_BLOCKS")
     if n_last_blocks:
