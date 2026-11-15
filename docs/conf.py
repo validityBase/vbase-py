@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath(".."))
 
 project = "vbase-py"
 # Drop the trailing period since Sphinx adds it.
-copyright = "2023-2024, PIT Labs, Inc."
-author = "PIT Labs, Inc."
+copyright = "2023-2026, PIT Labs Inc"
+author = "PIT Labs Inc."
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
