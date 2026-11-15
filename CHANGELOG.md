@@ -10,6 +10,8 @@ for prior changes.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-13
+
 ### Added
 
 - Raise `ProblemDetailsError` for Forwarder HTTP errors that return a valid
