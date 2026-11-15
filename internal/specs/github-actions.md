@@ -30,7 +30,7 @@
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
 - These are direct-node tests. Localhost forwarder tests run in the
   forwarder service's CI; see [Localhost Forwarder Tests](development.md#localhost-forwarder-tests)
-  for the port and SDK revision requirements.
+  for the port and indexing configuration.
 
 ### `.github/workflows/run-setup-matrix.yaml`
 

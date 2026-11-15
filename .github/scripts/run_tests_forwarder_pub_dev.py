@@ -42,7 +42,7 @@ def _mask_indexing_rpc_url_parts() -> None:
     """Mask the parts of the indexing RPC URL that can hold credentials.
 
     GitHub Actions masks only a secret's whole value, but connection errors
-    from published packages can print the URL's path alone. In GitHub Actions,
+    can print the URL's path alone. In GitHub Actions,
     register the trimmed URL, its path, path segments, query, and userinfo as
     masks before any test output. Stop the run instead if libraries could print
     the URL in a form that the masks would miss.

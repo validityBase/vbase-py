@@ -257,17 +257,13 @@ forwarder-specific setting. This variable configures tests, not SDK defaults.
 
 Supply an archival RPC endpoint on the **same chain** as the forwarder's
 private node, reachable from the test runner and able to see its newly mined
-commitments. It must support `eth_getLogs` for the source package and
-`eth_newFilter` / `eth_getFilterLogs` with persistent filter state for published
-packages that use filters. Verify the provider's block-range and result limits;
-an "archive" label alone does not guarantee unrestricted event queries.
-The helper uses constructors shared by the source and published packages,
-including releases without the factory's `node_rpc_url` argument.
+commitments. It must support `eth_getLogs`. Verify the provider's block-range
+and result limits; an "archive" label alone does not guarantee unrestricted
+event queries.
 
 The helper reads `VBASE_TEST_INDEXING_N_LAST_BLOCKS` for tests of newly written
 commitments. The public-dev config sets a recent-block window; localhost tests
-leave it unset to query their short chain from genesis. A lookback cannot make
-unsupported filter methods work. See
+leave it unset to query their short chain from genesis. See
 [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
 for SDK endpoint selection and event visibility. Neither the helper nor the
 localhost readiness check verifies that two endpoints use the same chain or
@@ -319,11 +315,10 @@ only the client module. The public-dev client-only wrapper delegates to the
 public runner and requires its API key and indexing RPC configuration too.
 Both wrappers use the shared runner's signer and configuration rules.
 
-CI that runs these tests against its own forwarder must use an SDK revision
-with this runner and pass the forwarder's port as `VBASE_FORWARDER_PORT`;
-older runners hard-code port 3000. A localhost forwarder backed by the local
-test chain needs no private RPC secret, because the config supplies the local
-node URL. Direct-node tests in this repository do not use a forwarder port.
+CI that runs these tests against its own forwarder on port 8081, backed by the
+local test chain, needs only `VBASE_API_KEY`; the config supplies the port and
+the local node URL. Direct-node tests in this repository do not use a
+forwarder port.
 
 ## Public Dev Tests
 
@@ -347,8 +342,8 @@ For GitHub Actions, set these repository secrets in `validityBase/vbase-py`:
 | `VBASE_API_KEY` | Authenticates a public dev account with enough transaction credits. |
 | `VBASE_TEST_INDEXING_NODE_RPC_URL` | Full credential-bearing URL of the indexing endpoint described above. |
 
-Set the new secret through Settings → Secrets and variables → Actions, or use
-the interactive CLI prompt so the value is not stored in shell history:
+Set a secret through Settings → Secrets and variables → Actions, or use the
+interactive CLI prompt so the value is not stored in shell history:
 
 ```bash
 gh secret set VBASE_TEST_INDEXING_NODE_RPC_URL --repo validityBase/vbase-py
@@ -358,8 +353,8 @@ Both the source and PyPI public-dev workflows map this secret into the runner.
 `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY` is not needed as a secret by these
 workflows. `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL` configures direct Web3
 commitment services and does not select a forwarder test's indexing endpoint.
-GitHub masks only a secret's whole value, but connection errors from
-published packages can print the URL's path alone. In GitHub Actions,
+GitHub masks only a secret's whole value, but connection errors can print the
+URL's path alone. In GitHub Actions,
 [`run_tests_forwarder_pub_dev.py`](../../.github/scripts/run_tests_forwarder_pub_dev.py)
 therefore also masks the trimmed URL and its path, path segments, query, and
 userinfo before any test runs. Parts shorter than eight characters, such as
@@ -373,10 +368,8 @@ this.
 Do not commit RPC credentials or enable shell tracing around them.
 
 The public-dev workflows run from `main`, including manual dispatch; they do
-not run on a PR to `dev`. After the fix reaches `main` and the secrets are set,
-dispatch both workflows described in [GitHub Actions](github-actions.md).
-The PyPI workflow loads tests from the checkout while exercising the installed
-package, so this test-configuration fix does not require publishing a new SDK.
+not run on a PR to `dev`; see [GitHub Actions](github-actions.md). The PyPI
+workflow loads tests from the checkout while exercising the installed package.
 
 The indexing tests use unique object CIDs for global object lookups so old
 public-chain test data does not accumulate in those queries.
