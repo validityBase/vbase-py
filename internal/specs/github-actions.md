@@ -34,7 +34,8 @@
 
 ### `.github/workflows/run-setup-matrix.yaml`
 
-- Runs on pull requests, pushes to any branch, and manual `workflow_dispatch`.
+- Runs when a pull request is opened, updated with new commits, or reopened.
+  It can also be started manually with `workflow_dispatch`.
 - Uses pinned `actions/setup-python` with pip caching.
 - Installs build tooling and `requirements.in` without hash checking because
   generated terminal locks target Linux wheels.
