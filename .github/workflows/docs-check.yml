@@ -50,7 +50,7 @@ jobs:
 
           bad = [
               number
-              for number, line in enumerate(Path("README.md").read_text().splitlines(), 1)
+              for number, line in enumerate(Path("README.md").read_text(encoding="utf-8").splitlines(), 1)
               if re.search(r"\]\((?!https?://)[^)]*\)", line)
           ]
           for number in bad:
@@ -82,6 +82,31 @@ jobs:
             requirements/dev.txt
           python-version: "3.11"
           require-hashes: "true"
+
+      - name: Check formatter hook versions against the lock file
+        run: |
+          python - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          config = yaml.safe_load(Path(".pre-commit-config.yaml").read_text(encoding="utf-8"))
+          lock = Path("requirements/dev.txt").read_text(encoding="utf-8")
+          repositories = {repo["repo"].casefold(): str(repo.get("rev", "")) for repo in config["repos"]}
+          formatters = {"black": "https://github.com/psf/black", "isort": "https://github.com/pycqa/isort"}
+
+          errors = []
+          for package, repository in formatters.items():
+              pin = re.search(rf"^{package}==([^\s]+)", lock, re.MULTILINE)
+              revision = repositories.get(repository)
+              if pin is None or revision is None or revision.removeprefix("v") != pin[1]:
+                  expected = pin[1] if pin else "missing"
+                  errors.append(f"{package}: hook revision {revision}, lock version {expected}")
+          if errors:
+              sys.exit("\n".join(errors))
+          PY
 
       - name: Check formatting
         run: pre-commit run --all-files --show-diff-on-failure

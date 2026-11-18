@@ -14,7 +14,8 @@
 - Linux dependency verification workflows use generated hash-locked terminal
   environment requirements with `require-hashes`.
 - Cross-platform setup checks install from source requirement ranges because the
-  generated lock hashes target Linux wheels.
+  generated locks are resolved on Linux and omit dependencies that only macOS
+  or Windows need.
 - Secrets must come from GitHub Secrets or deployment configuration, never from committed files or logs.
 
 ## Workflows
@@ -26,7 +27,15 @@
 - Installs the package without dependency resolution before the Sphinx build.
 - Runs the link checker weekly as well as on pull requests; checks Markdown and Sphinx source links, including fragments, while excluding local and placeholder URLs.
 - Rejects relative Markdown links in `README.md`, which PyPI renders outside this repository.
-- The formatting job uses the Black and isort versions in `requirements/dev.txt` through pre-commit's local hooks.
+- The formatting job checks that the isolated Black and isort hook revisions
+  match `requirements/dev.txt`, then runs all pre-commit hooks.
+
+### `.github/workflows/run-pylint.yaml`
+
+- Runs on pull requests and pushes to `main` and `dev`.
+- Installs `requirements/dev.txt` through `setup-python-deps@v2` with Python
+  3.11 and `require-hashes: "true"`.
+- Runs `pylint vbase/`.
 
 ### `.github/workflows/python-dependency-locks.yml`
 
@@ -50,7 +59,8 @@
 - Runs on pull requests, pushes to any branch, and manual `workflow_dispatch`.
 - Uses pinned `actions/setup-python` with pip caching.
 - Installs build tooling and `requirements.in` without hash checking because
-  generated terminal locks target Linux wheels.
+  generated locks are resolved on Linux and omit dependencies that only macOS
+  or Windows need.
 - Verifies setup across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
 - Installs the package metadata in editable mode without dependency resolution,
   runs `python -m pip check`, and imports the public `vbase` package without
@@ -75,7 +85,8 @@
 
 ### `.github/workflows/test-forwarder-pub-dev-pypi.yml`
 
-- Runs daily at 03:17 UTC and supports manual `workflow_dispatch` on `main`;
+- Runs daily on the schedule in the workflow file and supports manual
+  `workflow_dispatch` on `main`;
   it does not run on pull requests because the job requires a live dev-service
   API key.
 - Uses a sequential Ubuntu, macOS, and Windows matrix to test the latest
@@ -87,6 +98,9 @@
 - Runs the same `test_vbase_client` and `test_indexing_service` modules as the
   source-install forwarder workflow. The runner loads those test modules from
   the checkout while keeping the imported `vbase` package in site-packages.
+- Because the tests come from `main` and the package from PyPI, a test on
+  `main` that needs an unreleased SDK change fails this workflow until that
+  change is published.
 - Uses the same API key and indexing RPC secrets as the source workflow;
   the shared runner generates a fresh signer for each matrix leg.
 - Shares the source-install workflow's concurrency group because all matrix
@@ -98,7 +112,7 @@
 - Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v2`.
 - Installs `requirements/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
-- The pull-request Sphinx build above must pass before changes reach this publishing workflow.
+- Review the pull-request Sphinx check before merging documentation changes.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
 
 ### Python release workflow wrappers
@@ -108,13 +122,15 @@
 - `tag-release.yml` calls `tag-python-release.yml` for merged release PRs;
   ordinary, unmerged, and fork PRs do not publish.
 - `publish-pypi.yml` calls `build-python-release.yml` with `package-name: vbase`,
-  downloads the validated artifact and invokes the pinned PyPA publisher directly inside its existing caller-owned `pypi`
-  job, and calls `github-python-release.yml` after upload succeeds.
+  downloads the validated artifact, and invokes the pinned PyPA publisher
+  directly in its own `publish-to-pypi` job, which uses the `pypi` environment.
+  It calls `github-python-release.yml` after upload succeeds.
 - Manual dispatch accepts an optional `release-tag` and forwards it to both
   build and GitHub Release creation. An explicit tag requires dispatch from
   `main`; the selected full tag ref shares a concurrency lock with tag runs.
-- The shared workflow SHA and release-tools-ref match. Scripts and tests remain
-  in the shared-actions repository. The upload workflow filename, PyPI project,
-  environment, and OIDC trusted-publisher identity are retained.
+- The shared workflow SHA and release-tools-ref match. Scripts and tests live
+  in the shared-actions repository. Keep the upload workflow filename, PyPI
+  project, environment, and trusted-publisher identity unchanged unless the
+  PyPI trusted publisher is updated to match.
 - The runbook is [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); repository
   settings and behavior are in [pypi-releases.md](pypi-releases.md).

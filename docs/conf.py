@@ -34,20 +34,6 @@ extensions = [
     "sphinx_markdown_builder",
 ]
 
-# Add Markdown as a supported source format.
-source_suffix = [".rst", ".md"]
-
-# Configure Markdown output.
-markdown_builder_options = {
-    # Set the output folder for Markdown files.
-    "output": "docs/_build/markdown",
-}
-
-# Tell the myst_parser to generate labels for heading anchors
-# for h1 and h2 level headings
-# (corresponding to #, ## in markdown).
-myst_heading_anchors = 2
-
 
 class CustomMarkdownTranslator(MarkdownTranslatorBase):
     """Override desc headings for markdown output."""

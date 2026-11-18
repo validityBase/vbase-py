@@ -6,18 +6,12 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-added-large-files
-  - repo: local
+  # Keep formatter revisions aligned with requirements/dev.txt.
+  - repo: https://github.com/pycqa/isort
+    rev: 8.0.1
     hooks:
       - id: isort
-        name: isort
-        entry: isort
-        language: system
-        types_or: [cython, pyi, python]
-        args: ["--filter-files"]
-        require_serial: true
+  - repo: https://github.com/psf/black
+    rev: 26.10.1
+    hooks:
       - id: black
-        name: black
-        entry: black
-        language: system
-        types_or: [python, pyi]
-        require_serial: true
