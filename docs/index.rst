@@ -6,9 +6,5 @@ vBase Python SDK Documentation
    :maxdepth: 2
    :caption: Contents:
 
-   welcome
-   process
-   dataset_commitments
-   addresses
    api
    errors

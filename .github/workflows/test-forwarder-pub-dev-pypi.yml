@@ -8,8 +8,9 @@ on:
 permissions:
   contents: read
 
-# These tests use one forwarder account across all runners. Keep them in the
-# same concurrency group as the source-install workflow to avoid nonce races.
+# Every run uses the same API key and its account-level limits. Keep this
+# workflow in the source-install workflow's concurrency group so runs do not
+# overlap.
 concurrency:
   group: test-forwarder-pub-dev
   cancel-in-progress: false

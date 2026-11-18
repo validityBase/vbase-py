@@ -38,7 +38,8 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
                 before operations are rejected. Defaults to INDEXING_STALE_THRESHOLD_SECONDS.
                 Some applications are tolerant of stale index data — for example, portfolio
                 analytics that run over historical data and do not require a live index.
-                Pass a larger value, or ``math.inf`` to disable the check.
+                Pass a larger value to allow older batches, or ``math.inf`` to allow
+                a batch timestamp of any age. At least one batch timestamp is still required.
         """
         self.db_engine = create_engine(db_url)
         self.indexing_stale_threshold_seconds = indexing_stale_threshold_seconds
