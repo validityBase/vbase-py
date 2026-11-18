@@ -6,12 +6,18 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-added-large-files
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  - repo: local
     hooks:
       - id: isort
-  - repo: https://github.com/psf/black
-    rev: 87928e6d6761a4a6d22250e1fee5601b3998086e
-    hooks:
+        name: isort
+        entry: isort
+        language: system
+        types_or: [cython, pyi, python]
+        args: ["--filter-files"]
+        require_serial: true
       - id: black
-        language_version: python3
+        name: black
+        entry: black
+        language: system
+        types_or: [python, pyi]
+        require_serial: true

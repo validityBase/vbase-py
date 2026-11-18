@@ -9,7 +9,10 @@ import sys
 from sphinx_markdown_builder.translator import (
     MarkdownTranslator as MarkdownTranslatorBase,
 )
-from sphinx_markdown_builder.translator import TitleContext, pushing_context
+from sphinx_markdown_builder.translator import (
+    TitleContext,
+    pushing_context,
+)
 
 sys.path.insert(0, os.path.abspath(".."))
 
