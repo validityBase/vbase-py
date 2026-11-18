@@ -660,7 +660,7 @@ class TestSensitiveLogging(unittest.TestCase):
 
                 self.assertEqual(
                     str(raised.exception),
-                    f"Failed to connect to {_REDACTED_RPC_URL} after 1 retries",
+                    f"Failed to connect to {_REDACTED_RPC_URL} after 1 attempts",
                 )
                 # Node request errors are redacted by the provider.
                 self.assertIsInstance(

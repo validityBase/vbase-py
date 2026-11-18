@@ -21,6 +21,9 @@ pylint vbase/
 pre-commit run --all-files
 ```
 
+Pre-commit installs Black and isort in isolated environments. When updating
+either formatter, keep its hook revision aligned with `requirements/dev.txt`.
+
 `vbase/__init__.py` is intentionally ordered by public export grouping instead
 of alphabetically, so isort skips it.
 

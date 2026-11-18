@@ -11,24 +11,12 @@ from typing import Any, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from web3 import HTTPProvider, Web3
+from web3.middleware import (
+    BufferedGasEstimateMiddleware,
+    ExtraDataToPOAMiddleware,
+    SignAndSendRawMiddlewareBuilder,
+)
 from web3.types import RPCEndpoint, RPCResponse
-
-try:
-    # web3.py v7 middleware names
-    from web3.middleware import (
-        BufferedGasEstimateMiddleware as buffered_gas_estimate_middleware_compat,
-    )
-    from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware_compat
-    from web3.middleware import SignAndSendRawMiddlewareBuilder
-
-    sign_and_send_raw_middleware_compat = SignAndSendRawMiddlewareBuilder.build
-except ImportError:
-    # web3.py v6 middleware names
-    from web3.middleware import (
-        buffered_gas_estimate_middleware as buffered_gas_estimate_middleware_compat,
-        construct_sign_and_send_raw_middleware as sign_and_send_raw_middleware_compat,
-        geth_poa_middleware as geth_poa_middleware_compat,
-    )
 
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.utils.crypto_utils import hex_str_to_bytes, hex_str_to_int
@@ -106,7 +94,7 @@ class _RedactingHTTPProvider(HTTPProvider):
 
 
 # Settings for the connection retry for Web3.HTTPProvider.
-# Maximum number of retries.
+# Maximum number of connection attempts.
 _W3_CONNECTION_MAX_RETRIES = 5
 # Linear backoff in seconds.
 _W3_CONNECTION_BACKOFF = 1
@@ -149,10 +137,9 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             such as hosted node services.
         :param commitment_service_json_file_name: File name for the JSON file
             containing the CommitmentService smart contract's ABI.
-        :param inject_geth_poa_middleware: True if geth_poa_middleware or
-            ExtraDataToPOAMiddleware W3 option
-            is required to connect to the network.
-            This option is required for Polygon PoS, BNB, and other chains:
+        :param inject_geth_poa_middleware: True if the network needs web3's
+            ExtraDataToPOAMiddleware, as Polygon PoS, BNB, and other
+            proof-of-authority chains do:
             https://web3py.readthedocs.io/en/stable/middleware.html#proof-of-authority
         """
         self.node_rpc_url = node_rpc_url
@@ -193,11 +180,11 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
 
         if not connected:
             raise ConnectionError(
-                f"Failed to connect to {safe_node_rpc_url} after {retry_count} retries"
+                f"Failed to connect to {safe_node_rpc_url} after {retry_count} attempts"
             )
 
         if inject_geth_poa_middleware:
-            w3.middleware_onion.inject(geth_poa_middleware_compat, layer=0)
+            w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
         # Initialize the account, if necessary.
         # If the account is not initialized, transaction will be sent using eth_sendTransaction.
@@ -206,16 +193,19 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # using eth_sendRawTransaction.
         if private_key:
             acct = w3.eth.account.from_key(private_key)
-            w3.middleware_onion.add(sign_and_send_raw_middleware_compat(acct))
+            # The curried builder receives w3 after the account is supplied.
+            # pylint: disable=no-value-for-parameter
+            w3.middleware_onion.add(SignAndSendRawMiddlewareBuilder.build(acct))
+            # pylint: enable=no-value-for-parameter
             w3.eth.default_account = acct.address
 
         # Add gas buffer middleware to ensure txs do not run out of gas
         # due to a missed estimate.
         # This seems to happen occasionally on Polygon PoS.
         # Gas estimate middleware needs to run before signing.
-        # Currently, Web3 has a number of bugs in middleware paths.
-        # We work around them by adding middleware after signing.
-        w3.middleware_onion.add(buffered_gas_estimate_middleware_compat)
+        # Middleware added later sees requests first, so the buffer is applied
+        # before signing.
+        w3.middleware_onion.add(BufferedGasEstimateMiddleware)
 
         # Connect to the contract.
         # Web3 library is fussy about the address parameter type.

@@ -383,8 +383,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
                 request_type=RequestType.POST,
                 data={
                     "forwardRequest": forward_request,
-                    # hexbytes 1.x (shipped with web3 v7) dropped the '0x' prefix from
-                    # HexBytes.hex(); the forwarder requires it, so prepend explicitly.
+                    # bytes.hex() has no "0x" prefix, and the forwarder requires one.
                     "signature": "0x" + bytes(signature.signature).hex(),
                 },
             )
@@ -537,7 +536,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         self, user: str, set_cid: str, user_set_object_cid_sum: str
     ) -> bool:
         user = self.w3.to_checksum_address(user)
-        # verifyUserSetObjectsCidSum setObjectHashSum argument is uint256.
+        # The userSetObjectsCidSum argument of verifyUserSetObjectsCidSum is uint256.
         user_set_object_cid_sum = int(user_set_object_cid_sum, base=16)
         function_data = self.csc.encode_abi(
             "verifyUserSetObjectsCidSum",

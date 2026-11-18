@@ -47,7 +47,7 @@ class VBaseDataset(ABC):
 
     # The class is the entry point to dataset operations.
     # It has lots of instance attributes by design.
-    # Disable R0902: Too many instance attributes (8/7) (too-many-instance-attributes)
+    # Disable R0902 (too-many-instance-attributes).
     # pylint: disable=R0902
 
     def _create_new_if_necessary(
@@ -436,16 +436,16 @@ class VBaseDataset(ABC):
 
         The function should always attempt to do the right thing by default,
         but long-term options can get complex. The following work remains:
+
         - How should records with identical CIDs be treated?
         - When multiple commitments exist for a given CID, what is the order of pairing?
 
         Reads commitment receipts with :meth:`get_commitment_receipts`; see
         that method for indexing service selection.
 
-        :return: A tuple containing success and log:
-            - success: True if all record have been found in the index
-                and timestamps restored; False otherwise.
-            - l_log: A list log of verification explaining any failures.
+        :return: A tuple of success and log. success is True if every record
+            was found in the index and its timestamp restored, and False
+            otherwise. The log lists the verification failures.
         """
         success = True
         l_log = []

@@ -138,15 +138,12 @@ def add_int_uint256(n1: int, n2_hex_str: str) -> int:
 
 
 def add_uint256_uint256(n1_hex_str: str, n2_hex_str: str) -> str:
-    """Add int and uint256 with overflow and wrap-around.
-    This replicates the following sol code:
-    unchecked {
-        userSetObjectCidSums[userSetCid] += uint256(objectCid);
-    }
+    """Add two uint256 values given as hex strings, with wrap-around,
+    as Solidity's unchecked addition does.
 
     :param n1_hex_str: The first integer, passed as a hex string.
     :param n2_hex_str: The second integer, passed as a hex string.
-    :returns: The resulting uint256 sum,
+    :returns: The resulting uint256 sum as a hex string.
     """
     return hex((int(n1_hex_str, 16) + int(n2_hex_str, 16)) % (2**256))
 

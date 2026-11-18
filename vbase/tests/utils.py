@@ -20,9 +20,6 @@ _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 
 
-_LOCALHOST_RPC_ENDPOINT = "http://127.0.0.1:8545/"
-
-
 def int_to_hash(n: int) -> str:
     """Convert an integer to a hash string.
 
@@ -42,8 +39,8 @@ def create_test_indexing_service(
 ) -> Web3HTTPIndexingService:
     """Build a test indexer using an explicit RPC endpoint for forwarders.
 
-    The endpoint must serve the forwarder's chain and support the indexing
-    methods of the package under test. See internal/specs/development.md.
+    The endpoint must serve the forwarder's chain and support eth_getLogs.
+    See "Forwarder Indexing Configuration" in internal/specs/development.md.
     """
     node_rpc_url: Optional[str] = None
     if isinstance(commitment_service, ForwarderCommitmentService):

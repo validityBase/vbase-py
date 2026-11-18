@@ -14,11 +14,15 @@ for prior changes.
 
 - Link the README to the contributor and development guides instead of
   repeating development and test setup.
+- The `ConnectionError` raised when `Web3HTTPCommitmentService` cannot connect
+  counts connection attempts: `after N attempts`.
 
 ### Fixed
 
 - Correct the README's supported Python versions, indexing retry description,
   and documentation links, and update contributor setup instructions.
+- Correct docstrings that named nonexistent parameters, contract functions,
+  and events, and log the callback result in `run_pit_sim()` debug output.
 
 ### Removed
 
