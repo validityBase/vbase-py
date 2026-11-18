@@ -36,14 +36,14 @@ class VBaseDatasetAsync(VBaseDataset):
         # Use run_in_executor to run the long-running sync __init__ in a separate thread.
         # This way, the caller can await the completion of the operation
         # without blocking the event loop.
-        # A similar technique will be used for the other long-running blocking calls.
+        # The other async methods use the same technique.
         loop = asyncio.get_event_loop()
         dataset = await loop.run_in_executor(None, lambda: cls(*args, **kwargs))
         return dataset
 
     async def add_record_async(self, record_data: any) -> dict:
-        """Add a record to a VBase dataset object asynchronously.
-        Offloads add_record execution to the default event loop's executor.
+        """Add a batch of records to a VBase dataset object asynchronously.
+        Offloads add_records_batch execution to the default event loop's executor.
 
         :param record_data: The record datum.
         :return: The commitment log containing commitment receipt info.

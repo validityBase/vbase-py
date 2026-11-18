@@ -265,7 +265,7 @@ class TestVBaseDataset(unittest.TestCase):
         assert success
 
     def test_try_restore_timestamps_from_index_bad_record(self):
-        """Test try_restore_timestamps_from_index success case."""
+        """Test try_restore_timestamps_from_index with an uncommitted record."""
         dsw = create_dataset_worker(self.vbc, VBaseIntObject)
         # Record 4 commitments over 4 blocks.
         t_prev = 0

@@ -139,7 +139,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         )
 
     def _add_set_worker(self, set_cid: str, receipt: TxReceipt) -> dict:
-        """Process results of a addSect transaction.
+        """Process the results of an addSet transaction.
 
         :param set_cid: The CID (hash) identifying the set to add.
         :param receipt: The transaction receipt.
@@ -261,9 +261,10 @@ class Web3CommitmentService(CommitmentService, ABC):
         return cl
 
     def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
-        """Process addSetObjectWithTimestampBatch transaction results.
+        """Process the results of a batch commitment transaction, such as
+        addSetsObjectsBatch or addSetObjectsBatch, from its AddObject events.
 
-        :param receipt: Transaction receipt returned by AddSetsObjectsBatch.
+        :param receipt: The transaction receipt.
         :return: The list of commitment log containing commitment receipts.
         """
         self._check_tx_success(receipt)

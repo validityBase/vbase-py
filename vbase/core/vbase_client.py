@@ -30,19 +30,12 @@ VBASE_COMMITMENT_SERVICE_TYPES = {
 class VBaseClient:
     """Provides Python validityBase (vBase) access."""
 
-    # The class is the entry point to vBase operations.
-    # It has lots of public methods by design.
-    # Disable R0904: Too many public methods (25/20) (too-many-public-methods):
-    # pylint: disable=R0904
-
     def __init__(self, commitment_service: CommitmentService):
         """Initialize a vBase object.
 
         :param commitment_service: The service for managing commitments.
             The service typically comprises a set of blockchains and smart contracts
             that support commitment operations.
-        :param **kwargs: A dictionary with keyword arguments:
-
         """
         self.commitment_service = commitment_service
 
@@ -58,11 +51,9 @@ class VBaseClient:
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
-        :param dotenv_path: Path to the .env file.
-            Below is the default treatment that should be appropriate in most scenarios:
-            - If called with no arguments, or if the default None dotenv_path is specified,
-                default to the existing environment variables.
-            - If dotenv_path is specified, attempt to load environment variables from the file.
+        :param dotenv_path: Path to a .env file. If given, environment variables
+            are loaded from the file. If None, the default, the existing
+            environment variables are used.
         :return: The constructed vBase client object.
         """
         if dotenv_path is not None:
@@ -318,7 +309,7 @@ class VBaseClient:
             LOG.debug("run_pit_sim(): > callback for t = %s", t)
             ret = callback()
             LOG.debug("run_pit_sim(): < callback for t = %s", t)
-            LOG.debug("run_pit_sim(): callback returned: %s", t)
+            LOG.debug("run_pit_sim(): callback returned: %s", ret)
             sim_records.append(ret)
         self._in_sim = False
         self._sim_t = None

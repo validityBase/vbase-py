@@ -27,7 +27,7 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
     def __init__(
         self,
         db_url: str,
-        indexing_stale_threshold_seconds: int = INDEXING_STALE_THRESHOLD_SECONDS,
+        indexing_stale_threshold_seconds: float = INDEXING_STALE_THRESHOLD_SECONDS,
     ):
         """
         Initialize the SQL indexing service.
@@ -38,7 +38,7 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
                 before operations are rejected. Defaults to INDEXING_STALE_THRESHOLD_SECONDS.
                 Some applications are tolerant of stale index data — for example, portfolio
                 analytics that run over historical data and do not require a live index.
-                Pass a larger value or ``math.inf`` (cast to int) to relax this constraint.
+                Pass a larger value, or ``math.inf`` to disable the check.
         """
         self.db_engine = create_engine(db_url)
         self.indexing_stale_threshold_seconds = indexing_stale_threshold_seconds
@@ -212,7 +212,7 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
         self, object_cid: str, return_set_cid=False
     ) -> Union[dict, None]:
         """
-        Find the last object for a list of object cids.
+        Find the last commitment for an object CID.
         """
 
         object_cid = object_cid.lower()

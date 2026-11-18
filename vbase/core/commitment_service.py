@@ -33,12 +33,10 @@ class CommitmentService(ABC):
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
-        :param dotenv_path: Path to the .env file.
-            Below is the default treatment that should be appropriate in most scenarios:
-            - If called with no arguments, or if the default None dotenv_path is specified,
-                default to the existing environment variables.
-            - If dotenv_path is specified, attempt to load environment variables from the file.
-        :return: The dictionary of arguments.
+        :param dotenv_path: Path to a .env file. If given, environment variables
+            are loaded from the file. If None, the default, the existing
+            environment variables are used.
+        :return: The commitment service created.
         """
 
     @abstractmethod
@@ -179,7 +177,7 @@ class CommitmentService(ABC):
         It does not specify how a hash is built and does not provide
         a schema for hashing complex information.
 
-        :param set_cid: The hashes of the sets containing the objects.
+        :param set_cid: The CID of the set containing the objects.
         :param object_cids: The hashes to record.
         :return: The commitment logs containing commitment receipts.
         """

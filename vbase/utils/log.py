@@ -42,8 +42,9 @@ def _closing_text(match: re.Match) -> str:
     """Return the trailing punctuation of a matched URL that is surrounding text.
 
     Trailing punctuation can belong to a credential. It is surrounding text
-    when it follows a redacted path, or from the closing quote or bracket for
-    the character before the URL; the last such closer is used.
+    when it follows a redacted path, or from the closing quote, parenthesis,
+    angle bracket, or brace matching the character before the URL. After an
+    opening square bracket, the closing bracket is redacted with the path.
     """
     url = match[0]
     stripped = url.rstrip(_URL_TRAILING_PUNCTUATION)
@@ -169,8 +170,10 @@ def redact_urls(text: object) -> str:
     A URL extends to the next whitespace, so text attached to it without a
     space is redacted with it. Punctuation at the end of a URL with a path,
     query, or fragment is redacted with them, because it can belong to a
-    credential. It is kept from the closing quote or bracket for the
-    character before the URL, and after a path that is already redacted.
+    credential. It is kept from the closing quote, parenthesis, angle bracket,
+    or brace matching the character before the URL, and after a path that is
+    already redacted. After an opening square bracket, the closing bracket is
+    redacted with the path.
 
     Text from ``://`` across whitespace to the first ``@`` that precedes any
     ``/``, ``?``, or ``#`` may be a URL with whitespace in its credentials. The
