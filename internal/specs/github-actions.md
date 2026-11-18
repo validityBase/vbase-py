@@ -22,9 +22,15 @@
 - Regenerates `requirements/dev.txt`, `requirements/test.txt`, `requirements/docs.txt`, and `requirements/tools.txt`; the workflow fails if the committed lock files differ.
 - Installs `requirements/test.txt`, installs the package locally without dependency resolution, and runs `python -m pip check`.
 
+### `.github/workflows/run-pylint.yaml`
+
+- Runs on pull requests and pushes to `main`.
+- Runs `pylint vbase/` using the hash-locked development requirements and
+  Python 3.11.
+
 ### `.github/workflows/test-localhost.yml`
 
-- Runs on pull requests and pushes to `main` and `dev`.
+- Runs on pull requests and pushes to `main`.
 - Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.

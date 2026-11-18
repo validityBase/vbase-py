@@ -24,6 +24,9 @@ To contribute code or documentation, please do the following:
 - Submit a pull request for your change.
 Provide a detailed description of the changes and any supporting information.
 
+Do not push directly to `dev`. Branch from `dev` and open a pull request
+targeting `dev` so Pylint and the localhost tests run before merging.
+
 ## Development Setup
 
 From your cloned repository, use Python 3.11 (the version used to generate CI
