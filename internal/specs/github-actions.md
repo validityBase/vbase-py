@@ -15,6 +15,15 @@
 
 ## Workflows
 
+### `.github/workflows/docs-check.yml`
+
+- On pull requests and pushes to `dev`, builds Sphinx Markdown docs with warnings as errors, checks links and anchors, and runs all pre-commit hooks.
+- Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v1`.
+- Installs the package without dependency resolution before the Sphinx build.
+- Runs the link checker weekly as well as on pull requests; checks Markdown and Sphinx source links, including fragments, while excluding local and placeholder URLs.
+- Rejects relative Markdown links in `README.md`, which PyPI renders outside this repository.
+- The formatting job uses the Black and isort versions in `requirements/dev.txt` through pre-commit's local hooks.
+
 ### `.github/workflows/python-dependency-locks.yml`
 
 - Runs on pull requests, pushes to `main`, and manual `workflow_dispatch`.
@@ -85,6 +94,7 @@
 - Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
 - Installs `requirements/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
+- The pull-request Sphinx build above must pass before changes reach this publishing workflow.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
 
 ### Python release workflow wrappers
