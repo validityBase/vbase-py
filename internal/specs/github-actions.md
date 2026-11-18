@@ -29,6 +29,10 @@
 - Rejects relative Markdown links in `README.md`, which PyPI renders outside this repository.
 - The formatting job checks that the isolated Black and isort hook revisions
   match `requirements/dev.txt`, then runs all pre-commit hooks.
+- Run the same checks locally from the repository root with
+  `python3 .github/scripts/check_readme_links.py` and
+  `python .github/scripts/check_formatter_versions.py` (requires development
+  dependencies).
 
 ### `.github/workflows/run-pylint.yaml`
 

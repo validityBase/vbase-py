@@ -42,21 +42,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
       - name: Check README links are absolute for PyPI
-        run: |
-          python3 - <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          bad = [
-              number
-              for number, line in enumerate(Path("README.md").read_text(encoding="utf-8").splitlines(), 1)
-              if re.search(r"\]\((?!https?://)[^)]*\)", line)
-          ]
-          for number in bad:
-              print(f"README.md:{number}: link must use an absolute HTTP(S) URL")
-          sys.exit(bool(bad))
-          PY
+        run: python3 .github/scripts/check_readme_links.py
 
       - name: Check documentation links and anchors
         # lychee-action v2.9.0
@@ -84,29 +70,7 @@ jobs:
           require-hashes: "true"
 
       - name: Check formatter hook versions against the lock file
-        run: |
-          python - <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          import yaml
-
-          config = yaml.safe_load(Path(".pre-commit-config.yaml").read_text(encoding="utf-8"))
-          lock = Path("requirements/dev.txt").read_text(encoding="utf-8")
-          repositories = {repo["repo"].casefold(): str(repo.get("rev", "")) for repo in config["repos"]}
-          formatters = {"black": "https://github.com/psf/black", "isort": "https://github.com/pycqa/isort"}
-
-          errors = []
-          for package, repository in formatters.items():
-              pin = re.search(rf"^{package}==([^\s]+)", lock, re.MULTILINE)
-              revision = repositories.get(repository)
-              if pin is None or revision is None or revision.removeprefix("v") != pin[1]:
-                  expected = pin[1] if pin else "missing"
-                  errors.append(f"{package}: hook revision {revision}, lock version {expected}")
-          if errors:
-              sys.exit("\n".join(errors))
-          PY
+        run: python .github/scripts/check_formatter_versions.py
 
       - name: Check formatting
         run: pre-commit run --all-files --show-diff-on-failure
