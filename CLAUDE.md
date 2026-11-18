@@ -28,6 +28,10 @@ bash vbase/tests/scripts/run_tests_localhost.sh
 bash .github/scripts/run_tests_forwarder_pub_dev.sh
 ```
 
+The public-dev runner requires `VBASE_API_KEY` and
+`VBASE_TEST_INDEXING_NODE_RPC_URL`; see
+[Public Dev Tests](internal/specs/development.md#public-dev-tests).
+
 ## Internal Documentation
 
 - Agent memory: [internal/agents/memory/MEMORY.md](internal/agents/memory/MEMORY.md)

@@ -2,8 +2,9 @@
 
 ## Setup
 
-Python 3.11 is the minimum supported version. CI validates Python 3.11 through
-3.13, and generated lock files are maintained with Python 3.11 for CI parity.
+Python 3.11 is the minimum supported version. CI runs the tests and pylint on
+Python 3.11, and checks installation and import on Python 3.11 through 3.13.
+Generated lock files are maintained with Python 3.11 for CI parity.
 
 ```bash
 python -m pip install --require-hashes -r requirements/dev.txt
@@ -32,29 +33,19 @@ forwarder, or localhost commitment service.
 bash vbase/tests/scripts/run_tests_localhost.sh
 bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
 bash .github/scripts/run_tests_forwarder_pub_dev.sh
-source config/.env.localhost
-python3 -m unittest discover -s vbase/tests
 ```
 
 Forwarder Problem Details parsing follows the SDK consumer profile in
 `docs/problem-details.schema.json`. The profile deliberately remains
 forward-compatible; the Forwarder owns its producer-specific error catalog.
-The SDK checks the standard members' structure plus the vBase `code` extension
-before raising `ProblemDetailsError`. Codes contain only uppercase ASCII
-letters, digits, and underscores and are limited to 64 characters. The optional
-`details` member may be omitted, but when present it must be a JSON object.
-Responses failing these checks remain ordinary `requests.HTTPError` instances.
-
-Producers must supply RFC 3986 URI references for `type` and `instance`;
-`instance` may be omitted, but not JSON null. The SDK treats them as identifiers
-and applies lightweight checks: ASCII strings without raw whitespace/control
-characters, well-formed percent escapes, and successful `urlsplit` parsing.
-It does not certify full URI syntax or URL safety. Schema `uri-reference`
-formats are producer-contract annotations, not exhaustive runtime assertions.
-Do not add a URI-validation dependency or a custom authority/IP/port grammar.
-Parsing uses a lowercase validation copy for the IPvFuture marker; identifiers
-are preserved unchanged and are never dereferenced. Tests cover both fields,
-including the deliberate boundary between sanity checks and full validation.
+The user-facing checks for the standard members, `code`, `details`, and URI
+references are in [docs/errors.rst](../../docs/errors.rst). Schema
+`uri-reference` formats are producer-contract annotations, not exhaustive
+runtime assertions. Do not add a URI-validation dependency or a custom
+authority, IP, or port grammar. Parsing uses a lowercase validation copy for
+the IPvFuture marker; identifiers are preserved unchanged and are never
+dereferenced. Tests cover both URI fields, including the deliberate boundary
+between sanity checks and full validation.
 
 ## Environment
 
@@ -72,8 +63,8 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
 - Never log complete API keys, private keys, access tokens, credentials, or RPC
   URLs that may contain provider credentials.
 - API keys needed for diagnostic correlation use `vbase.utils.log.mask_api_key`,
-  which retains the first and last eight characters only for keys of at least
-  32 characters. Shorter keys are fully redacted.
+  which keeps a few characters at each end of long keys and fully redacts
+  short keys; its docstring states the lengths.
 - Log only whether private keys and RPC URLs are configured. Public contract
   addresses may be logged directly.
 
@@ -86,7 +77,9 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   redacts userinfo, paths, queries, and fragments. Trailing punctuation after
   a path, query, or fragment is redacted too, because it can belong to a
   credential; it is kept only after an already-redacted path or from the
-  closing quote or bracket for the character before the URL. In free text,
+  closing quote, parenthesis, angle bracket, or brace matching the character
+  before the URL. After an opening square bracket, the closing bracket is
+  redacted with the path. In free text,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
   the scheme. A malformed URL whose host part may hold credentials also keeps
@@ -162,11 +155,12 @@ limit updates this list and its short copy for Copilot code review in
   forms expected in SDK messages and in error text from requests, urllib3,
   web3, and the vBase forwarder. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` are not expected and may be only
-  partly redacted. When a quote or bracket comes before a URL, the
-  punctuation from the matching closing character onward is kept as
+  partly redacted. When a quote, parenthesis, angle bracket, or brace comes
+  before a URL, punctuation from the matching closing character onward is kept as
   surrounding text, even if that character ends a credential, because the
-  text does not show which it is. Text is recognized as a URL only by its
-  scheme, so a URL without one, such as `rpc.example/v2/key`, is not
+  text does not show which it is. After an opening square bracket, the
+  closing bracket is redacted with the path. Text is recognized as a URL only
+  by its scheme, so a URL without one, such as `rpc.example/v2/key`, is not
   redacted in free text. Malformed configured forwarder and node URLs are
   covered by the rule above.
 - **Hosts and numeric ports are kept.** They identify the failing endpoint,
@@ -353,13 +347,15 @@ Both the source and PyPI public-dev workflows map this secret into the runner.
 `VBASE_COMMITMENT_SERVICE_PRIVATE_KEY` is not needed as a secret by these
 workflows. `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL` configures direct Web3
 commitment services and does not select a forwarder test's indexing endpoint.
-GitHub masks only a secret's whole value, but connection errors can print the
-URL's path alone. In GitHub Actions,
+GitHub Actions masks only a secret's whole value. The SDK reduces URLs in its
+own messages to scheme and host, but dependency output, such as urllib3 debug
+logs, can show the URL's path alone. In GitHub Actions,
 [`run_tests_forwarder_pub_dev.py`](../../.github/scripts/run_tests_forwarder_pub_dev.py)
 therefore also masks the trimmed URL and its path, path segments, query, and
-userinfo before any test runs. Parts shorter than eight characters, such as
-`v2`, are not masked. Libraries can print some characters in another form,
-for example percent-encoded, which the masks would miss. In GitHub Actions the
+userinfo before any test runs. Very short parts, such as `v2`, are not
+masked; `_MIN_MASKED_LENGTH` in the runner sets the length. Libraries can
+print some characters in another form, for example percent-encoded, which the
+masks would miss. In GitHub Actions the
 runner therefore accepts only an `http` or `https` URL without a fragment
 whose user name, password, path, and query use letters, digits, and
 `-._~/=&`. For any other URL it stops before the first test without showing

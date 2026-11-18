@@ -7,8 +7,11 @@ environment locks.
 published runtime dependencies must stay abstract and resolver-friendly. Prefer
 lower bounds plus compatibility ceilings where safe, and reserve exact
 resolutions for terminal environment locks. CI, tests, docs publishing, and lock
-tooling are terminal environments owned by this repo, so those installs use pip
-hash-checking mode for reproducibility.
+tooling are terminal environments owned by this repo. Their locked CI jobs use
+pip hash-checking mode for reproducibility. The setup matrix installs runtime
+ranges across platforms without hashes; the PyPI public-dev workflow installs
+`requirements/test.in` without hashes before the published package (see
+[GitHub Actions](github-actions.md)).
 
 Python 3.11 is the package minimum. Lock files are generated with Python 3.11
 for CI parity and represent the CI install environment. The setup matrix
@@ -22,8 +25,10 @@ install a published PyPI artifact.
   hash-locked pins.
 - `requirements/ci-constraints.in` is the human-edited version constraint shared
   by the development, test, and docs lock inputs. It pins Web3 for the
-  repository's CI environments without changing the published SDK requirement.
-- `requirements/dev.in` is the human-edited development environment input.
+  development, test, and docs locks without changing the published SDK
+  requirement.
+- `requirements/dev.in` is the human-edited development environment input. It
+  includes `requirements.in`, `ci-constraints.in`, and `tools.in`.
 - `requirements/dev.txt` is generated from `requirements/dev.in` and
   includes runtime and development dependencies with hashes.
 - `requirements/test.in` is the human-edited test environment input.
@@ -71,6 +76,17 @@ To add or update a development dependency:
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
 ```
 
+To add or update a test dependency, edit `requirements/test.in` and the same
+line in `requirements/dev.in`, then regenerate both locks:
+
+```bash
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/test.txt requirements/test.in
+```
+
+The PyPI public-dev workflow installs `test.in` directly without hashes, so
+the change also reaches that workflow.
+
 To add or update a docs dependency:
 
 ```bash
@@ -79,12 +95,15 @@ pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.
 ```
 
 To update the lock-generation tooling, edit the pinned `pip-tools==...`
-constraint in `requirements/tools.in`, then regenerate
-`requirements/tools.txt`.
+constraint in `requirements/tools.in`, then regenerate both
+`requirements/tools.txt` and `requirements/dev.txt` because `dev.in` includes
+`tools.in`.
 
 ```bash
 # edit the pip-tools==... pin in requirements/tools.in
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/tools.txt requirements/tools.in
+python -m pip install --require-hashes -r requirements/tools.txt
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
 ```
 
 Install local development dependencies from the generated lock:
