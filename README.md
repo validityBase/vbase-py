@@ -2,7 +2,7 @@
 
 vBase Python Software Development Kit (SDK)
 
-- Python 3.11+ support
+- Python 3.11 through 3.13
 
 ---
 
@@ -35,16 +35,17 @@ Install the package from PyPI:
 pip install vbase
 ```
 
-See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart-1) and the [cloud notebooks](https://docs.vbase.com/python-sdk/python-quickstart-readme/quickstart) guides to get started using vBase from Python.
+See the [local installation](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart-1) and the [cloud notebooks](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart) guides to get started using vBase from Python.
 
 ## Indexing and Node Requirements
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each query runs from a start block to the
-latest block. Queries that fail with a connection error or a JSON-RPC error
-from the node are retried with exponential backoff, and the last error is
-raised if all attempts fail. Other errors, such as invalid query arguments, are
-raised without a retry.
+latest block. Queries that fail with a transport error, such as a refused
+connection, a timeout, or an HTTP error status, or with a JSON-RPC error from
+the node, are retried with exponential backoff, and the last error is raised if
+all attempts fail. Other errors, such as invalid query arguments, are raised
+without a retry.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the
@@ -54,7 +55,8 @@ node URL. Supply your own archival RPC endpoint when the public node cannot
 support indexing. Results depend on the endpoint:
 
 - Many public endpoints limit the block range or result count of an
-  `eth_getLogs` request. Full-history queries can fail on these endpoints.
+  `eth_getLogs` request, and a provider's "archive" label alone does not
+  guarantee suitable limits. Full-history queries can fail on these endpoints.
   Limit the range with `n_last_blocks`, or use a node without these limits.
 - If the endpoint has not yet reached a commitment's block, query results do
   not include that commitment.
@@ -86,53 +88,9 @@ a configured indexing service to that attribute first.
 For large histories, use an indexer that does not query the node directly,
 such as `SQLIndexingService`.
 
-Releases before 2.1.0 use `eth_newFilter` and `eth_getFilterLogs` instead of
-`eth_getLogs`, so they need an endpoint that supports those methods and
-preserves filter state between requests. A provider's "archive" label alone
-does not guarantee suitable block-range or result limits.
-
 ## Development
 
-Install the generated development lock and package locally:
-
-```bash
-python -m pip install --require-hashes -r requirements/dev.txt
-python -m pip install --no-deps --no-build-isolation -e .
-```
-
-See `internal/specs/python-dependency-hashes.md` in this repository for the
-dependency layout, lock policy, package metadata rules, and regeneration
-commands.
-
-### Forwarder integration tests
-
-The tests use `VBASE_TEST_INDEXING_NODE_RPC_URL` for indexing and obtain the
-contract address from the forwarder. This is test configuration; setting it
-does not change SDK defaults in an application.
-
-For a forwarder and commitment-service node on this machine:
-
-```bash
-export VBASE_API_KEY="<key accepted by the localhost forwarder>"
-bash vbase/tests/scripts/run_tests_forwarder_localhost.sh
-```
-
-The localhost config expects the forwarder on port 8081 and the node on port
-8545, so port 3000 can remain occupied by another service. If the forwarder
-listens on another port, set `VBASE_FORWARDER_PORT` to that port. If it uses a
-remote chain, set `VBASE_TEST_INDEXING_NODE_RPC_URL` to an archival endpoint
-on that chain.
-
-For the public dev service:
-
-```bash
-export VBASE_API_KEY="<public dev API key>"
-export VBASE_TEST_INDEXING_NODE_RPC_URL="<archival RPC URL on the dev chain>"
-bash .github/scripts/run_tests_forwarder_pub_dev.sh
-```
-
-Both public-dev GitHub workflows require secrets with these names. The
-runner generates its own signer, so no signer-private-key secret is needed.
-The PyPI workflow runs checkout tests against the installed package. See the
-[development guide](https://github.com/validityBase/vbase-py/blob/main/internal/specs/development.md#forwarder-indexing-configuration)
-for node requirements, secret setup, and source/PyPI test behavior.
+See [CONTRIBUTING.md](https://github.com/validityBase/vbase-py/blob/main/CONTRIBUTING.md)
+to set up a development environment and run the tests, and the
+[development guide](https://github.com/validityBase/vbase-py/blob/main/internal/specs/development.md)
+for test configuration.

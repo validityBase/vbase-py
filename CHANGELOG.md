@@ -10,6 +10,21 @@ for prior changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Link the README to the contributor and development guides instead of
+  repeating development and test setup.
+
+### Fixed
+
+- Correct the README's supported Python versions, indexing retry description,
+  and documentation links, and update contributor setup instructions.
+
+### Removed
+
+- Remove `environment.yml`, which listed dependencies that no longer match
+  the package.
+
 ## [2.1.0] - 2026-11-13
 
 ### Added
