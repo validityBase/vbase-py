@@ -18,7 +18,7 @@ for prior changes.
 ### Fixed
 
 - Correct docstrings that named nonexistent parameters, contract functions,
-  and events, and log the callback result type in `run_pit_sim()` debug output.
+  and events, and log the callback result in `run_pit_sim()` debug output.
 
 ## [2.1.0] - 2026-11-13
 

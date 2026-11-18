@@ -309,7 +309,10 @@ class VBaseClient:
             LOG.debug("run_pit_sim(): > callback for t = %s", t)
             ret = callback()
             LOG.debug("run_pit_sim(): < callback for t = %s", t)
-            LOG.debug("run_pit_sim(): callback returned type: %s", type(ret).__name__)
+            # Callbacks compute non-sensitive portfolio statistics or data-science
+            # transformations. Their results are intentionally included in DEBUG
+            # logs; credentials and connection settings are outside this contract.
+            LOG.debug("run_pit_sim(): callback returned: %s", ret)
             sim_records.append(ret)
         self._in_sim = False
         self._sim_t = None
