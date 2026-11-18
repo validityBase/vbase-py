@@ -39,7 +39,8 @@ for the integration tests' explicit RPC selection.
 ## Client
 
 `vbase/core/vbase_client.py` exposes `VBaseClient`, the main entry point for
-SDK users. It wraps commitment and indexing services behind a user-facing API.
+SDK users. It wraps a commitment service behind a user-facing API. Indexing
+services are separate objects; see [Indexing Services](#indexing-services).
 
 ## Data Objects
 
@@ -56,8 +57,9 @@ for non-blocking dataset operations.
 ## Set Matching
 
 `vbase/core/set_matching/` provides reverse lookup services for finding sets
-whose commitments match a list of object CIDs and timestamps. The chain service
-combines head-based and fuzzy matching strategies.
+whose commitments match a list of object CIDs and timestamps.
+`ChainSetMatchingService` runs a list of matching services, such as the
+head-based and fuzzy services, in order and returns the first non-empty result.
 
 ## ABIs
 
