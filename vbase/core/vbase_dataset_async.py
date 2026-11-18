@@ -42,8 +42,8 @@ class VBaseDatasetAsync(VBaseDataset):
         return dataset
 
     async def add_record_async(self, record_data: any) -> dict:
-        """Add a batch of records to a VBase dataset object asynchronously.
-        Offloads add_records_batch execution to the default event loop's executor.
+        """Add a record to a VBase dataset object asynchronously.
+        Offloads add_record execution to the default event loop's executor.
 
         :param record_data: The record datum.
         :return: The commitment log containing commitment receipt info.
@@ -53,8 +53,8 @@ class VBaseDatasetAsync(VBaseDataset):
         return cl
 
     async def add_records_batch_async(self, record_data_list: List[any]) -> List[dict]:
-        """Add a record to a VBase dataset object asynchronously.
-        Offloads add_record execution to the default event loop's executor.
+        """Add a batch of records to a VBase dataset object asynchronously.
+        Offloads add_records_batch execution to the default event loop's executor.
 
         :param record_data_list: The list of records' data.
         :return: The commitment log list containing commitment receipts.
