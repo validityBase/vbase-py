@@ -35,7 +35,19 @@ Install the package from PyPI:
 pip install vbase
 ```
 
-See the [local installation](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart-1) and the [cloud notebooks](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart) guides to get started using vBase from Python.
+Use the SDK to compute a content identifier (CID) for a record locally. This
+example requires no account or network connection.
+
+```python
+from vbase import VBaseStringObject
+
+record = VBaseStringObject("hello, vBase")
+print(record.get_cid())
+```
+
+For examples that use the hosted vBase API through the separate `vbase-api`
+Python package, see the [local quickstart](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart-1)
+and the [Google Colab quickstart](https://docs.vbase.com/python-blockchain-sdk-vbase-advanced/python-quickstart-readme/quickstart).
 
 ## Indexing and Node Requirements
 
