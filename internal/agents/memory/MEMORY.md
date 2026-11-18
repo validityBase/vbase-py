@@ -17,9 +17,10 @@ matching utilities for auditable data provenance workflows.
 - Third-party GitHub Actions are pinned to full commit SHAs.
 - Shared vBase-owned release workflows and composite actions are pinned by full
   commit SHA; each release-tools-ref matches its workflow SHA. Non-release
-  workflows may use reviewed shared release tags such as `@v1`.
-- Python dependency setup uses `validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1`.
-- Documentation publishing delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
+  workflows use the newest reviewed stable major release tag, currently `@v2`;
+  see `internal/specs/github-actions.md` for the update policy.
+- Python dependency setup uses `validityBase/vbase-github-actions/.github/actions/setup-python-deps@v2`.
+- Documentation publishing delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v2`.
 - Test and docs workflows install hashed requirements with `require-hashes`.
 - `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
   without hashes across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
