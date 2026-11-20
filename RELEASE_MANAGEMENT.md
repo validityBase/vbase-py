@@ -102,6 +102,7 @@ git merge-base --is-ancestor origin/main origin/dev && echo synced
 | Check | What the check establishes | Limit |
 | --- | --- | --- |
 | Inspect the `[Unreleased]` entries. | The changelog contains release notes. | A reviewer must check their accuracy against the source changes. |
+| Review docs, docstrings, and comments changed since the previous tag against the code. | Release-facing explanations agree with the implementation. | Automated checks cannot establish every behavioral claim. |
 | Run the release tools in a disposable copy. | The tested version and changelog pass local preparation and validation. | This does not test GitHub permissions, PyPI authorization, or uploads. |
 | Review the Release PR's CI results. | The checks that ran passed for the tested commit. | Passing checks do not establish that every release path works. |
 | Follow the shared runbook's publication checks. | The checks can establish whether the published files, version, release notes, and installed package match the release. | These checks require an actual publication. |

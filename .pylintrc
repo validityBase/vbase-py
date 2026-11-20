@@ -1,4 +1,9 @@
 
+[MAIN]
+
+# Validate documented parameter names without requiring every parameter to be documented.
+load-plugins=pylint.extensions.docparams
+
 [BASIC]
 
 # Good variable names which should always be accepted, separated by a comma.
