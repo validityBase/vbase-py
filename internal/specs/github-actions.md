@@ -26,11 +26,12 @@
 - Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v2`.
 - Installs the package without dependency resolution before the Sphinx build.
 - Runs the link checker weekly as well as on pull requests; checks Markdown and Sphinx source links, including fragments, while excluding local and placeholder URLs.
-- Rejects relative Markdown links in `README.md`, which PyPI renders outside this repository.
+- The docs job parses Markdown links and images in `README.md` and requires
+  absolute HTTP(S) URLs for PyPI, including for reference-style links.
 - The formatting job checks that the isolated Black and isort hook revisions
   match `requirements/dev.txt`, then runs all pre-commit hooks.
 - Run the same checks locally from the repository root with
-  `python3 .github/scripts/check_readme_links.py` and
+  `python .github/scripts/check_readme_links.py` (requires docs dependencies) and
   `python .github/scripts/check_formatter_versions.py` (requires development
   dependencies).
 
