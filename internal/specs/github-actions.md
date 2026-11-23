@@ -5,7 +5,11 @@
 - Third-party actions are pinned by full commit SHA for reproducibility.
 - Shared vBase-owned release workflows and composite actions are pinned by full
   commit SHA; each release-tools-ref matches its workflow SHA. Non-release
-  workflows may use reviewed shared release tags such as `@v1`.
+  workflows use the newest reviewed stable major release tag of
+  `validityBase/vbase-github-actions`, currently `@v2`. Review release
+  notes and compatibility before moving to a newer major line; keep references
+  consistent across this repository. Do not reference `main` or an unreviewed
+  release tag.
 - Workflow permissions are declared explicitly and kept minimal.
 - Linux dependency verification workflows use generated hash-locked terminal
   environment requirements with `require-hashes`.
@@ -16,10 +20,28 @@
 
 ## Workflows
 
+### `.github/workflows/docs-check.yml`
+
+- On pull requests and pushes to `dev`, builds Sphinx Markdown docs with warnings as errors, checks links and anchors, and runs all pre-commit hooks.
+- Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v2`.
+- Installs the package without dependency resolution before the Sphinx build.
+- The `links` job checks Markdown and reStructuredText sources plus generated
+  Sphinx HTML on pull requests, pushes to `dev`, and weekly on the default
+  branch. Checking the HTML covers relative reStructuredText links and
+  fragments. Lychee skips loopback hosts and placeholder URLs.
+- The `docs` job checks that links and images in the rendered `README.md` use
+  absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
+- The formatting job checks that the isolated Black and isort hook revisions
+  match `requirements/dev.txt`, then runs all pre-commit hooks.
+- Run the same checks locally from the repository root with
+  `python .github/scripts/check_readme_links.py` (requires docs dependencies) and
+  `python .github/scripts/check_formatter_versions.py` (requires development
+  dependencies).
+
 ### `.github/workflows/python-dependency-locks.yml`
 
 - Runs on pull requests, pushes to `main`, and manual `workflow_dispatch`.
-- Installs `requirements/tools.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
+- Installs `requirements/tools.txt` through `setup-python-deps@v2` with Python 3.11 and `require-hashes: "true"`.
 - Regenerates `requirements/dev.txt`, `requirements/test.txt`, `requirements/docs.txt`, and `requirements/tools.txt`; the workflow fails if the committed lock files differ.
 - Installs `requirements/test.txt`, installs the package locally without dependency resolution, and runs `python -m pip check`.
 
@@ -27,7 +49,7 @@
 
 - Runs on every pull request, including pull requests into `dev`, and on
   pushes to `main`.
-- Installs `requirements/dev.txt` through `setup-python-deps@v1` with Python
+- Installs `requirements/dev.txt` through `setup-python-deps@v2` with Python
   3.11 and `require-hashes: "true"`.
 - Runs `pylint vbase/`.
 
@@ -36,7 +58,7 @@
 - Runs on every pull request, including pull requests into `dev`, and on
   pushes to `main`.
 - Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
-- Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
+- Installs `requirements/test.txt` through `setup-python-deps@v2` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
 - These are direct-node tests. Localhost forwarder tests run in the
   forwarder service's CI; see [Localhost Forwarder Tests](development.md#localhost-forwarder-tests)
@@ -59,7 +81,7 @@
 
 - Runs on pushes to `main` and manual `workflow_dispatch` on `main`; it does
   not run on pull requests because the job requires a live dev-service API key.
-- Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
+- Installs `requirements/test.txt` through `setup-python-deps@v2` with Python 3.11 and `require-hashes: "true"`.
 - Runs the forwarder tests against the public dev service using `VBASE_API_KEY`
   and `VBASE_TEST_INDEXING_NODE_RPC_URL` from GitHub Actions secrets. See
   [Public Dev Tests](development.md#public-dev-tests) for configuration.
@@ -80,7 +102,7 @@
   API key.
 - Uses a sequential Ubuntu, macOS, and Windows matrix to test the latest
   published `vbase` package from PyPI against the public dev forwarder.
-- Uses the shared `setup-python-deps@v1` action to install the cross-platform
+- Uses the shared `setup-python-deps@v2` action to install the cross-platform
   `requirements/test.in` input with `require-hashes: false`, then runs
   `python -m pip install --upgrade vbase` so the job exercises the package
   users install rather than the repository checkout.
@@ -98,9 +120,10 @@
 ### `.github/workflows/update-main-docs.yml`
 
 - Runs on pushes to `main` and manual dispatch.
-- Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
+- Delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v2`.
 - Installs `requirements/docs.txt` with `require-hashes: true`.
 - Builds Sphinx Markdown docs into `docs/_build/markdown`.
+- Review the pull-request Sphinx check before merging documentation changes.
 - Publishes to the central docs repository using `DOCS_REPO_ACCESS_TOKEN`.
 
 ### Python release workflow wrappers

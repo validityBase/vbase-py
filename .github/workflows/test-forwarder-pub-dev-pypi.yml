@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
       - name: Install test dependencies
-        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v2
         with:
           requirements-files: |
             requirements/test.in
