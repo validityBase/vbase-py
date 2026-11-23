@@ -6,11 +6,13 @@ accessing committed data precisely as it existed historically.
 import logging
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
 
 import vbase.core.vbase_client
+from vbase.core.commitment_service import CommitmentService
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseIntObject
 from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
@@ -73,6 +75,26 @@ class TestSim(unittest.TestCase):
         s_sim = self.vbc.run_pit_sim(ts=pd.DatetimeIndex(ts), callback=callback)
         _LOG.info("self.vbase.run_pit_sim(): ret =\n%s", s_sim)
         assert s_sim.equals(pd.Series(np.array(range(1, 6)) ** 2, index=ts))
+
+
+class TestSimState(unittest.TestCase):
+    """Test the simulation state of VBaseClient without a commitment service."""
+
+    def test_callback_error_leaves_simulation_mode(self):
+        """A callback error propagates, and the client leaves simulation mode."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        ts = pd.date_range("2023-01-01", periods=3, freq="D", tz="UTC")
+
+        def callback():
+            if vbc.get_sim_t() == ts[1]:
+                raise ValueError("callback failed")
+            return 1
+
+        with self.assertRaisesRegex(ValueError, "callback failed"):
+            vbc.run_pit_sim(ts=ts, callback=callback)
+
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
 
 
 if __name__ == "__main__":

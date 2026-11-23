@@ -23,6 +23,9 @@ for prior changes.
   and documentation links, and update contributor setup instructions.
 - Correct docstrings that named nonexistent parameters, contract functions,
   and events, and log the callback result in `run_pit_sim()` debug output.
+- Leave simulation mode when a `VBaseClient.run_pit_sim()` callback raises.
+  Later `VBaseDataset` reads on the same client no longer return only the
+  records up to the failed simulation time.
 
 ### Removed
 

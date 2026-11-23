@@ -304,16 +304,20 @@ class VBaseClient:
         """
         sim_records = []
         self._in_sim = True
-        for t in ts:
-            self._sim_t = t
-            LOG.debug("run_pit_sim(): > callback for t = %s", t)
-            ret = callback()
-            LOG.debug("run_pit_sim(): < callback for t = %s", t)
-            # Callbacks compute non-sensitive portfolio statistics or data-science
-            # transformations. Their results are intentionally included in DEBUG
-            # logs; credentials and connection settings are outside this contract.
-            LOG.debug("run_pit_sim(): callback returned: %s", ret)
-            sim_records.append(ret)
-        self._in_sim = False
-        self._sim_t = None
+        try:
+            for t in ts:
+                self._sim_t = t
+                LOG.debug("run_pit_sim(): > callback for t = %s", t)
+                ret = callback()
+                LOG.debug("run_pit_sim(): < callback for t = %s", t)
+                # Callbacks compute non-sensitive portfolio statistics or data-science
+                # transformations. Their results are intentionally included in DEBUG
+                # logs; credentials and connection settings are outside this contract.
+                LOG.debug("run_pit_sim(): callback returned: %s", ret)
+                sim_records.append(ret)
+        finally:
+            # Leave simulation mode even if a callback raises, so that later
+            # dataset reads are not limited to the last simulation time.
+            self._in_sim = False
+            self._sim_t = None
         return pd.Series(sim_records, index=ts)
