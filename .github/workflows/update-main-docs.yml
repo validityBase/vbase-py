@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   update-main-docs:
-    uses: validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1
+    uses: validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v2
     with:
       python-version: "3.11"
       requirements-files: |

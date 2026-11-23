@@ -150,6 +150,7 @@ class IndexingService(ABC):
 
         :param user: The address for the user who made the commitments.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all user object commitments.
         """
         raise NotImplementedError()
@@ -182,6 +183,7 @@ class IndexingService(ABC):
 
         :param object_cids: The CIDs for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
@@ -194,6 +196,7 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
@@ -207,6 +210,7 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the object for search.
         :param return_set_cid: If True, return the set CIDs, if any, for the object.
+        :type return_set_cid: bool
         :return: The commitment receipt for the last/latest object commitment.
         """
         raise NotImplementedError()
