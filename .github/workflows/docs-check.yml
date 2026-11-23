@@ -46,6 +46,20 @@ jobs:
         # actions/checkout v5.0.1
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
+      - name: Install documentation dependencies
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v2
+        with:
+          requirements-files: |
+            requirements/docs.txt
+          python-version: "3.11"
+          require-hashes: "true"
+
+      - name: Install package without resolving dependencies
+        run: python -m pip install --no-deps --no-build-isolation -e .
+
+      - name: Build Sphinx HTML for link checks
+        run: sphinx-build -W --keep-going -b html docs/ "$RUNNER_TEMP/sphinx-html"
+
       - name: Check documentation links and anchors
         # lychee-action v2.9.0
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
@@ -54,6 +68,10 @@ jobs:
             --root-dir . --include-fragments --no-progress
             --exclude-loopback --exclude '<[^>]+>'
             '*.md' 'docs/*.rst' 'internal/**/*.md'
+            '${{ runner.temp }}/sphinx-html/**/*.html'
+
+      - name: Verify broken reStructuredText links are detected
+        run: python -m unittest discover -s .github/scripts -p test_sphinx_links.py
 
   formatting:
     if: github.event_name != 'schedule'

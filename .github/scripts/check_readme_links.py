@@ -1,38 +1,50 @@
-"""Check Markdown link destinations in the PyPI README."""
+"""Check link and image destinations in the rendered PyPI README."""
 
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from markdown_it import MarkdownIt
 
 
-def invalid_destinations(markdown: str) -> list[tuple[int, str]]:
-    """Return the source block line and URL for invalid Markdown destinations."""
-    invalid = []
-    for block in MarkdownIt("commonmark").parse(markdown):
-        if block.map is None:
-            continue
-        for token in block.children or ():
-            attribute = {"link_open": "href", "image": "src"}.get(token.type)
-            if attribute is None:
+class _ReadmeLinks(HTMLParser):
+    """Collect invalid destinations from rendered links and images."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.invalid: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        attribute = {"a": "href", "img": "src"}.get(tag)
+        if attribute is None:
+            return
+        for name, value in attrs:
+            if name != attribute:
                 continue
-            destination = token.attrGet(attribute) or ""
+            destination = value or ""
             try:
                 url = urlsplit(destination)
                 if url.scheme in ("http", "https") and url.hostname:
                     continue
             except ValueError:
                 pass
-            invalid.append((block.map[0] + 1, destination))
-    return invalid
+            self.invalid.append(destination)
+
+
+def invalid_destinations(markdown: str) -> list[str]:
+    """Return invalid destinations from Markdown and raw HTML."""
+    parser = _ReadmeLinks()
+    parser.feed(MarkdownIt("commonmark").render(markdown))
+    parser.close()
+    return parser.invalid
 
 
 def main() -> int:
-    """Report Markdown links and images that lack an absolute HTTP(S) URL."""
+    """Report links and images that lack an absolute HTTP(S) URL."""
     readme = Path("README.md").read_text(encoding="utf-8")
     invalid = invalid_destinations(readme)
-    for number, destination in invalid:
-        print(f"README.md:{number}: use an absolute HTTP(S) URL for {destination!r}")
+    for destination in invalid:
+        print(f"README.md: use an absolute HTTP(S) URL for {destination!r}")
     return int(bool(invalid))
 
 

@@ -1,7 +1,7 @@
 
 [MAIN]
 
-# Validate documented parameter names without requiring every parameter to be documented.
+# Check parameter names and types; allow functions with no parameter documentation.
 load-plugins=pylint.extensions.docparams
 
 [BASIC]

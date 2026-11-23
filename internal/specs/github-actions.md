@@ -6,7 +6,7 @@
 - Shared vBase-owned release workflows and composite actions are pinned by full
   commit SHA; each release-tools-ref matches its workflow SHA. Non-release
   workflows use the newest reviewed stable major release tag of
-  `validityBase/vbase-github-actions`, currently `@v2` (v2.1.1). Review release
+  `validityBase/vbase-github-actions`, currently `@v2`. Review release
   notes and compatibility before moving to a newer major line; keep references
   consistent across this repository. Do not reference `main` or an unreviewed
   release tag.
@@ -25,9 +25,12 @@
 - On pull requests and pushes to `dev`, builds Sphinx Markdown docs with warnings as errors, checks links and anchors, and runs all pre-commit hooks.
 - Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v2`.
 - Installs the package without dependency resolution before the Sphinx build.
-- Runs the link checker weekly as well as on pull requests; checks Markdown and Sphinx source links, including fragments, while excluding local and placeholder URLs.
-- The docs job parses Markdown links and images in `README.md` and requires
-  absolute HTTP(S) URLs for PyPI, including for reference-style links.
+- The `links` job checks Markdown and reStructuredText sources plus generated
+  Sphinx HTML on pull requests, pushes to `dev`, and weekly on the default
+  branch. Checking the HTML covers relative reStructuredText links and
+  fragments. Lychee skips loopback hosts and placeholder URLs.
+- The `docs` job checks that links and images in the rendered `README.md` use
+  absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
 - The formatting job checks that the isolated Black and isort hook revisions
   match `requirements/dev.txt`, then runs all pre-commit hooks.
 - Run the same checks locally from the repository root with
