@@ -53,20 +53,28 @@ Merge that Release PR only when you are ready to publish.
 
 After `[Unreleased]` has user-facing entries, run the same release tool pinned
 by `prepare-release.yml` in a temporary clone. Use Python 3.11 with `build`
-installed and choose the increment you plan to use in Prepare release:
+installed and choose the increment you plan to use in Prepare release. The
+commands clone `main` from GitHub, the branch that Prepare release uses, so
+changes not yet merged into `main` are not tested. They run in a subshell from
+any directory, stop at the first failed command, and remove the temporary
+clone when they finish:
 
 ```bash
-REF=$(sed -n 's/^ *release-tools-ref: //p' .github/workflows/prepare-release.yml)
-WORK=$(mktemp -d)
-git clone --quiet https://github.com/validityBase/vbase-py "$WORK/vbase-py"
-git clone --quiet https://github.com/validityBase/vbase-github-actions "$WORK/tools"
-git -C "$WORK/tools" checkout --quiet "$REF"
-TOOL="$WORK/tools/.github/actions/python-release/scripts/release.py"
-VERSION=$(python3.11 "$TOOL" prepare --root "$WORK/vbase-py" --version-file vbase/_version.py --bump patch --notes-file "$WORK/notes.md")
-python3.11 -m build --outdir "$WORK/dist" "$WORK/vbase-py"
-python3.11 "$TOOL" validate --root "$WORK/vbase-py" --version-file vbase/_version.py --tag "v$VERSION" --dist-dir "$WORK/dist" --package-name vbase
-cat "$WORK/notes.md"
-rm -rf "$WORK"
+(
+  set -euo pipefail
+  WORK=$(mktemp -d)
+  trap 'rm -rf "$WORK"' EXIT
+  git clone --quiet https://github.com/validityBase/vbase-py "$WORK/vbase-py"
+  REF=$(sed -n 's/^ *release-tools-ref: //p' "$WORK/vbase-py/.github/workflows/prepare-release.yml")
+  [ -n "$REF" ] || { echo "release-tools-ref not found" >&2; exit 1; }
+  git clone --quiet https://github.com/validityBase/vbase-github-actions "$WORK/tools"
+  git -C "$WORK/tools" checkout --quiet "$REF"
+  TOOL="$WORK/tools/.github/actions/python-release/scripts/release.py"
+  VERSION=$(python3.11 "$TOOL" prepare --root "$WORK/vbase-py" --version-file vbase/_version.py --bump patch --notes-file "$WORK/notes.md")
+  python3.11 -m build --outdir "$WORK/dist" "$WORK/vbase-py"
+  python3.11 "$TOOL" validate --root "$WORK/vbase-py" --version-file vbase/_version.py --tag "v$VERSION" --dist-dir "$WORK/dist" --package-name vbase
+  cat "$WORK/notes.md"
+)
 ```
 
 Replace `patch` with `minor` or `major` when appropriate. `prepare` stops if

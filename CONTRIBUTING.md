@@ -60,13 +60,17 @@ then start the service and run the tests:
 
 ```bash
 docker login ghcr.io
-docker run -d -p 127.0.0.1:8545:8545 --name commitment-service ghcr.io/validitybase/commitment-service-localhost:latest
+docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name commitment-service ghcr.io/validitybase/commitment-service-localhost:latest
+sleep 10  # Wait for the test chain to start.
 bash vbase/tests/scripts/run_tests_localhost.sh
+docker stop commitment-service
 ```
 
 The port is bound to `127.0.0.1`, which is the address used by
-`config/.env.localhost`. The "Run Localhost Tests" workflow runs these tests
-on every pull request.
+`config/.env.localhost`. `--pull always` replaces a cached `latest` image with
+the current one, and `--rm` removes the container when it stops, so you can
+run the commands again. The "Run Localhost Tests" workflow runs these tests on
+every pull request.
 
 Alternatively, with authorized access to the public development forwarder and
 `VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your

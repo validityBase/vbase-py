@@ -109,8 +109,8 @@ class VBaseDatasetAsync(VBaseDataset):
         to the default event loop's executor.
 
         :return: A tuple containing success and log:
-            - success: true if all record commitments have been verified; false otherwise
-            - l_log: a list log of verification explaining any failures
+            - success: True if all record commitments have been verified; False otherwise.
+            - l_log: A list log of verification explaining any failures.
         """
         loop = asyncio.get_event_loop()
         cls = await loop.run_in_executor(None, self.verify_commitments)

@@ -77,11 +77,13 @@ pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o req
 ```
 
 To add or update a test dependency, edit `requirements/test.in` and the same
-line in `requirements/dev.in`, then regenerate both locks:
+line in `requirements/dev.in`. `requirements/docs.in` repeats some of these
+lines; if it has the line, edit it there too. Then regenerate the locks:
 
 ```bash
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
 pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/test.txt requirements/test.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.txt requirements/docs.in
 ```
 
 The PyPI public-dev workflow installs `test.in` directly without hashes, so
