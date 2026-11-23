@@ -16,13 +16,6 @@
 
 ## Workflows
 
-### `.github/workflows/run-pylint.yaml`
-
-- Runs on pull requests and pushes to `main` and `dev`.
-- Installs `requirements/dev.txt` through `setup-python-deps@v1` with Python
-  3.11 and `require-hashes: "true"`.
-- Runs `pylint vbase/`.
-
 ### `.github/workflows/python-dependency-locks.yml`
 
 - Runs on pull requests, pushes to `main`, and manual `workflow_dispatch`.
@@ -32,13 +25,16 @@
 
 ### `.github/workflows/run-pylint.yaml`
 
-- Runs on pull requests and pushes to `main`.
-- Runs `pylint vbase/` using the hash-locked development requirements and
-  Python 3.11.
+- Runs on every pull request, including pull requests into `dev`, and on
+  pushes to `main`.
+- Installs `requirements/dev.txt` through `setup-python-deps@v1` with Python
+  3.11 and `require-hashes: "true"`.
+- Runs `pylint vbase/`.
 
 ### `.github/workflows/test-localhost.yml`
 
-- Runs on pull requests and pushes to `main`.
+- Runs on every pull request, including pull requests into `dev`, and on
+  pushes to `main`.
 - Pulls `ghcr.io/validitybase/commitment-service-localhost:latest` using the workflow `GITHUB_TOKEN` with `packages: read`.
 - Installs `requirements/test.txt` through `setup-python-deps@v1` with Python 3.11 and `require-hashes: "true"`.
 - Runs the localhost test script and removes the commitment service container with `if: always()`.
