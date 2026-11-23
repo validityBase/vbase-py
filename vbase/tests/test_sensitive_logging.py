@@ -641,7 +641,7 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertIs(init_args["inject_geth_poa_middleware"], False)
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
-    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_ATTEMPTS", 1)
     @patch("vbase.core.web3_http_commitment_service.Web3")
     def test_web3_connection_failure_redacts_rpc_url(self, web3_mock, _sleep_mock):
         """Connection errors name the node host without its credentials."""
@@ -826,7 +826,7 @@ class TestSensitiveLogging(unittest.TestCase):
                 )
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
-    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_ATTEMPTS", 1)
     @patch("vbase.core.web3_http_commitment_service.Web3")
     def test_web3_connection_exception_log_redacts_rpc_url(
         self, web3_mock, _sleep_mock
@@ -926,7 +926,7 @@ class TestSensitiveLogging(unittest.TestCase):
         )
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
-    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 2)
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_ATTEMPTS", 2)
     @patch("vbase.core.web3_http_commitment_service.Web3")
     def test_web3_repeated_connection_exceptions_redact_rpc_url(
         self, web3_mock, _sleep_mock
@@ -949,7 +949,7 @@ class TestSensitiveLogging(unittest.TestCase):
         self.assertNotIn(_RPC_SECRET, "\n".join(captured.output))
 
     @patch("vbase.core.web3_http_commitment_service.time.sleep")
-    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_RETRIES", 1)
+    @patch("vbase.core.web3_http_commitment_service._W3_CONNECTION_MAX_ATTEMPTS", 1)
     def test_web3_malformed_node_url_is_redacted(self, _sleep_mock):
         """A malformed node URL fails to connect without showing its credentials."""
         # requests shows these URLs as given in its errors, which web3's

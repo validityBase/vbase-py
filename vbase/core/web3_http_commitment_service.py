@@ -95,7 +95,7 @@ class _RedactingHTTPProvider(HTTPProvider):
 
 # Settings for the connection retry for Web3.HTTPProvider.
 # Maximum number of connection attempts.
-_W3_CONNECTION_MAX_RETRIES = 5
+_W3_CONNECTION_MAX_ATTEMPTS = 5
 # Linear backoff in seconds.
 _W3_CONNECTION_BACKOFF = 1
 
@@ -150,10 +150,10 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # The URL is redacted as one complete value, because its credentials
         # can contain whitespace that would end a URL found in free text.
         safe_node_rpc_url = redact_url(self.node_rpc_url)
-        retry_count = 0
+        attempts = 0
         backoff = 0
         connected = False
-        while retry_count < _W3_CONNECTION_MAX_RETRIES:
+        while attempts < _W3_CONNECTION_MAX_ATTEMPTS:
             try:
                 w3 = Web3(_RedactingHTTPProvider(self.node_rpc_url))
                 # is_connected() returns False for requests errors, including
@@ -174,13 +174,15 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                     safe_node_rpc_url,
                     e,
                 )
-                retry_count += 1
-                backoff += _W3_CONNECTION_BACKOFF
-                time.sleep(backoff)
+                attempts += 1
+                # Wait before the next attempt, but not after the last one.
+                if attempts < _W3_CONNECTION_MAX_ATTEMPTS:
+                    backoff += _W3_CONNECTION_BACKOFF
+                    time.sleep(backoff)
 
         if not connected:
             raise ConnectionError(
-                f"Failed to connect to {safe_node_rpc_url} after {retry_count} attempts"
+                f"Failed to connect to {safe_node_rpc_url} after {attempts} attempts"
             )
 
         if inject_geth_poa_middleware:

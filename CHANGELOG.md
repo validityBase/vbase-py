@@ -26,6 +26,8 @@ for prior changes.
 - Leave simulation mode when a `VBaseClient.run_pit_sim()` callback raises.
   Later `VBaseDataset` reads on the same client no longer return only the
   records up to the failed simulation time.
+- Stop waiting after the last failed connection attempt of
+  `Web3HTTPCommitmentService`, so its `ConnectionError` is raised sooner.
 
 ### Removed
 
