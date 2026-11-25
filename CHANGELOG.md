@@ -14,6 +14,8 @@ for prior changes.
 
 - Page distinct indexed collection CIDs by user with
   `SQLIndexingService.find_user_collection_cids(user, limit=..., offset=...)`.
+- Web3 indexing services can explicitly sync finalized collection events into a
+  local SQLite file and serve the same CID pages without RPC calls on reads.
 
 ## [2.1.0] - 2026-11-13
 

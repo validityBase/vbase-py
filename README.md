@@ -52,11 +52,35 @@ Specify a limit; zero requests only the count. On unchanged data, advance the
 offset by the number of CIDs returned until reaching the total. Index updates
 during or between requests can change the count or page. The database may
 scan matching events to count them; only the count and page leave the database.
-The configured freshness check still applies. Raw Web3 and aggregate services
-do not support this query; failover can try another indexed source.
+The configured SQL freshness check still applies.
+
+For Web3, opt into a local SQLite index. Use a dedicated file and sync it in a
+worker or script, not in a page request:
+
+```python
+indexer = Web3HTTPIndexingService([commitment_service], collection_index_path="collections.sqlite")
+indexer.sync_collection_cids(block_batch_size=1000)
+page = indexer.find_user_collection_cids(user, limit=50)
+```
+
+Sync reads only `AddSetObject` logs, from genesis through each node's
+`finalized` block. It requires historical logs and support for the finalized
+block tag. Reduce the block batch size if the provider rejects a range.
+Each successful range persists its distinct user/CID pairs and checkpoint
+together. Re-run sync after an interruption. A page is unavailable until
+every configured chain/contract has finished its first sync. Later reads show
+the last committed ranges, not necessarily the current chain tip. Schedule sync
+at the freshness interval you need; `n_last_blocks` applies only to receipt queries.
+
+Reopen the same file with the same sources after restart. Configuring the
+index reads each chain ID once; page requests then make no RPC calls. A
+mismatched finalized checkpoint stops sync: verify the node and use a new
+index file if the chain was reset. Without a file, raw Web3 still raises
+`NotImplementedError`. Aggregate services do not combine independently paged
+results; failover can try another capable source.
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
-contract events with `eth_getLogs`. Each query runs from a start block to the
+contract events with `eth_getLogs`. Each receipt query runs from a start block to the
 latest block. Queries that fail with a connection error or a JSON-RPC error
 from the node are retried with exponential backoff, and the last error is
 raised if all attempts fail. Other errors, such as invalid query arguments, are

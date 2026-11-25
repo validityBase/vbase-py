@@ -4,9 +4,9 @@ from typing import List, Union
 
 import pandas as pd
 from sqlalchemy import func
-from sqlalchemy.sql.functions import count
 from sqlmodel import Session, create_engine, select
 
+from vbase.core.collection_cid_page import read_cid_page
 from vbase.core.indexing_service import CollectionCidPage, IndexingService
 
 from .models import (
@@ -85,14 +85,8 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
             .where(EventAddSetObject.user == user.lower())
             .group_by(key)
         )
-        with Session(self.db_engine) as session:
-            total = session.exec(
-                select(count()).select_from(distinct_cids.subquery())
-            ).one()
-            if not limit or offset >= total:
-                return CollectionCidPage([], total)
-            page = distinct_cids.order_by(key).offset(offset).limit(min(limit, total))
-            return CollectionCidPage(list(session.exec(page).all()), total)
+        with self.db_engine.connect() as conn:
+            return read_cid_page(conn, distinct_cids, key, limit, offset)
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """

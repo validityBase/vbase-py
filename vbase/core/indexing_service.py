@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
-from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Union, cast
 
 from dotenv import load_dotenv
@@ -15,9 +15,11 @@ from retry.api import retry_call
 from web3.contract.contract import ContractEvent
 from web3.exceptions import Web3RPCError
 
+from vbase.core.collection_cid_page import CollectionCidPage
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
+from vbase.core.web3_collection_index import Web3CollectionIndex
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import (
@@ -31,14 +33,6 @@ _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 # Retry warnings include provider errors, which can include credential-bearing URLs.
 _LOG.addFilter(RedactUrlsFilter())
-
-
-@dataclass(frozen=True)
-class CollectionCidPage:
-    """One page of indexed collection CIDs and the total before pagination."""
-
-    cids: list[str]
-    total: int
 
 
 # The indexing service will grow to have more features
@@ -254,9 +248,32 @@ class Web3HTTPIndexingService(IndexingService):
     RETRY_DELAY = 2
     RETRY_BACKOFF = 2
 
-    def __init__(self, commitment_services: List[Web3HTTPCommitmentService]):
+    def __init__(
+        self,
+        commitment_services: List[Web3HTTPCommitmentService],
+        *,
+        collection_index_path: str | Path | None = None,
+    ):
         self.commitment_services = commitment_services
         self.n_last_blocks = None
+        self._collection_index = (
+            Web3CollectionIndex(collection_index_path, commitment_services)
+            if collection_index_path is not None
+            else None
+        )
+
+    def sync_collection_cids(self, *, block_batch_size: int = 1000) -> None:
+        """Index finalized AddSetObject events; call explicitly outside page requests."""
+        if self._collection_index is None:
+            raise ValueError("Configure collection_index_path before syncing")
+        self._collection_index.sync(self._get_event_logs, block_batch_size)
+
+    def _find_user_collection_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> CollectionCidPage:
+        if self._collection_index is None:
+            return super()._find_user_collection_cids(user, limit=limit, offset=offset)
+        return self._collection_index.page(user, limit, offset)
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
@@ -326,7 +343,11 @@ class Web3HTTPIndexingService(IndexingService):
         return cs_receipts
 
     def _get_event_logs(
-        self, event: ContractEvent, from_block: int, argument_filters: dict
+        self,
+        event: ContractEvent,
+        from_block: int,
+        argument_filters: dict,
+        to_block: int | str = "latest",
     ) -> List[dict]:
         """Get matching events with eth_getLogs, retrying failed requests.
 
@@ -344,7 +365,7 @@ class Web3HTTPIndexingService(IndexingService):
             fkwargs={
                 "argument_filters": argument_filters,
                 "from_block": from_block,
-                "to_block": "latest",
+                "to_block": to_block,
             },
             exceptions=(OSError, Web3RPCError),
             tries=self.RETRY_TRIES,
