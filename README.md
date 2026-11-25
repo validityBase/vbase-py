@@ -39,45 +39,46 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 ## Indexing and Node Requirements
 
-To page collections with a `SQLIndexingService` instance:
+To page collections and stamps with a `SQLIndexingService` instance:
 
 ```python
 page = indexing_service.find_user_collection_cids(user, limit=50, offset=0)
+stamps = indexing_service.find_user_objects_page(user, limit=50, offset=0)
 ```
 
 `page.cids` contains distinct collection CIDs from the user's indexed
-`AddSetObject` events, ordered case-insensitively. Case-only duplicates retain
-one indexed spelling. `page.total` counts all such CIDs, even for an empty page.
+`AddSetObject` events, ordered and returned in lowercase. `stamps.receipts`
+contains one receipt per `AddObject` event, including repeated stamps of the
+same object. Receipts use lowercase addresses and hex identifiers and sort by
+block timestamp (UTC), chain ID, transaction hash, then object CID.
+Each page's `total` counts its matching records, even for an empty page.
 Specify a limit; zero requests only the count. On unchanged data, advance the
-offset by the number of CIDs returned until reaching the total. Index updates
+offset by the number of items returned until reaching the total. Index updates
 during or between requests can change the count or page. The database may
 scan matching events to count them; only the count and page leave the database.
 The configured SQL freshness check still applies.
 
-For Web3, opt into a local SQLite index. Use a dedicated file and sync it in a
-worker or script, not in a page request:
+For Web3, explicitly sync **the same service instance** that will serve pages:
 
 ```python
-indexer = Web3HTTPIndexingService([commitment_service], collection_index_path="collections.sqlite")
-indexer.sync_collection_cids(block_batch_size=1000)
+indexer = Web3HTTPIndexingService([commitment_service])
+indexer.sync_index(block_batch_size=1000)
 page = indexer.find_user_collection_cids(user, limit=50)
+stamps = indexer.find_user_objects_page(user, limit=50)
 ```
 
-Sync reads only `AddSetObject` logs, from genesis through each node's
-`finalized` block. It requires historical logs and support for the finalized
-block tag. Reduce the block batch size if the provider rejects a range.
-Each successful range persists its distinct user/CID pairs and checkpoint
-together. Re-run sync after an interruption. A page is unavailable until
-every configured chain/contract has finished its first sync. Later reads show
-the last committed ranges, not necessarily the current chain tip. Schedule sync
-at the freshness interval you need; `n_last_blocks` applies only to receipt queries.
+The first sync reads historical `AddObject` and `AddSetObject` logs for all
+users, from genesis to each source's finalized block. Later syncs fetch only
+new ranges; reduce the batch size if the provider rejects a range. A failed
+sync can resume from completed ranges in this session. Both views become
+available together after the first successful sync; during later syncs,
+readers see the last complete view. Page requests do not call the node.
 
-Reopen the same file with the same sources after restart. Configuring the
-index reads each chain ID once; page requests then make no RPC calls. A
-mismatched finalized checkpoint stops sync: verify the node and use a new
-index file if the chain was reset. Without a file, raw Web3 still raises
-`NotImplementedError`. Aggregate services do not combine independently paged
-results; failover can try another capable source.
+The index and checkpoints exist only in memory. A new service instance must
+sync again, even in the same process. Do not create one per page request.
+Use SQL for long histories that do not fit in memory. If a finalized checkpoint
+changes, verify the node before starting a fresh session. Aggregate services
+do not merge independent pages; failover can try another capable source.
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each receipt query runs from a start block to the

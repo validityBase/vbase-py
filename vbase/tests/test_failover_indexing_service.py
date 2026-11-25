@@ -91,9 +91,10 @@ class TestFailoverIndexingService(unittest.TestCase):
     def test_collection_page_skips_unindexed_backend_without_reading_receipts(self):
         """A raw node cannot count/page distinct CIDs; try the next index instead."""
         node = Web3HTTPIndexingService([self.service1])
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaisesRegex(RuntimeError, "not ready"):
             node.find_user_collection_cids("user", limit=1)
         self.assertFalse(self.service1.mock_calls)
+
         page = CollectionCidPage(["0xab"], 3)
         self.service2.find_user_collection_cids.return_value = page
         failover = FailoverIndexingService([node, self.service2])
@@ -102,6 +103,19 @@ class TestFailoverIndexingService(unittest.TestCase):
         )
         self.service2.find_user_collection_cids.assert_called_once_with(
             "user", limit=1, offset=2
+        )
+        self.assertFalse(self.service1.mock_calls)
+
+    def test_receipt_page_fails_over_without_reading_unpaged_receipts(self):
+        """Preserve offsets and do not scan an unsynced node."""
+        node = Web3HTTPIndexingService([self.service1])
+        failover = FailoverIndexingService([node, self.service2])
+        self.assertIs(
+            failover.find_user_objects_page("user", limit=2, offset=3),
+            self.service2.find_user_objects_page.return_value,
+        )
+        self.service2.find_user_objects_page.assert_called_once_with(
+            "user", limit=2, offset=3
         )
         self.assertFalse(self.service1.mock_calls)
 

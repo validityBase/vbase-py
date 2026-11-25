@@ -10,6 +10,7 @@ from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServ
 from vbase.core.indexing_service import (
     CollectionCidPage,
     IndexingService,
+    ObjectReceiptPage,
     Web3HTTPIndexingService,
 )
 from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
@@ -59,6 +60,7 @@ __all__ = [
     "ForwarderCommitmentServiceTest",
     "IndexingService",
     "CollectionCidPage",
+    "ObjectReceiptPage",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
     "ChainSetMatchingService",

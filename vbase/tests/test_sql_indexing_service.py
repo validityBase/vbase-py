@@ -170,6 +170,46 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
             self.svc.find_user_collection_cids(_USER, limit=0)
 
+    def test_stamp_pages_are_bounded_and_preserve_identical_receipts(self):
+        """Counting, ordering, and limiting must take place before receipt conversion."""
+        _seed(
+            self._db_url,
+            [
+                EventAddObject(
+                    id=str(i),
+                    user=_USER,
+                    object_cid=_OBJ_CID,
+                    chain_id=1,
+                    transaction_hash=_TX_HASH,
+                    timestamp=_NOW_MS,
+                )
+                for i in range(3)
+            ],
+        )
+        queries = []
+        event.listen(
+            self.svc.db_engine,
+            "before_cursor_execute",
+            lambda conn, cur, sql, params, ctx, many: queries.append(sql.lower()),
+        )
+        for size, offset, expected in ((1, 1, 1), (0, 0, 0), (1, 10**30, 0)):
+            queries.clear()
+            page = self.svc.find_user_objects_page(_USER, limit=size, offset=offset)
+            self.assertEqual((len(page.receipts), page.total), (expected, 3))
+            reads = [sql for sql in queries if "event_add_object" in sql]
+            self.assertEqual(len(reads), 1 + expected)
+            self.assertIn("count(", reads[0])
+            if expected:
+                self.assertIn("limit", reads[1])
+                self.assertIn("order by", reads[1])
+        queries.clear()
+        with self.assertRaises(ValueError):
+            self.svc.find_user_objects_page(_USER, limit=True)
+        self.assertFalse(queries)
+        self.svc.indexing_stale_threshold_seconds = -1
+        with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
+            self.svc.find_user_objects_page(_USER, limit=0)
+
     # --- find_user_sets ---
 
     def test_find_user_sets_returns_matching_row(self):

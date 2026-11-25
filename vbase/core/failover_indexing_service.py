@@ -2,7 +2,11 @@
 
 import logging
 
-from vbase.core.indexing_service import CollectionCidPage, IndexingService
+from vbase.core.indexing_service import (
+    CollectionCidPage,
+    IndexingService,
+    ObjectReceiptPage,
+)
 from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_exception
 
 _LOG = get_default_logger(__name__)
@@ -55,6 +59,13 @@ class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-meth
     ) -> CollectionCidPage:
         return self._execute_with_failover(
             "find_user_collection_cids", user, limit=limit, offset=offset
+        )
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        return self._execute_with_failover(
+            "find_user_objects_page", user, limit=limit, offset=offset
         )
 
     def find_user_objects(self, user: str, return_set_cids=False) -> list[dict]:

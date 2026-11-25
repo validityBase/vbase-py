@@ -31,6 +31,13 @@ forwarder:
 commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
 
+SQL pages query the hosted event tables. A Web3 indexing service can instead
+sync finalized events into session memory: one receipt per `AddObject` and
+one distinct collection CID per user from `AddSetObject`. Pagination never
+scans raw logs or reads app pin metadata. Both backends order stamp receipts
+by block time (not the event payload time), chain ID, transaction hash and
+object CID. Web3 checkpoints and pages are not shared between instances.
+
 See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
 for endpoint selection and event-query requirements, and
 [Forwarder Indexing Configuration](development.md#forwarder-indexing-configuration)

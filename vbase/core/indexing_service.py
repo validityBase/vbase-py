@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from abc import ABC
-from pathlib import Path
 from typing import List, Optional, Union, cast
 
 from dotenv import load_dotenv
@@ -15,11 +14,11 @@ from retry.api import retry_call
 from web3.contract.contract import ContractEvent
 from web3.exceptions import Web3RPCError
 
-from vbase.core.collection_cid_page import CollectionCidPage
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-from vbase.core.web3_collection_index import Web3CollectionIndex
+from vbase.core.indexing_page import CollectionCidPage, ObjectReceiptPage, validate_page
+from vbase.core.web3_event_index import Web3EventIndex
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import (
@@ -155,9 +154,7 @@ class IndexingService(ABC):
         page; unchanged data yields complete ordered traversal. Backends without an
         index for this operation raise NotImplementedError rather than scan logs.
         """
-        for name, value in (("limit", limit), ("offset", offset)):
-            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-                raise ValueError(f"{name} must be a non-negative integer")
+        validate_page(limit, offset)
         return self._find_user_collection_cids(user, limit=limit, offset=offset)
 
     def _find_user_collection_cids(
@@ -166,6 +163,22 @@ class IndexingService(ABC):
         raise NotImplementedError(
             "Collection CID pagination requires an indexed source"
         )
+
+    def find_user_objects_page(
+        self, user: str, *, limit: int, offset: int = 0
+    ) -> ObjectReceiptPage:
+        """Page individual AddObject receipts, including repeated stamps.
+
+        Sort by block timestamp, chain ID, transaction hash, then object CID.
+        Pass limit=0 for the total only. Pinning is not a blockchain property.
+        """
+        validate_page(limit, offset)
+        return self._find_user_objects_page(user, limit=limit, offset=offset)
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        raise NotImplementedError("Receipt pagination requires an indexed source")
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """Returns the list of receipts for user object commitments
@@ -251,29 +264,26 @@ class Web3HTTPIndexingService(IndexingService):
     def __init__(
         self,
         commitment_services: List[Web3HTTPCommitmentService],
-        *,
-        collection_index_path: str | Path | None = None,
     ):
         self.commitment_services = commitment_services
         self.n_last_blocks = None
-        self._collection_index = (
-            Web3CollectionIndex(collection_index_path, commitment_services)
-            if collection_index_path is not None
-            else None
-        )
+        self._event_index = Web3EventIndex()
 
-    def sync_collection_cids(self, *, block_batch_size: int = 1000) -> None:
-        """Index finalized AddSetObject events; call explicitly outside page requests."""
-        if self._collection_index is None:
-            raise ValueError("Configure collection_index_path before syncing")
-        self._collection_index.sync(self._get_event_logs, block_batch_size)
+    def sync_index(self, *, block_batch_size: int = 1000) -> None:
+        """Sync finalized stamps and collection IDs into this session, not during reads."""
+        self._event_index.sync(
+            self.commitment_services, self._get_event_logs, block_batch_size
+        )
 
     def _find_user_collection_cids(
         self, user: str, *, limit: int, offset: int
     ) -> CollectionCidPage:
-        if self._collection_index is None:
-            return super()._find_user_collection_cids(user, limit=limit, offset=offset)
-        return self._collection_index.page(user, limit, offset)
+        return self._event_index.collections(user, limit, offset)
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        return self._event_index.stamps(user, limit, offset)
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
