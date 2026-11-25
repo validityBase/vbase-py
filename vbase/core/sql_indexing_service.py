@@ -3,9 +3,11 @@
 from typing import List, Union
 
 import pandas as pd
+from sqlalchemy import func
+from sqlalchemy.sql.functions import count
 from sqlmodel import Session, create_engine, select
 
-from vbase.core.indexing_service import IndexingService
+from vbase.core.indexing_service import CollectionCidPage, IndexingService
 
 from .models import (
     EventAddObject,
@@ -72,6 +74,25 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
                 for event in events
             ]
         return cs_receipts
+
+    def _find_user_collection_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> CollectionCidPage:
+        self._fail_if_indexing_stale()
+        key = func.lower(EventAddSetObject.set_cid)
+        distinct_cids = (
+            select(func.min(EventAddSetObject.set_cid))
+            .where(EventAddSetObject.user == user.lower())
+            .group_by(key)
+        )
+        with Session(self.db_engine) as session:
+            total = session.exec(
+                select(count()).select_from(distinct_cids.subquery())
+            ).one()
+            if not limit or offset >= total:
+                return CollectionCidPage([], total)
+            page = distinct_cids.order_by(key).offset(offset).limit(min(limit, total))
+            return CollectionCidPage(list(session.exec(page).all()), total)
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """

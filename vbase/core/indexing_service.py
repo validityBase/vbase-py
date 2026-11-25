@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
+from dataclasses import dataclass
 from typing import List, Optional, Union, cast
 
 from dotenv import load_dotenv
@@ -30,6 +31,14 @@ _LOG = get_default_logger(__name__)
 _LOG.setLevel(logging.INFO)
 # Retry warnings include provider errors, which can include credential-bearing URLs.
 _LOG.addFilter(RedactUrlsFilter())
+
+
+@dataclass(frozen=True)
+class CollectionCidPage:
+    """One page of indexed collection CIDs and the total before pagination."""
+
+    cids: list[str]
+    total: int
 
 
 # The indexing service will grow to have more features
@@ -141,6 +150,28 @@ class IndexingService(ABC):
         :return: The list of commitment receipts for all user set commitments.
         """
         raise NotImplementedError()
+
+    def find_user_collection_cids(
+        self, user: str, *, limit: int, offset: int = 0
+    ) -> CollectionCidPage:
+        """Page distinct set CIDs from the user's indexed AddSetObject events.
+
+        CIDs are grouped and sorted case-insensitively. Pass limit=0 for the
+        total only. Changes during or between calls can affect the count and
+        page; unchanged data yields complete ordered traversal. Backends without an
+        index for this operation raise NotImplementedError rather than scan logs.
+        """
+        for name, value in (("limit", limit), ("offset", offset)):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+        return self._find_user_collection_cids(user, limit=limit, offset=offset)
+
+    def _find_user_collection_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> CollectionCidPage:
+        raise NotImplementedError(
+            "Collection CID pagination requires an indexed source"
+        )
 
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """Returns the list of receipts for user object commitments

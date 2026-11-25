@@ -39,6 +39,22 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 ## Indexing and Node Requirements
 
+To page collections with a `SQLIndexingService` instance:
+
+```python
+page = indexing_service.find_user_collection_cids(user, limit=50, offset=0)
+```
+
+`page.cids` contains distinct collection CIDs from the user's indexed
+`AddSetObject` events, ordered case-insensitively. Case-only duplicates retain
+one indexed spelling. `page.total` counts all such CIDs, even for an empty page.
+Specify a limit; zero requests only the count. On unchanged data, advance the
+offset by the number of CIDs returned until reaching the total. Index updates
+during or between requests can change the count or page. The database may
+scan matching events to count them; only the count and page leave the database.
+The configured freshness check still applies. Raw Web3 and aggregate services
+do not support this query; failover can try another indexed source.
+
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each query runs from a start block to the
 latest block. Queries that fail with a connection error or a JSON-RPC error

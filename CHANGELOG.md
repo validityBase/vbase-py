@@ -10,6 +10,11 @@ for prior changes.
 
 ## [Unreleased]
 
+### Added
+
+- Page distinct indexed collection CIDs by user with
+  `SQLIndexingService.find_user_collection_cids(user, limit=..., offset=...)`.
+
 ## [2.1.0] - 2026-11-13
 
 ### Added

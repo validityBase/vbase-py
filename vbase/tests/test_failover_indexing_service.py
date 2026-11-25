@@ -5,7 +5,11 @@ import unittest
 from unittest.mock import create_autospec
 
 from vbase.core.failover_indexing_service import FailoverIndexingService
-from vbase.core.indexing_service import IndexingService
+from vbase.core.indexing_service import (
+    CollectionCidPage,
+    IndexingService,
+    Web3HTTPIndexingService,
+)
 
 
 class TestFailoverIndexingService(unittest.TestCase):
@@ -83,6 +87,35 @@ class TestFailoverIndexingService(unittest.TestCase):
             str(last_error), "Failed to reach https://rpc.example/[REDACTED]"
         )
         self.assertNotIn(secret, "".join(traceback.format_exception(cm.exception)))
+
+    def test_collection_page_skips_unindexed_backend_without_reading_receipts(self):
+        """A raw node cannot count/page distinct CIDs; try the next index instead."""
+        node = Web3HTTPIndexingService([self.service1])
+        with self.assertRaises(NotImplementedError):
+            node.find_user_collection_cids("user", limit=1)
+        self.assertFalse(self.service1.mock_calls)
+        page = CollectionCidPage(["0xab"], 3)
+        self.service2.find_user_collection_cids.return_value = page
+        failover = FailoverIndexingService([node, self.service2])
+        self.assertEqual(
+            failover.find_user_collection_cids("user", limit=1, offset=2), page
+        )
+        self.service2.find_user_collection_cids.assert_called_once_with(
+            "user", limit=1, offset=2
+        )
+        self.assertFalse(self.service1.mock_calls)
+
+    def test_collection_page_fails_when_no_index_is_available(self):
+        """A stale index and a raw node cannot return a partial or fabricated total."""
+        self.service1.find_user_collection_cids.side_effect = RuntimeError("stale")
+        node = Web3HTTPIndexingService([self.service2])
+        failover = FailoverIndexingService([self.service1, node])
+        with self.assertRaisesRegex(RuntimeError, "All services failed"):
+            failover.find_user_collection_cids("user", limit=0)
+        self.service1.find_user_collection_cids.assert_called_once_with(
+            "user", limit=0, offset=0
+        )
+        self.assertFalse(self.service2.mock_calls)
 
     def test_find_user_objects(self):
         """Delegates to the first available service for find_user_objects."""
