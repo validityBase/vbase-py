@@ -16,7 +16,11 @@ for prior changes.
   stamp receipts with `find_user_objects_page()`. Both support limit, offset,
   and a total on SQL and Web3 indexing services.
 - Web3's explicit `sync_index()` keeps finalized events in memory for one
-  service instance. Page reads need neither a database nor a node connection.
+  service instance. Range sync requires complete, consistent historical logs
+  from the provider and invalidates the session on a detected history conflict.
+  Page reads need neither a database nor a node connection.
+- Failover pagination selects a backend at offset zero and keeps it for that
+  paged method. If it goes offline, retry or start over on a new instance.
 
 ## [2.1.0] - 2026-11-13
 

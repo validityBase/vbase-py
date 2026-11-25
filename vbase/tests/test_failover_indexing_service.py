@@ -98,10 +98,13 @@ class TestFailoverIndexingService(unittest.TestCase):
         page = CollectionCidPage(["0xab"], 3)
         self.service2.find_user_collection_cids.return_value = page
         failover = FailoverIndexingService([node, self.service2])
+        with self.assertRaisesRegex(RuntimeError, "offset 0"):
+            failover.find_user_collection_cids("user", limit=1, offset=2)
+        failover.find_user_collection_cids("user", limit=1)
         self.assertEqual(
             failover.find_user_collection_cids("user", limit=1, offset=2), page
         )
-        self.service2.find_user_collection_cids.assert_called_once_with(
+        self.service2.find_user_collection_cids.assert_called_with(
             "user", limit=1, offset=2
         )
         self.assertFalse(self.service1.mock_calls)
@@ -110,11 +113,12 @@ class TestFailoverIndexingService(unittest.TestCase):
         """Preserve offsets and do not scan an unsynced node."""
         node = Web3HTTPIndexingService([self.service1])
         failover = FailoverIndexingService([node, self.service2])
+        failover.find_user_objects_page("user", limit=2)
         self.assertIs(
             failover.find_user_objects_page("user", limit=2, offset=3),
             self.service2.find_user_objects_page.return_value,
         )
-        self.service2.find_user_objects_page.assert_called_once_with(
+        self.service2.find_user_objects_page.assert_called_with(
             "user", limit=2, offset=3
         )
         self.assertFalse(self.service1.mock_calls)
@@ -130,6 +134,26 @@ class TestFailoverIndexingService(unittest.TestCase):
             "user", limit=0, offset=0
         )
         self.assertFalse(self.service2.mock_calls)
+
+    def test_paged_reads_do_not_switch_on_failure_or_recovery(self):
+        """An offset is meaningful only on the backend that started the traversal."""
+        for method in ("find_user_collection_cids", "find_user_objects_page"):
+            with self.subTest(method=method):
+                primary = getattr(self.service1, method)
+                fallback = getattr(self.service2, method)
+                failover = FailoverIndexingService([self.service1, self.service2])
+                read = getattr(failover, method)
+                self.assertIs(read("alice", limit=2), primary.return_value)
+                primary.side_effect = ConnectionError("offline")
+                with self.assertRaisesRegex(RuntimeError, "restart"):
+                    read("alice", limit=1, offset=2)
+                fallback.assert_not_called()
+                fresh = getattr(
+                    FailoverIndexingService([self.service1, self.service2]), method
+                )
+                self.assertIs(fresh("alice", limit=2), fallback.return_value)
+                primary.side_effect = None
+                self.assertIs(fresh("alice", limit=1, offset=2), fallback.return_value)
 
     def test_find_user_objects(self):
         """Delegates to the first available service for find_user_objects."""

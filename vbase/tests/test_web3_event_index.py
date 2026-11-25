@@ -22,13 +22,21 @@ def _source(chain: int, blocks: list) -> MagicMock:
 
     def header(tag):
         n = len(blocks) - 1 if tag == "finalized" else tag
-        return {"number": n, "hash": n.to_bytes(32, "big"), "timestamp": 100 + n}
+        return {
+            "number": n,
+            "hash": n.to_bytes(32, "big"),
+            "timestamp": 100 + n,
+            "parentHash": max(0, n - 1).to_bytes(32, "big"),
+        }
 
     def logs(collection, from_block, to_block, argument_filters):
         assert not argument_filters
         return [
             {
                 "blockNumber": n,
+                "blockHash": n.to_bytes(32, "big"),
+                "address": "0xcontract",
+                "logIndex": i * 2 + int(collection),
                 "args": {
                     "user": user,
                     "objectCid": bytes.fromhex(cid),
@@ -38,7 +46,7 @@ def _source(chain: int, blocks: list) -> MagicMock:
                 "transactionHash": bytes.fromhex(tx),
             }
             for n in range(from_block, to_block + 1)
-            for user, cid, tx, group in blocks[n]
+            for i, (user, cid, tx, group) in enumerate(blocks[n])
             if not collection or group is not None
         ]
 
@@ -212,10 +220,148 @@ class TestSessionPages(unittest.TestCase):
         self.assertFalse(self.cs.mock_calls)
         self.node.sync_index()
         self.cs.reset_mock()
+        original_header = self.cs.w3.eth.get_block.side_effect
         self.cs.w3.eth.get_block.side_effect = lambda _: {"number": 2, "hash": b"fork"}
         with self.assertRaisesRegex(RuntimeError, "checkpoint"):
             self.node.sync_index()
         self.cs.csc.events.AddObject.get_logs.assert_not_called()
+        self.cs.w3.eth.get_block.side_effect = original_header
+        with self.assertRaisesRegex(RuntimeError, "new indexing session"):
+            self.node.sync_index()
+        for read in (
+            self.node.find_user_collection_cids,
+            self.node.find_user_objects_page,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "session"):
+                read("alice", limit=0)
+
+    def test_changed_sources_do_not_serve_the_old_view(self):
+        """Changing an endpoint's identity invalidates both views."""
+        self.node.sync_index()
         self.cs.w3.eth.chain_id = 3
         with self.assertRaisesRegex(ValueError, "sources changed"):
             self.node.sync_index()
+        with self.assertRaisesRegex(RuntimeError, "session"):
+            self.node.find_user_objects_page("alice", limit=1)
+
+    def test_lagging_finalized_height_is_not_a_confirmed_fork(self):
+        """Keep the published snapshot after a lagging response, then resume normally."""
+        self.node.sync_index()
+        header = self.cs.w3.eth.get_block.side_effect
+        self.cs.w3.eth.get_block.side_effect = lambda tag: header(
+            0 if tag == "finalized" else tag
+        )
+        with self.assertRaisesRegex(RuntimeError, "behind"):
+            self.node.sync_index()
+        self.assertEqual(self.node.find_user_objects_page("alice", limit=0).total, 4)
+        self.cs.w3.eth.get_block.side_effect = header
+        self.node.sync_index()
+
+    def test_history_switch_between_ranges_is_not_published(self):
+        """The next range must extend the already accepted history, even in one sync."""
+        self.blocks.append([("alice", "cc", "03", "cc")])
+        header = self.cs.w3.eth.get_block.side_effect
+        switched = False
+
+        def changing_header(tag):
+            nonlocal switched
+            if tag == 2:
+                switched = True
+            block = header(tag)
+            if switched:
+                block["hash"] = b"B" + block["hash"][1:]
+                block["parentHash"] = b"B" + (max(0, block["number"] - 1)).to_bytes(
+                    31, "big"
+                )
+            return block
+
+        self.cs.w3.eth.get_block.side_effect = changing_header
+        with self.assertRaisesRegex(RuntimeError, "history|checkpoint"):
+            self.node.sync_index(block_batch_size=1)
+        with self.assertRaises(RuntimeError):
+            self.node.find_user_collection_cids("alice", limit=1)
+
+    def test_log_from_a_different_block_hash_invalidates_the_view(self):
+        """Reject a foreign log from either stream, not just a changed range end."""
+        for event_type in ("AddObject", "AddSetObject"):
+            with self.subTest(event_type=event_type):
+                blocks = [[("alice", "aa", "01", "ff")]]
+                cs = _source(1, blocks)
+                node = Web3HTTPIndexingService([cs])
+                node.sync_index()
+                blocks.append([("alice", "bb", "02", "ee")])
+                logs = getattr(cs.csc.events, event_type).get_logs
+                logs.side_effect = lambda original=logs.side_effect, **kw: [
+                    e | {"blockHash": b"other"} for e in original(**kw)
+                ]
+                with self.assertRaisesRegex(RuntimeError, "history"):
+                    node.sync_index()
+                with self.assertRaisesRegex(RuntimeError, "session"):
+                    node.find_user_objects_page("alice", limit=1)
+
+    def test_empty_range_with_wrong_parent_is_rejected(self):
+        """Even when log filters return nothing, a range cannot cross a fork."""
+        self.node.sync_index()
+        self.blocks.extend([[], []])
+        header = self.cs.w3.eth.get_block.side_effect
+
+        def unrelated(tag):
+            block = header(tag)
+            if tag == 2:
+                block["parentHash"] = b"other"
+            return block
+
+        self.cs.w3.eth.get_block.side_effect = unrelated
+        with self.assertRaisesRegex(RuntimeError, "checkpoint"):
+            self.node.sync_index()
+        with self.assertRaisesRegex(RuntimeError, "session"):
+            self.node.find_user_collection_cids("alice", limit=0)
+
+    def test_sparse_history_keeps_range_queries_and_bounded_header_reads(self):
+        """Do not walk every empty block just to check a provider's range result."""
+        cs = _source(1, [[] for _ in range(101)])
+        node = Web3HTTPIndexingService([cs])
+        node.sync_index(block_batch_size=32)
+        expected = [(0, 31), (32, 63), (64, 95), (96, 100)]
+        for stream in (cs.csc.events.AddObject, cs.csc.events.AddSetObject):
+            calls = stream.get_logs.call_args_list
+            self.assertEqual(len(calls), len(expected))
+            self.assertEqual(
+                [(c.kwargs["from_block"], c.kwargs["to_block"]) for c in calls],
+                expected,
+            )
+        self.assertLess(cs.w3.eth.get_block.call_count, 5 * len(expected))
+        self.assertEqual(node.find_user_collection_cids("alice", limit=1).total, 0)
+
+    def test_range_end_changes_during_empty_log_query(self):
+        """Recheck the end hash after both range queries, before accepting the batch."""
+        self.node.sync_index()
+        self.blocks.extend([[], []])
+        header = self.cs.w3.eth.get_block.side_effect
+
+        def switch(**_):
+            self.cs.w3.eth.get_block.side_effect = lambda tag: (
+                header(tag) | {"hash": b"fork"} if tag == 3 else header(tag)
+            )
+            return []
+
+        self.cs.csc.events.AddSetObject.get_logs.side_effect = switch
+        with self.assertRaisesRegex(RuntimeError, "history"):
+            self.node.sync_index()
+        with self.assertRaisesRegex(RuntimeError, "session"):
+            self.node.find_user_objects_page("alice", limit=0)
+
+    def test_foreign_contract_and_duplicate_logs_are_not_indexed(self):
+        """A valid block hash alone does not prove an event belongs in this view."""
+        for corrupt in (lambda e: [e | {"address": "0xelsewhere"}], lambda e: [e, e]):
+            with self.subTest(corrupt=corrupt):
+                cs = _source(1, [[("alice", "aa", "01", "ff")]])
+                node = Web3HTTPIndexingService([cs])
+                logs = cs.csc.events.AddObject.get_logs
+                logs.side_effect = (
+                    lambda original=logs.side_effect, fn=corrupt, **kw: fn(
+                        original(**kw)[0]
+                    )
+                )
+                with self.assertRaisesRegex(RuntimeError, "history"):
+                    node.sync_index()

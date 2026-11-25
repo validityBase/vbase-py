@@ -68,17 +68,34 @@ stamps = indexer.find_user_objects_page(user, limit=50)
 ```
 
 The first sync reads historical `AddObject` and `AddSetObject` logs for all
-users, from genesis to each source's finalized block. Later syncs fetch only
-new ranges; reduce the batch size if the provider rejects a range. A failed
-sync can resume from completed ranges in this session. Both views become
+users, from genesis to each source's finalized block. Each batch uses two
+`eth_getLogs` range queries (one per event type). Reduce `block_batch_size`
+if the provider limits range width. A failed sync can resume from completed
+ranges in this session. Both views become
 available together after the first successful sync; during later syncs,
 readers see the last complete view. Page requests do not call the node.
+
+**Provider trust requirement:** use an archival RPC endpoint that returns
+complete log results and consistent finalized history across requests. Sync
+checks the range against its preceding checkpoint, rechecks boundary hashes,
+and checks each returned log against its block header. It does not walk
+every intervening header. An omitted log or a falsely empty response can
+pass these checks and cause missing stamps or collections. A load-balanced
+endpoint is suitable only if its nodes satisfy the same guarantees.
 
 The index and checkpoints exist only in memory. A new service instance must
 sync again, even in the same process. Do not create one per page request.
 Use SQL for long histories that do not fit in memory. If a finalized checkpoint
-changes, verify the node before starting a fresh session. Aggregate services
-do not merge independent pages; failover can try another capable source.
+conflicts with a node's history, both page methods stop serving that session.
+Verify the node and start a fresh instance. A timeout or a lagging node alone
+does not invalidate a previously published view.
+
+`FailoverIndexingService` starts each paged method at offset zero and uses the
+first backend that succeeds. Keep the same failover instance for later offsets.
+If the selected backend goes offline, retry it or discard the previous pages
+and restart at offset zero on a new instance. It never combines an offset from
+one backend with results from another. Unpaged methods still fail over on each
+call. Aggregate services do not merge independently paged results.
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each receipt query runs from a start block to the
