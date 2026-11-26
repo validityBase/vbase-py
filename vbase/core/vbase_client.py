@@ -51,9 +51,10 @@ class VBaseClient:
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
-        :param dotenv_path: Path to a .env file. If given, environment variables
-            are loaded from the file. If None, the default, the existing
-            environment variables are used.
+        :param dotenv_path: Path to a .env file. If given, the variables in the
+            file are loaded and override existing environment variables; a
+            missing file is ignored without an error. If None, the default, the
+            existing environment variables are used.
         :return: The constructed vBase client object.
         """
         if dotenv_path is not None:

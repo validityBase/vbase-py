@@ -221,7 +221,7 @@ class Web3CommitmentService(CommitmentService, ABC):
     def _add_set_object_worker(self, receipt: TxReceipt) -> dict:
         """Process addSetObject transaction results.
 
-        :param receipt: Transaction receipt returned by AddSetObject.
+        :param receipt: The transaction receipt.
         :return: The commitment log containing commitment receipt info.
         """
         self._check_tx_success(receipt)
