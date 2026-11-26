@@ -76,8 +76,9 @@ the current one, and `--rm` removes the container when it stops, so you can
 run the commands again. The container name is specific to this repository, so
 `docker stop` does not stop a container that another setup started. The
 container deploys the commitment contract after it starts; the test script
-waits up to 60 seconds for the contract before it runs the tests. The "Run
-Localhost Tests" workflow runs these tests on every pull request.
+waits up to 60 seconds for the contract before it runs the tests. It runs
+`python3`; in a Windows virtual environment, set `PYTHON_BIN=python`. The
+"Run Localhost Tests" workflow runs these tests on every pull request.
 
 Alternatively, with authorized access to the public development forwarder and
 `VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your
