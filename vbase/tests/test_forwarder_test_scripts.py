@@ -36,6 +36,9 @@ _PUB_DEV_RUNNER = _load_script(".github/scripts/run_tests_forwarder_pub_dev.py")
 _PUB_DEV_SHELL_RUNNER = (
     _REPO_ROOT / ".github" / "scripts" / "run_tests_forwarder_pub_dev.sh"
 )
+# Run bash by its path on PATH. On Windows, a bare "bash" starts the WSL
+# launcher in System32, which Windows searches before PATH.
+_BASH = shutil.which("bash")
 _MISSING_URL_MESSAGE = "VBASE_TEST_INDEXING_NODE_RPC_URL must supply"
 
 
@@ -101,7 +104,7 @@ class TestCheckForwarderConnection(unittest.TestCase):
                 )
 
 
-@unittest.skipUnless(shutil.which("bash"), "requires bash")
+@unittest.skipUnless(_BASH, "requires bash")
 class TestPublicDevRunnerRequiresIndexingUrl(unittest.TestCase):
     """The public-dev runner checks the indexing URL before any test runs."""
 
@@ -120,7 +123,7 @@ class TestPublicDevRunnerRequiresIndexingUrl(unittest.TestCase):
         if url is not None:
             environment["VBASE_TEST_INDEXING_NODE_RPC_URL"] = url
         return subprocess.run(
-            ["bash", str(_PUB_DEV_SHELL_RUNNER)],
+            [_BASH, str(_PUB_DEV_SHELL_RUNNER)],
             env=environment,
             capture_output=True,
             encoding="utf-8",
