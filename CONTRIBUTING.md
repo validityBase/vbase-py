@@ -41,8 +41,9 @@ python -m pip install --no-deps --no-build-isolation -e .
 pre-commit install
 ```
 
-The generated locks target Linux wheels. For local development on macOS or
-Windows, replace the requirements install with
+The generated locks are resolved on Linux and omit dependencies that only
+macOS or Windows need, such as colorama on Windows. On macOS or Windows,
+replace the requirements install with
 `python -m pip install -r requirements/dev.in`.
 
 Check your environment and run formatting/lint checks:
@@ -54,15 +55,26 @@ pre-commit run --all-files
 pylint vbase/
 ```
 
-Tests use `unittest` and require a configured commitment service. With a
-localhost service running and `config/.env.localhost` configured, run:
+Tests use `unittest` and require a commitment service on a local test chain,
+packaged as the Docker image
+`ghcr.io/validitybase/commitment-service-localhost`. The image is available
+to validityBase members. Log in to GHCR with a token that can read packages,
+then start the service and run the tests:
 
 ```bash
+docker login ghcr.io
+docker run -d -p 127.0.0.1:8545:8545 --name commitment-service ghcr.io/validitybase/commitment-service-localhost:latest
 bash vbase/tests/scripts/run_tests_localhost.sh
 ```
 
+The port is bound to `127.0.0.1`, which is the address used by
+`config/.env.localhost`. The "Run Localhost Tests" workflow runs these tests
+on every pull request.
+
 Alternatively, with authorized access to the public development forwarder and
-`VBASE_API_KEY` supplied privately in your environment, run:
+`VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your
+environment, as described in [Public Dev Tests](internal/specs/development.md#public-dev-tests),
+run:
 
 ```bash
 bash .github/scripts/run_tests_forwarder_pub_dev.sh
@@ -82,12 +94,11 @@ Published package dependencies are managed as abstract ranges in
 downstream applications. Development, test, documentation, and lock-tooling
 environments are managed through human-edited `.in` files under
 `requirements/` and generated hash-locked `.txt` files under
-`requirements/`. Edit the relevant source file, regenerate the matching
-lock file with the exact `pip-compile` command documented below, and include
-both files in the pull request. Do not edit generated lock files by hand.
-
-See [internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md)
-for the exact commands.
+`requirements/`. Edit the relevant source file, regenerate every lock file
+that includes it with the `pip-compile` commands in
+[internal/specs/python-dependency-hashes.md](internal/specs/python-dependency-hashes.md),
+and include all changed files in the pull request. Do not edit generated lock
+files by hand.
 
 ## Changelog and Releases
 

@@ -149,7 +149,8 @@ class IndexingService(ABC):
         they may have been committed to.
 
         :param user: The address for the user who made the commitments.
-        :param object_cids: The CIDs for the objects to search.
+        :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all user object commitments.
         """
         raise NotImplementedError()
@@ -182,6 +183,7 @@ class IndexingService(ABC):
 
         :param object_cids: The CIDs for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
@@ -194,6 +196,7 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
+        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
@@ -207,6 +210,7 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the object for search.
         :param return_set_cid: If True, return the set CIDs, if any, for the object.
+        :type return_set_cid: bool
         :return: The commitment receipt for the last/latest object commitment.
         """
         raise NotImplementedError()
@@ -282,8 +286,8 @@ class Web3HTTPIndexingService(IndexingService):
                 "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
                 "user": event["args"]["user"],
                 "setCid": bytes_to_hex_str(event["args"]["setCid"]),
-                # Get block timestamp for the event from the transaction receipt.
-                # This can be done more efficiently if we maintain a cache of block timestamps.
+                # Read the event's timestamp from its block. A block-timestamp
+                # cache would reduce node calls.
                 "timestamp": cs.convert_timestamp_chain_to_str(
                     # If the timestamp is not defined, raise an exception.
                     # Hence, we can ignore the type check for whether timestamp is defined.

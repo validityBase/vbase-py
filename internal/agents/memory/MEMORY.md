@@ -14,16 +14,14 @@ matching utilities for auditable data provenance workflows.
 
 ## GitHub Actions
 
-- Third-party GitHub Actions are pinned to full commit SHAs.
-- Shared vBase-owned release workflows and composite actions are pinned by full
-  commit SHA; each release-tools-ref matches its workflow SHA. Non-release
-  workflows may use reviewed shared release tags such as `@v1`.
-- Python dependency setup uses `validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1`.
-- Documentation publishing delegates to `validityBase/vbase-github-actions/.github/workflows/publish-docs.yml@v1`.
-- Test and docs workflows install hashed requirements with `require-hashes`.
+- Workflow policy, shared action references, and documentation publishing are
+  in `internal/specs/github-actions.md`.
+- Test and docs workflows install hashed requirements with `require-hashes`,
+  except the PyPI public-dev workflow, which installs `requirements/test.in`
+  without hashes; see `internal/specs/github-actions.md`.
 - `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
   without hashes across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
-- `test-localhost.yml` uses the workflow `GITHUB_TOKEN` with `packages: read` to pull the localhost commitment service image.
+- Localhost image access is documented in `internal/specs/github-actions.md`.
 
 ## Sensitive Logging
 

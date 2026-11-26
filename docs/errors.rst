@@ -2,9 +2,9 @@ Forwarder errors
 ================
 
 HTTP failures whose response uses the ``application/problem+json`` media type
-and passes the SDK's vBase `RFC 9457 <https://www.rfc-editor.org/rfc/rfc9457>`_
+and passes the SDK's vBase `RFC 9457 <https://www.rfc-editor.org/info/rfc9457/>`_
 consumer checks raise
-``ProblemDetailsError``. It remains a subclass of ``requests.HTTPError`` and
+``ProblemDetailsError``. It is a subclass of ``requests.HTTPError`` and
 preserves the original response. The standard members are exposed as ``type``,
 ``title``, ``status``, ``detail``, and ``instance``; additional members are in
 ``extensions``. The required vBase ``code`` and optional ``details`` extensions
@@ -41,10 +41,11 @@ Identifiers retain their original case and escaping and are not dereferenced.
 
 The optional vBase ``details`` extension may also be omitted, but when present
 it must be a JSON object.
-The required ``code`` extension must be an uppercase machine-readable identifier
-made up of ASCII letters, digits, and underscores, with at most 64 characters.
+The required ``code`` extension is a machine-readable identifier of at most
+64 characters: an uppercase ASCII letter followed by uppercase ASCII letters,
+digits, or underscores.
 Responses that fail these SDK checks, contain invalid required vBase
-members, use non-Problem-Details content, or have a status mismatch continue to
+members, use non-Problem-Details content, or have a status mismatch
 raise the original ``requests.HTTPError`` instead of being interpreted as a
 structured error.
 

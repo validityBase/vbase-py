@@ -35,7 +35,7 @@ jobs:
           sleep 10 # Wait for the Ethereum test node to start
 
       - name: Install dependencies
-        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v1
+        uses: validityBase/vbase-github-actions/.github/actions/setup-python-deps@v2
         with:
           requirements-files: |
             requirements/test.txt

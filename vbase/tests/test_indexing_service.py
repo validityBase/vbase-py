@@ -17,13 +17,10 @@ class TestIndexingService(unittest.TestCase):
 
     def setUp(self):
         """Set up the tests."""
-        # Subclasses may initialize vbase client objects themselves,
-        # for instance when testing on a public testnet.
-        if not hasattr(self, "vbc"):
-            self.vbc = VBaseClientTest.create_instance_from_env()
-            self.indexing_service = create_test_indexing_service(
-                self.vbc.commitment_service
-            )
+        self.vbc = VBaseClientTest.create_instance_from_env()
+        self.indexing_service = create_test_indexing_service(
+            self.vbc.commitment_service
+        )
         self.assertTrue(self.indexing_service is not None)
         self.assertEqual(len(self.indexing_service.commitment_services), 1)
         self.chain_id = self.indexing_service.commitment_services[0].w3.eth.chain_id

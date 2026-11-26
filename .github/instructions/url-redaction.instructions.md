@@ -5,9 +5,10 @@ applyTo: "vbase/**/*.py"
 # URL redaction review notes
 
 The SDK reduces URLs to their scheme and host in its log messages and in the
-errors that node and forwarder requests raise. The code is in
-`vbase/utils/log.py` and in `_RedactingHTTPProvider` in
-`vbase/core/web3_http_commitment_service.py`.
+errors that node and forwarder requests raise. The helpers are in
+`vbase/utils/log.py` and `_RedactingHTTPProvider` in
+`vbase/core/web3_http_commitment_service.py`; the forwarder, Web3 commitment,
+indexing, failover indexing, and Problem Details modules use them too.
 
 Redaction protects the credentials in URLs that the SDK is configured with,
 such as node and forwarder URLs, and URLs in error text from requests,
@@ -18,10 +19,14 @@ that leaves such a credential in a message, traceback, or log.
 
 - Free-text URL matching is best effort. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` may be only partly redacted. When a
-  quote or bracket comes before a URL, the punctuation from the matching
-  closing character onward is kept.
+  quote, parenthesis, angle bracket, or brace comes before a URL, the
+  punctuation from its matching closing character onward is kept. After an
+  opening square bracket, the closing bracket is redacted with the path.
 - Free text is recognized as a URL only by a contiguous `scheme://`, and a
-  URL ends at whitespace. Malformed configured endpoints are covered:
+  URL ends at whitespace. Text from `://` across whitespace to the first `@`
+  before any `/`, `?`, or `#` is an exception: it keeps only the scheme, so
+  `see https://us er:pw@host.example/x now` becomes
+  `see https://[REDACTED] now`. Malformed configured endpoints are covered:
   `ForwarderCommitmentService` rejects a `forwarder_url` that is not an `http`
   or `https` URL with a host, or that has whitespace or control characters
   after any leading whitespace. A malformed node URL fails the connection
@@ -35,15 +40,16 @@ that leaves such a credential in a message, traceback, or log.
   or `https://user:p@ss`, has the form of a valid URL with a host, so its
   host part is kept. In free text, punctuation after a port that ends a URL,
   as in `https://rpc.example:8545: refused` or `https://user:1234!!!`, is
-  surrounding text. In a configured URL, or when a path follows, the whole
-  port must be digits.
+  surrounding text. In a configured URL, or when a path, query, or fragment
+  follows, the whole port must be digits.
 - Attributes that callers use keep their values: `request` and `response` of
   requests errors, `ProblemDetailsError` attributes, `JSONDecodeError.doc`,
   and the provider's `endpoint_uri`.
 - An exception group's title is its read-only `message` attribute, so
   `str()` and tracebacks show it unchanged. The exceptions in the group are
   redacted. Rebuilding the group would break the in-place contract of
-  `redact_exception`, whose callers re-raise the original object.
+  `redact_exception`, whose callers re-raise the original object. Code that
+  creates an exception group must not put a URL in its title.
 - Messages that an exception builds in its own `__str__` method from
   attributes other than the redacted ones are not covered. The exceptions
   that the SDK, requests, urllib3, and web3's HTTP provider raise do not put

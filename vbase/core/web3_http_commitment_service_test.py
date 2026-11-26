@@ -72,7 +72,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
     def add_sets_objects_with_timestamps_batch(
         self, set_cids: List[str], object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:
-        _LOG.debug("Sending transaction to addSetObjectWithTimestamp")
+        _LOG.debug("Sending transaction to addSetsObjectsWithTimestampsBatch")
         tx_hash = self.csc.functions.addSetsObjectsWithTimestampsBatch(
             # Strings get converted to bytes32 by Web3.
             set_cids,
@@ -85,7 +85,7 @@ class Web3HTTPCommitmentServiceTest(Web3HTTPCommitmentService, CommitmentService
     def add_set_objects_with_timestamps_batch(
         self, set_cid: str, object_cids: List[str], timestamps: List[str]
     ) -> List[dict]:
-        _LOG.debug("Sending transaction to addSetObjectWithTimestamp")
+        _LOG.debug("Sending transaction to addSetObjectsWithTimestampsBatch")
         tx_hash = self.csc.functions.addSetObjectsWithTimestampsBatch(
             # Strings get converted to bytes32 by Web3.
             set_cid,

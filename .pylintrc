@@ -1,4 +1,9 @@
 
+[MAIN]
+
+# Check parameter names and types; allow functions with no parameter documentation.
+load-plugins=pylint.extensions.docparams
+
 [BASIC]
 
 # Good variable names which should always be accepted, separated by a comma.
