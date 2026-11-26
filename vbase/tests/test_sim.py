@@ -131,46 +131,65 @@ class TestSimState(unittest.TestCase):
         self.assertFalse(vbc.in_sim())
         self.assertIsNone(vbc.get_sim_t())
 
-    def test_overlapping_simulations_end_out_of_simulation(self):
-        """Simulations that overlap on two threads end out of simulation mode."""
+    def test_overlapping_simulations_on_two_threads(self):
+        """Overlapping simulations keep their own times and end out of simulation."""
+        for a_ends_first in (True, False):
+            with self.subTest(a_ends_first=a_ends_first):
+                self._check_overlapping_simulations(a_ends_first)
+
+    def _check_overlapping_simulations(self, a_ends_first):
+        """Start simulation B inside A's callback on another thread; end one first."""
         vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
-        a_in_callback = threading.Event()
-        b_in_callback = threading.Event()
-        a_returned = threading.Event()
+        ts_a = pd.DatetimeIndex([pd.Timestamp("2023-01-01", tz="UTC")])
+        ts_b = pd.DatetimeIndex([pd.Timestamp("2024-01-01", tz="UTC")])
+        events = {
+            name: threading.Event() for name in ("a_in", "b_in", "a_done", "b_done")
+        }
+        waits = []
+        views = {}
+        results = {}
+
+        def wait(name):
+            waits.append((name, events[name].wait(timeout=5)))
 
         def callback_a():
-            a_in_callback.set()
-            b_in_callback.wait(timeout=5)
+            events["a_in"].set()
+            wait("b_in")
+            if not a_ends_first:
+                wait("b_done")
+                views["a"] = (vbc.in_sim(), vbc.get_sim_t())
             return 1
 
         def callback_b():
-            b_in_callback.set()
-            a_returned.wait(timeout=5)
+            events["b_in"].set()
+            if a_ends_first:
+                wait("a_done")
+                views["b"] = (vbc.in_sim(), vbc.get_sim_t())
             return 2
 
-        def run_a():
-            vbc.run_pit_sim(
-                ts=pd.DatetimeIndex([pd.Timestamp("2023-01-01", tz="UTC")]),
-                callback=callback_a,
-            )
-            a_returned.set()
+        def run(name, ts, callback):
+            try:
+                results[name] = vbc.run_pit_sim(ts=ts, callback=callback).tolist()
+            # Report errors on this thread to the test.
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                results[name] = err
+            events[f"{name}_done"].set()
 
-        # A starts first and returns while B is still in its callback.
-        thread_a = threading.Thread(target=run_a)
-        thread_b = threading.Thread(
-            target=vbc.run_pit_sim,
-            kwargs={
-                "ts": pd.DatetimeIndex([pd.Timestamp("2024-01-01", tz="UTC")]),
-                "callback": callback_b,
-            },
-        )
+        thread_a = threading.Thread(target=run, args=("a", ts_a, callback_a))
+        thread_b = threading.Thread(target=run, args=("b", ts_b, callback_b))
         thread_a.start()
-        self.assertTrue(a_in_callback.wait(timeout=5))
+        self.assertTrue(events["a_in"].wait(timeout=5))
         thread_b.start()
         thread_a.join(timeout=10)
         thread_b.join(timeout=10)
 
-        self.assertTrue(a_returned.is_set())
+        self.assertFalse(thread_a.is_alive() or thread_b.is_alive())
+        self.assertTrue(all(done for _, done in waits), waits)
+        self.assertEqual(results, {"a": [1], "b": [2]})
+        if a_ends_first:
+            self.assertEqual(views, {"b": (True, ts_b[0])})
+        else:
+            self.assertEqual(views, {"a": (True, ts_a[0])})
         self.assertFalse(vbc.in_sim())
         self.assertIsNone(vbc.get_sim_t())
 

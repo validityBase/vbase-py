@@ -302,8 +302,11 @@ class VBaseClient:
 
         A callback can run another simulation; when it ends, the outer
         simulation continues at its own time. The simulation state belongs to
-        the client, so simulations that overlap on several threads see each
-        other's times; run them on separate clients.
+        the client, and datasets read as of the simulation time of the client
+        they were opened with. Simulations that overlap on several threads
+        with one client therefore see each other's times. To run simulations
+        in parallel, give each thread its own client and open its datasets
+        with that client.
 
         :param ts: Times/timestamps for which callback should be called
             and PIT world state simulated.
@@ -313,8 +316,9 @@ class VBaseClient:
         sim_records = []
         # Count the running simulations. The client leaves simulation mode
         # when the last one ends, even if a callback raises, so later dataset
-        # reads are not limited to a simulation time. An inner simulation
-        # gives the outer one back its time.
+        # reads are not limited to a simulation time. A simulation that
+        # started inside another one gives it back its time when it ends.
+        nested = self._sim_depth > 0
         prev_sim_t = self._sim_t
         self._sim_depth += 1
         self._in_sim = True
@@ -334,6 +338,6 @@ class VBaseClient:
             if self._sim_depth == 0:
                 self._in_sim = False
                 self._sim_t = None
-            else:
+            elif nested:
                 self._sim_t = prev_sim_t
         return pd.Series(sim_records, index=ts)
