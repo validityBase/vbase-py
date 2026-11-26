@@ -238,14 +238,18 @@ class TestSensitiveLogging(unittest.TestCase):
         """Trailing punctuation is redacted unless it starts at a matching closer.
 
         Punctuation can be a whole credential, so it is surrounding text only
-        when it starts at the closing quote, parenthesis, angle bracket, or
-        brace that matches the character before the URL.
+        when it starts at the last closing quote, parenthesis, angle bracket,
+        or brace that matches the character before the URL.
         """
         cases = {
             f"connecting to {_RPC_URL}: retrying.": (
                 f"connecting to {_REDACTED_RPC_URL} retrying."
             ),
             f"retrying ({_RPC_URL}).": f"retrying ({_REDACTED_RPC_URL}).",
+            # Text is kept from the last matching closer, so an earlier one
+            # that may belong to a credential is redacted.
+            f"retrying ({_RPC_URL})).": f"retrying ({_REDACTED_RPC_URL}).",
+            "x 'https://rpc.example/?k='!!' y": f"x '{_REDACTED_RPC_URL}' y",
             f"retrying <{_RPC_URL}>.": f"retrying <{_REDACTED_RPC_URL}>.",
             f"retrying {{{_RPC_URL}}}.": f"retrying {{{_REDACTED_RPC_URL}}}.",
             f'retrying "{_RPC_URL}".': f'retrying "{_REDACTED_RPC_URL}".',

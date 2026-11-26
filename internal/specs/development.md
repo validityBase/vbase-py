@@ -84,8 +84,8 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   redacts userinfo, paths, queries, and fragments. Trailing punctuation after
   a path, query, or fragment is redacted too, because it can belong to a
   credential; it is kept only after an already-redacted path or from the
-  closing quote, parenthesis, angle bracket, or brace matching the character
-  before the URL. After an opening square bracket, the closing bracket is
+  last closing quote, parenthesis, angle bracket, or brace matching the
+  character before the URL. After an opening square bracket, the closing bracket is
   redacted with the path. In free text,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
@@ -163,7 +163,7 @@ limit updates this list and its short copy for Copilot code review in
   web3, and the vBase forwarder. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` are not expected and may be only
   partly redacted. When a quote, parenthesis, angle bracket, or brace comes
-  before a URL, punctuation from the matching closing character onward is kept as
+  before a URL, punctuation from the last matching closing character onward is kept as
   surrounding text, even if that character ends a credential, because the
   text does not show which it is. After an opening square bracket, the
   closing bracket is redacted with the path. Text is recognized as a URL only
