@@ -68,7 +68,7 @@ jobs:
           # checkout, so a pull request into dev can link to files it adds.
           args: >-
             --root-dir . --include-fragments --no-progress
-            --exclude-loopback --exclude '<[^>]+>'
+            --exclude-loopback --exclude '%3C[^/]*%3E'
             --remap 'https://github\.com/validityBase/vbase-py/blob/main/(.*) file://${{ github.workspace }}/$1'
             '*.md' 'docs/*.rst' 'internal/**/*.md'
             '${{ runner.temp }}/sphinx-html/**/*.html'
