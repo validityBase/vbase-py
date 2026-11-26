@@ -96,6 +96,40 @@ class TestSimState(unittest.TestCase):
         self.assertFalse(vbc.in_sim())
         self.assertIsNone(vbc.get_sim_t())
 
+    def test_nested_simulation_restores_outer_state(self):
+        """A simulation run from a callback restores the enclosing simulation."""
+
+        def succeeding_inner():
+            return 1
+
+        def failing_inner():
+            raise ValueError("inner callback failed")
+
+        for inner in (succeeding_inner, failing_inner):
+            with self.subTest(inner=inner.__name__):
+                self._check_nested_simulation(inner)
+
+    def _check_nested_simulation(self, inner):
+        """Run a simulation whose callback runs another one with ``inner``."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        outer_ts = pd.date_range("2023-01-01", periods=2, freq="D", tz="UTC")
+        inner_ts = pd.date_range("2022-01-01", periods=2, freq="D", tz="UTC")
+        states = []
+
+        def outer():
+            try:
+                vbc.run_pit_sim(ts=inner_ts, callback=inner)
+            except ValueError:
+                pass
+            states.append((vbc.in_sim(), vbc.get_sim_t()))
+            return 1
+
+        vbc.run_pit_sim(ts=outer_ts, callback=outer)
+
+        self.assertEqual(states, [(True, outer_ts[0]), (True, outer_ts[1])])
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
+
 
 if __name__ == "__main__":
     unittest.main()

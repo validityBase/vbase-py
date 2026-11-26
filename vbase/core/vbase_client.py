@@ -304,6 +304,11 @@ class VBaseClient:
         :return: The aggregated output of all callback invocations.
         """
         sim_records = []
+        # Restore the state from before this call when the simulation ends,
+        # even if a callback raises, so that later dataset reads are not
+        # limited to the last simulation time and an enclosing simulation,
+        # if any, continues.
+        prev_in_sim, prev_sim_t = self._in_sim, self._sim_t
         self._in_sim = True
         try:
             for t in ts:
@@ -317,8 +322,6 @@ class VBaseClient:
                 LOG.debug("run_pit_sim(): callback returned: %s", ret)
                 sim_records.append(ret)
         finally:
-            # Leave simulation mode even if a callback raises, so that later
-            # dataset reads are not limited to the last simulation time.
-            self._in_sim = False
-            self._sim_t = None
+            self._in_sim = prev_in_sim
+            self._sim_t = prev_sim_t
         return pd.Series(sim_records, index=ts)
