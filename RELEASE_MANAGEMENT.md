@@ -89,9 +89,27 @@ Merge `main` back into `dev` after each release. `dev` is protected, so make a
 PR from a branch based on `dev`:
 
 ```bash
-git fetch origin
+git fetch origin --tags
 git switch -c sync/main-into-dev-vX.Y.Z origin/dev
 git merge --no-ff origin/main -m "Merge main into dev after the vX.Y.Z release"
+```
+
+If the merge stops with conflicts, resolve them and commit before you go on.
+
+Prepare release adds the `## [X.Y.Z]` heading directly below
+`## [Unreleased]`. Git can therefore merge changelog entries that reached
+`dev` after it was promoted to `main` into the released section without a
+conflict. Check that the merge left the released section unchanged:
+
+```bash
+diff <(git show vX.Y.Z:CHANGELOG.md | sed -n '/^## \[X.Y.Z\]/,$p') \
+  <(sed -n '/^## \[X.Y.Z\]/,$p' CHANGELOG.md) && echo "release notes unchanged"
+```
+
+If `diff` shows added entries, move them under `## [Unreleased]` and commit.
+Then push the branch and open the PR:
+
+```bash
 git push -u origin sync/main-into-dev-vX.Y.Z
 gh pr create --base dev --title "Merge main into dev after the vX.Y.Z release" --body "Brings the vX.Y.Z version and changelog from main into dev."
 ```
