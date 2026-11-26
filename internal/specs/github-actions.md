@@ -37,8 +37,10 @@
   line fragments such as `#L5` fail; link to a file or heading instead. Other
   forms, such as `tree/main` links, are checked online. Lychee skips loopback
   hosts and placeholders in angle brackets in the path or query of a link
-  target, such as `https://docs.vbase.com/<page>`; put other placeholder URLs
-  in code spans or code blocks.
+  target, such as `https://docs.vbase.com/<page>`. In Markdown, put other
+  placeholder URLs in code spans or code blocks. Lychee reads `docs/*.rst` as
+  plain text and checks URLs in its literals and code blocks too, so write
+  placeholders there without a URL scheme.
 - The `docs` job checks that links and images in the rendered `README.md` use
   absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
 - The formatting job checks that the isolated Black and isort hook revisions
