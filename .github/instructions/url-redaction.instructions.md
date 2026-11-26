@@ -7,8 +7,8 @@ applyTo: "vbase/**/*.py"
 The SDK reduces URLs to their scheme and host in its log messages and in the
 errors that node and forwarder requests raise. The helpers are in
 `vbase/utils/log.py` and `_RedactingHTTPProvider` in
-`vbase/core/web3_http_commitment_service.py`; the forwarder, failover indexing,
-and Problem Details modules call them too.
+`vbase/core/web3_http_commitment_service.py`; the forwarder, Web3 commitment,
+indexing, failover indexing, and Problem Details modules use them too.
 
 Redaction protects the credentials in URLs that the SDK is configured with,
 such as node and forwarder URLs, and URLs in error text from requests,

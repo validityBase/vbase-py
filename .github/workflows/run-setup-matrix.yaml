@@ -2,8 +2,6 @@ name: Run Setup Matrix
 
 on:
   pull_request:
-  push:
-    branches: ["**"]
   workflow_dispatch:
 
 permissions:
