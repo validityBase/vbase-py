@@ -142,7 +142,7 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
-    def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
+    def find_user_objects(self, user: str, return_set_cids: bool = False) -> List[dict]:
         """Returns the list of receipts for user object commitments
         for a given user.
         Finds and returns individual object commitments irrespective of the set
@@ -150,7 +150,6 @@ class IndexingService(ABC):
 
         :param user: The address for the user who made the commitments.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
-        :type return_set_cids: bool
         :return: The list of commitment receipts for all user object commitments.
         """
         raise NotImplementedError()
@@ -175,7 +174,9 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
-    def find_objects(self, object_cids: List[str], return_set_cids=False) -> List[dict]:
+    def find_objects(
+        self, object_cids: List[str], return_set_cids: bool = False
+    ) -> List[dict]:
         """Returns the list of receipts for object commitments
         for a list of object CIDs.
         Finds and returns individual object commitments irrespective of the set
@@ -183,12 +184,11 @@ class IndexingService(ABC):
 
         :param object_cids: The CIDs for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
-        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
 
-    def find_object(self, object_cid: str, return_set_cids=False) -> List[dict]:
+    def find_object(self, object_cid: str, return_set_cids: bool = False) -> List[dict]:
         """Returns the list of receipts for object commitments
         for a single object CID.
         Finds and returns individual object commitments irrespective of the set
@@ -196,13 +196,12 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the objects to search.
         :param return_set_cids: If True, return the set CIDs, if any, for the objects.
-        :type return_set_cids: bool
         :return: The list of commitment receipts for all object commitments.
         """
         raise NotImplementedError()
 
     def find_last_object(
-        self, object_cid: str, return_set_cid=False
+        self, object_cid: str, return_set_cid: bool = False
     ) -> Union[dict, None]:
         """Returns the last/latest receipt, if any, for object commitments.
         Finds and returns individual object commitment irrespective of the set
@@ -210,7 +209,6 @@ class IndexingService(ABC):
 
         :param object_cid: The CID for the object for search.
         :param return_set_cid: If True, return the set CIDs, if any, for the object.
-        :type return_set_cid: bool
         :return: The commitment receipt for the last/latest object commitment.
         """
         raise NotImplementedError()
