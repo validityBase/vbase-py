@@ -44,7 +44,9 @@ pre-commit install
 The generated locks are resolved on Linux and omit dependencies that only
 macOS or Windows need, such as colorama on Windows. On macOS or Windows,
 replace the requirements install with
-`python -m pip install -r requirements/dev.in`.
+`python -m pip install "setuptools>=77.0.3" -r requirements/dev.in`.
+The editable install needs that setuptools version, which the Linux lock
+pins but a new Python 3.11 virtual environment may not have.
 
 Check your environment and run formatting/lint checks:
 
