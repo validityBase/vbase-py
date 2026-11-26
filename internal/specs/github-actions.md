@@ -22,13 +22,16 @@
 
 ### `.github/workflows/docs-check.yml`
 
-- On pull requests and pushes to `dev`, builds Sphinx Markdown docs with warnings as errors, checks links and anchors, and runs all pre-commit hooks.
+- Runs on every pull request, including pull requests into `dev`, on pushes
+  to `main`, and weekly on the default branch.
+- Builds Sphinx Markdown docs with warnings as errors, checks links and
+  anchors, and runs all pre-commit hooks.
 - Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v2`.
 - Installs the package without dependency resolution before the Sphinx build.
 - The `links` job checks Markdown and reStructuredText sources plus generated
-  Sphinx HTML on pull requests, pushes to `dev`, and weekly on the default
-  branch. Checking the HTML covers relative reStructuredText links and
-  fragments. Lychee skips loopback hosts and placeholder URLs.
+  Sphinx HTML. It is the only job that also runs on the weekly schedule.
+  Checking the HTML covers relative reStructuredText links and fragments.
+  Lychee skips loopback hosts and placeholder URLs.
 - The `docs` job checks that links and images in the rendered `README.md` use
   absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
 - The formatting job checks that the isolated Black and isort hook revisions
