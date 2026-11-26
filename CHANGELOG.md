@@ -23,11 +23,11 @@ for prior changes.
   and documentation links, and update contributor setup instructions.
 - Correct docstrings that named nonexistent parameters, contract functions,
   and events, and log the callback result in `run_pit_sim()` debug output.
-- Restore the simulation state from before the call when
-  `VBaseClient.run_pit_sim()` ends, including when a callback raises. Later
-  `VBaseDataset` reads on the same client no longer return only the records
-  up to the failed simulation time, and a simulation run from another
-  simulation's callback no longer ends the outer simulation.
+- Leave simulation mode when `VBaseClient.run_pit_sim()` ends, including
+  when a callback raises. Before, later `VBaseDataset` reads on the same
+  client still used the failed simulation's time. A simulation run from
+  another simulation's callback now returns to the outer simulation instead
+  of ending it.
 - Stop waiting after the last failed connection attempt of
   `Web3HTTPCommitmentService`, so its `ConnectionError` is raised sooner.
 

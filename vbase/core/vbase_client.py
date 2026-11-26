@@ -41,6 +41,8 @@ class VBaseClient:
 
         # Init simulation state.
         self._in_sim: bool = False
+        # The number of running simulations, counting nested ones.
+        self._sim_depth: int = 0
         # All timestamps are standard UTC times
         # and benefit from pandas scalable timestamp implementation.
         self._sim_t: Union[pd.Timestamp, None] = None
@@ -298,17 +300,23 @@ class VBaseClient:
         PIT simulation executes callback for each t specified
         letting the callback see world state as it existed at that t.
 
+        A callback can run another simulation; when it ends, the outer
+        simulation continues at its own time. The simulation state belongs to
+        the client, so simulations that overlap on several threads see each
+        other's times; run them on separate clients.
+
         :param ts: Times/timestamps for which callback should be called
             and PIT world state simulated.
         :param callback: The callback to call.
         :return: The aggregated output of all callback invocations.
         """
         sim_records = []
-        # Restore the state from before this call when the simulation ends,
-        # even if a callback raises, so that later dataset reads are not
-        # limited to the last simulation time and an enclosing simulation,
-        # if any, continues.
-        prev_in_sim, prev_sim_t = self._in_sim, self._sim_t
+        # Count the running simulations. The client leaves simulation mode
+        # when the last one ends, even if a callback raises, so later dataset
+        # reads are not limited to a simulation time. An inner simulation
+        # gives the outer one back its time.
+        prev_sim_t = self._sim_t
+        self._sim_depth += 1
         self._in_sim = True
         try:
             for t in ts:
@@ -322,6 +330,10 @@ class VBaseClient:
                 LOG.debug("run_pit_sim(): callback returned: %s", ret)
                 sim_records.append(ret)
         finally:
-            self._in_sim = prev_in_sim
-            self._sim_t = prev_sim_t
+            self._sim_depth -= 1
+            if self._sim_depth == 0:
+                self._in_sim = False
+                self._sim_t = None
+            else:
+                self._sim_t = prev_sim_t
         return pd.Series(sim_records, index=ts)

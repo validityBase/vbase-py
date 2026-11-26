@@ -4,6 +4,7 @@ accessing committed data precisely as it existed historically.
 """
 
 import logging
+import threading
 import time
 import unittest
 from unittest.mock import MagicMock
@@ -127,6 +128,49 @@ class TestSimState(unittest.TestCase):
         vbc.run_pit_sim(ts=outer_ts, callback=outer)
 
         self.assertEqual(states, [(True, outer_ts[0]), (True, outer_ts[1])])
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
+
+    def test_overlapping_simulations_end_out_of_simulation(self):
+        """Simulations that overlap on two threads end out of simulation mode."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        a_in_callback = threading.Event()
+        b_in_callback = threading.Event()
+        a_returned = threading.Event()
+
+        def callback_a():
+            a_in_callback.set()
+            b_in_callback.wait(timeout=5)
+            return 1
+
+        def callback_b():
+            b_in_callback.set()
+            a_returned.wait(timeout=5)
+            return 2
+
+        def run_a():
+            vbc.run_pit_sim(
+                ts=pd.DatetimeIndex([pd.Timestamp("2023-01-01", tz="UTC")]),
+                callback=callback_a,
+            )
+            a_returned.set()
+
+        # A starts first and returns while B is still in its callback.
+        thread_a = threading.Thread(target=run_a)
+        thread_b = threading.Thread(
+            target=vbc.run_pit_sim,
+            kwargs={
+                "ts": pd.DatetimeIndex([pd.Timestamp("2024-01-01", tz="UTC")]),
+                "callback": callback_b,
+            },
+        )
+        thread_a.start()
+        self.assertTrue(a_in_callback.wait(timeout=5))
+        thread_b.start()
+        thread_a.join(timeout=10)
+        thread_b.join(timeout=10)
+
+        self.assertTrue(a_returned.is_set())
         self.assertFalse(vbc.in_sim())
         self.assertIsNone(vbc.get_sim_t())
 
