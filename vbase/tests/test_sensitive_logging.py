@@ -235,16 +235,23 @@ class TestSensitiveLogging(unittest.TestCase):
                 self.assertEqual(redact_urls(text), text)
 
     def test_redact_urls_trailing_punctuation(self):
-        """Trailing punctuation is redacted unless it closes a quote or bracket.
+        """Trailing punctuation is redacted unless it starts at a matching closer.
 
         Punctuation can be a whole credential, so it is surrounding text only
-        when it starts at the closer for the character before the URL.
+        when it starts at the closing quote, parenthesis, angle bracket, or
+        brace that matches the character before the URL.
         """
         cases = {
             f"connecting to {_RPC_URL}: retrying.": (
                 f"connecting to {_REDACTED_RPC_URL} retrying."
             ),
             f"retrying ({_RPC_URL}).": f"retrying ({_REDACTED_RPC_URL}).",
+            f"retrying <{_RPC_URL}>.": f"retrying <{_REDACTED_RPC_URL}>.",
+            f"retrying {{{_RPC_URL}}}.": f"retrying {{{_REDACTED_RPC_URL}}}.",
+            f'retrying "{_RPC_URL}".': f'retrying "{_REDACTED_RPC_URL}".',
+            # After an opening square bracket, the closing bracket is redacted
+            # with the path.
+            f"retrying [{_RPC_URL}].": f"retrying [{_REDACTED_RPC_URL}",
             f"Invalid URL '{_RPC_URLS_WITH_CREDENTIALS[1]}': No host": (
                 f"Invalid URL '{_REDACTED_RPC_URL}': No host"
             ),
