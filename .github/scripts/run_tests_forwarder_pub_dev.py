@@ -20,8 +20,9 @@ TEST_MODULES = (
 _MIN_MASKED_LENGTH = 8
 
 # Indexing URLs whose parts HTTP libraries print unchanged, so the masks match:
-# http(s), an optional user name and password, a host name or IPv4 address, an
-# optional port, and a path and query of letters, digits, and "-._~/=&".
+# http(s), an optional user name and password of letters, digits, and "-._~",
+# a host name or IPv4 address, an optional port, and a path and query that can
+# also use "/=&".
 # Libraries can print other characters in another form, for example
 # percent-encoded or decoded, and the URL parser quotes some malformed URLs in
 # its errors.
@@ -57,8 +58,9 @@ def _mask_indexing_rpc_url_parts() -> None:
         # The message must not show the URL, which no mask covers yet.
         raise SystemExit(
             "VBASE_TEST_INDEXING_NODE_RPC_URL must be an http(s) URL whose user "
-            "name, password, path, and query use only letters, digits, and "
-            "-._~/=&, so that log masks match it."
+            "name and password use only letters, digits, and -._~, and whose "
+            "path and query use only those characters and /=&, so that log "
+            "masks match it."
         )
     parts = urlsplit(url)
     values = {url, parts.path.strip("/"), parts.query, parts.username, parts.password}

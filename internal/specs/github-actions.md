@@ -146,5 +146,6 @@
   in the shared-actions repository. Keep the upload workflow filename, PyPI
   project, environment, and trusted-publisher identity unchanged unless the
   PyPI trusted publisher is updated to match.
-- The runbook is [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); repository
-  settings and behavior are in [pypi-releases.md](pypi-releases.md).
+- The runbook and repository settings are in
+  [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); release behavior is in
+  [pypi-releases.md](pypi-releases.md).

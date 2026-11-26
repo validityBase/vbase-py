@@ -364,10 +364,10 @@ masked; `_MIN_MASKED_LENGTH` in the runner sets the length. Libraries can
 print some characters in another form, for example percent-encoded, which the
 masks would miss. In GitHub Actions the
 runner therefore accepts only an `http` or `https` URL without a fragment
-whose user name, password, path, and query use letters, digits, and
-`-._~/=&`. For any other URL it stops before the first test without showing
-the URL. Provider URLs with an alphanumeric token in the path or query meet
-this.
+whose user name and password use letters, digits, and `-._~`, and whose path
+and query can also use `/=&`. For any other URL it stops before the first
+test without showing the URL. Provider URLs with an alphanumeric token in the
+path or query meet this.
 Do not commit RPC credentials or enable shell tracing around them.
 
 The public-dev workflows run from `main`, including manual dispatch; they do
