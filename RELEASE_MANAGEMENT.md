@@ -105,15 +105,15 @@ released section unchanged:
 ```bash
 V=X.Y.Z
 git rev-parse -q --verify "refs/tags/v$V" >/dev/null &&
-  grep -q "^## \[$V\]" CHANGELOG.md &&
+  grep -m1 '^## \[[0-9]' CHANGELOG.md | grep -q "^## \[$V\]" &&
   diff <(git show "v$V:CHANGELOG.md" | sed -n "/^## \[$V\]/,\$p") \
     <(sed -n "/^## \[$V\]/,\$p" CHANGELOG.md) &&
   echo "release notes unchanged"
 ```
 
-The command prints `release notes unchanged` only when the tag exists,
-`CHANGELOG.md` has the version's heading, and the released section matches
-the tag. If it prints nothing, check `V`. If `diff` shows added entries, move
+The command prints `release notes unchanged` only when the tag exists, the
+version's heading is the newest in `CHANGELOG.md`, and the released section
+matches the tag. If it prints nothing, check `V`. If `diff` shows added entries, move
 them under `## [Unreleased]` and commit. Then push the branch and open the PR:
 
 ```bash
