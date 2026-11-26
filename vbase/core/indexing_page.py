@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class CollectionCidPage:
-    """Distinct collection CIDs and their count before pagination."""
+    """Distinct set CIDs and their count before pagination."""
 
     cids: list[str]
     total: int
@@ -13,7 +13,7 @@ class CollectionCidPage:
 
 @dataclass(frozen=True)
 class ObjectReceiptPage:
-    """Individual object stamp receipts and their count before pagination."""
+    """Individual object commitment receipts and their count before pagination."""
 
     receipts: list[dict]
     total: int

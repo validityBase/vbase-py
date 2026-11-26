@@ -11,4 +11,5 @@ vBase Python SDK Documentation
    dataset_commitments
    addresses
    api
+   pagination
    errors

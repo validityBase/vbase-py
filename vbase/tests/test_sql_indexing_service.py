@@ -96,8 +96,8 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
 
     # --- find_user_collection_cids ---
 
-    def test_collection_cid_pages_are_distinct_ordered_and_bounded_in_sql(self):
-        """VDT-918: repeated receipts must not crowd out other collections."""
+    def test_set_cid_pages_are_distinct_ordered_and_bounded_in_sql(self):
+        """VDT-918: repeated receipts must not crowd out other sets."""
         _seed(
             self._db_url,
             [
@@ -155,7 +155,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
                 self.assertEqual(len(event_reads), 1)
                 self.assertIn("count(", event_reads[0])
 
-    def test_collection_cid_page_rejects_invalid_pagination(self):
+    def test_set_cid_page_rejects_invalid_pagination(self):
         """Negative or noninteger values must never remove the database limit."""
         for limit, offset in ((-1, 0), (1, -1), (1.5, 0), (1, False), (None, 0)):
             with (
@@ -164,13 +164,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
             ):
                 self.svc.find_user_collection_cids(_USER, limit=limit, offset=offset)
 
-    def test_collection_cid_page_respects_stale_index(self):
+    def test_set_cid_page_respects_stale_index(self):
         """The exact total is subject to the configured index freshness check."""
         self.svc.indexing_stale_threshold_seconds = -1
         with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
             self.svc.find_user_collection_cids(_USER, limit=0)
 
-    def test_stamp_pages_are_bounded_and_preserve_identical_receipts(self):
+    def test_commitment_pages_are_bounded_and_preserve_identical_receipts(self):
         """Counting, ordering, and limiting must take place before receipt conversion."""
         _seed(
             self._db_url,

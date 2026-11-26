@@ -93,12 +93,12 @@ class Web3EventIndex:
             raise RuntimeError("Session index not ready: run sync_index()")
         return pages
 
-    def collections(self, user: str, limit: int, offset: int) -> CollectionCidPage:
+    def set_cids(self, user: str, limit: int, offset: int) -> CollectionCidPage:
         """Slice a sorted list of distinct CIDs without contacting the node."""
         rows = self._pages().cids.get(user.lower(), [])
         return CollectionCidPage(rows[offset : offset + limit], len(rows))
 
-    def stamps(self, user: str, limit: int, offset: int) -> ObjectReceiptPage:
+    def object_receipts(self, user: str, limit: int, offset: int) -> ObjectReceiptPage:
         """Copy only the requested receipts; callers must not mutate the index."""
         rows = self._pages().receipts.get(user.lower(), [])
         return ObjectReceiptPage(

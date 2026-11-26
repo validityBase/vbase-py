@@ -39,66 +39,11 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 ## Indexing and Node Requirements
 
-To page collections and stamps with a `SQLIndexingService` instance:
+See [Paging indexed commitments](https://github.com/validityBase/vbase-py/blob/main/docs/pagination.rst) for SQL and Web3 examples,
+provider requirements, and how to restart an interrupted traversal.
 
-```python
-page = indexing_service.find_user_collection_cids(user, limit=50, offset=0)
-stamps = indexing_service.find_user_objects_page(user, limit=50, offset=0)
-```
-
-`page.cids` contains distinct collection CIDs from the user's indexed
-`AddSetObject` events, ordered and returned in lowercase. `stamps.receipts`
-contains one receipt per `AddObject` event, including repeated stamps of the
-same object. Receipts use lowercase addresses and hex identifiers and sort by
-block timestamp (UTC), chain ID, transaction hash, then object CID.
-Each page's `total` counts its matching records, even for an empty page.
-Specify a limit; zero requests only the count. On unchanged data, advance the
-offset by the number of items returned until reaching the total. Index updates
-during or between requests can change the count or page. The database may
-scan matching events to count them; only the count and page leave the database.
-The configured SQL freshness check still applies.
-
-For Web3, explicitly sync **the same service instance** that will serve pages:
-
-```python
-indexer = Web3HTTPIndexingService([commitment_service])
-indexer.sync_index(block_batch_size=1000)
-page = indexer.find_user_collection_cids(user, limit=50)
-stamps = indexer.find_user_objects_page(user, limit=50)
-```
-
-The first sync reads historical `AddObject` and `AddSetObject` logs for all
-users, from genesis to each source's finalized block. Each batch uses two
-`eth_getLogs` range queries (one per event type). Reduce `block_batch_size`
-if the provider limits range width. A failed sync can resume from completed
-ranges in this session. Both views become
-available together after the first successful sync; during later syncs,
-readers see the last complete view. Page requests do not call the node.
-
-**Provider trust requirement:** use an archival RPC endpoint that returns
-complete log results and consistent finalized history across requests. Sync
-checks the range against its preceding checkpoint, rechecks boundary hashes,
-and checks each returned log against its block header. It does not walk
-every intervening header. An omitted log or a falsely empty response can
-pass these checks and cause missing stamps or collections. A load-balanced
-endpoint is suitable only if its nodes satisfy the same guarantees.
-
-The index and checkpoints exist only in memory. A new service instance must
-sync again, even in the same process. Do not create one per page request.
-Use SQL for long histories that do not fit in memory. If a finalized checkpoint
-conflicts with a node's history, both page methods stop serving that session.
-Verify the node and start a fresh instance. A timeout or a lagging node alone
-does not invalidate a previously published view.
-
-`FailoverIndexingService` starts each paged method at offset zero and uses the
-first backend that succeeds. Keep the same failover instance for later offsets.
-If the selected backend goes offline, retry it or discard the previous pages
-and restart at offset zero on a new instance. It never combines an offset from
-one backend with results from another. Unpaged methods still fail over on each
-call. Aggregate services do not merge independently paged results.
-
-`Web3HTTPIndexingService` finds past commitments by querying a node for
-contract events with `eth_getLogs`. Each receipt query runs from a start block to the
+For unpaged reads, `Web3HTTPIndexingService` queries contract events with
+`eth_getLogs`. Each unpaged query runs from a start block to the
 latest block. Queries that fail with a connection error or a JSON-RPC error
 from the node are retried with exponential backoff, and the last error is
 raised if all attempts fail. Other errors, such as invalid query arguments, are
@@ -113,7 +58,7 @@ support indexing. Results depend on the endpoint:
 
 - Many public endpoints limit the block range or result count of an
   `eth_getLogs` request. Full-history queries can fail on these endpoints.
-  Limit the range with `n_last_blocks`, or use a node without these limits.
+  For unpaged reads, limit the range with `n_last_blocks`, or use a node without these limits.
 - If the endpoint has not yet reached a commitment's block, query results do
   not include that commitment.
 
@@ -130,7 +75,7 @@ SDK does not check the endpoint's chain. A node on a different chain returns
 empty results instead of an error, so an empty result does not confirm that
 the endpoint is correct.
 
-Set `indexing_service.n_last_blocks` to query only recent blocks. When it is
+Set `indexing_service.n_last_blocks` to restrict **unpaged** reads. When it is
 `None`, the default, queries start at the genesis block. When it is an
 integer, queries start that many blocks before the current block, or at the
 genesis block if the chain is shorter.

@@ -88,7 +88,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         )
         self.assertNotIn(secret, "".join(traceback.format_exception(cm.exception)))
 
-    def test_collection_page_skips_unindexed_backend_without_reading_receipts(self):
+    def test_set_page_skips_unindexed_backend_without_reading_receipts(self):
         """A raw node cannot count/page distinct CIDs; try the next index instead."""
         node = Web3HTTPIndexingService([self.service1])
         with self.assertRaisesRegex(RuntimeError, "not ready"):
@@ -123,7 +123,7 @@ class TestFailoverIndexingService(unittest.TestCase):
         )
         self.assertFalse(self.service1.mock_calls)
 
-    def test_collection_page_fails_when_no_index_is_available(self):
+    def test_set_page_fails_when_no_index_is_available(self):
         """A stale index and a raw node cannot return a partial or fabricated total."""
         self.service1.find_user_collection_cids.side_effect = RuntimeError("stale")
         node = Web3HTTPIndexingService([self.service2])

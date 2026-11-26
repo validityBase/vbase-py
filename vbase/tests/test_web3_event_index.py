@@ -12,7 +12,7 @@ from vbase.core.web3_event_index import Web3EventIndex
 
 
 def _source(chain: int, blocks: list) -> MagicMock:
-    """Each block contains (user, object CID, transaction hash, optional collection) stamps."""
+    """Each block contains (user, object CID, transaction hash, optional set CID) commitments."""
     cs = MagicMock()
     cs.commitment_service_address = "0xcontract"
     cs.w3.eth.chain_id = chain
@@ -29,14 +29,14 @@ def _source(chain: int, blocks: list) -> MagicMock:
             "parentHash": max(0, n - 1).to_bytes(32, "big"),
         }
 
-    def logs(collection, from_block, to_block, argument_filters):
+    def logs(is_membership, from_block, to_block, argument_filters):
         assert not argument_filters
         return [
             {
                 "blockNumber": n,
                 "blockHash": n.to_bytes(32, "big"),
                 "address": "0xcontract",
-                "logIndex": i * 2 + int(collection),
+                "logIndex": i * 2 + int(is_membership),
                 "args": {
                     "user": user,
                     "objectCid": bytes.fromhex(cid),
@@ -47,7 +47,7 @@ def _source(chain: int, blocks: list) -> MagicMock:
             }
             for n in range(from_block, to_block + 1)
             for i, (user, cid, tx, group) in enumerate(blocks[n])
-            if not collection or group is not None
+            if not is_membership or group is not None
         ]
 
     cs.w3.eth.get_block.side_effect = header
@@ -74,7 +74,7 @@ class TestSessionPages(unittest.TestCase):
         self.node = Web3HTTPIndexingService([self.other, self.cs, self.cs])
 
     def test_receipts_and_cids_match_sql(self):
-        """Same timestamp, repeated stamps, cross-chain ties, mixed case, and count-only reads."""
+        """Cover time ties, repeated commitments, mixed case, and count-only reads."""
         sql = SQLIndexingService(
             "sqlite://", indexing_stale_threshold_seconds=float("inf")
         )
@@ -125,12 +125,12 @@ class TestSessionPages(unittest.TestCase):
                             getattr(self.node, method)(user, limit=size, offset=offset),
                             getattr(sql, method)(user, limit=size, offset=offset),
                         )
-        stamps = self.node.find_user_objects_page("alice", limit=10)
-        self.assertEqual(stamps.total, 4)
+        objects = self.node.find_user_objects_page("alice", limit=10)
+        self.assertEqual(objects.total, 4)
         self.assertEqual(
             [
                 (r["chainId"], r["transactionHash"], r["objectCid"])
-                for r in stamps.receipts
+                for r in objects.receipts
             ],
             [
                 (1, "0x01", "0xaa"),
@@ -139,8 +139,8 @@ class TestSessionPages(unittest.TestCase):
                 (2, "0x01", "0xaa"),
             ],
         )
-        self.assertEqual(stamps.receipts[0]["timestamp"], "1970-01-01 00:01:41+00:00")
-        stamps.receipts[0].clear()
+        self.assertEqual(objects.receipts[0]["timestamp"], "1970-01-01 00:01:41+00:00")
+        objects.receipts[0].clear()
         self.assertTrue(self.node.find_user_objects_page("alice", limit=1).receipts[0])
         self.assertEqual(
             self.node.find_user_collection_cids("alice", limit=3).cids, ["0xbb", "0xff"]
@@ -189,7 +189,7 @@ class TestSessionPages(unittest.TestCase):
         self.node.sync_index()
         self.assertEqual(self.node.find_user_objects_page("alice", limit=0).total, 5)
 
-    def test_cancelled_range_or_publication_cannot_duplicate_stamps(self):
+    def test_cancelled_range_or_publication_cannot_duplicate_commitments(self):
         """A notebook interrupt after decoding or during publish must be safe to retry."""
         node = Web3HTTPIndexingService([_source(1, [[("alice", "aa", "01", "ff")]])])
         read = Web3EventIndex._read_range  # pylint: disable=protected-access

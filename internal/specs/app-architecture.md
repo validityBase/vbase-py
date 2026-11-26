@@ -31,19 +31,15 @@ forwarder:
 commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
 
-SQL pages query the hosted event tables. A Web3 indexing service can instead
-sync finalized events into session memory: one receipt per `AddObject` and
-one distinct collection CID per user from `AddSetObject`. Pagination never
-scans raw logs or reads app pin metadata. Both backends order stamp receipts
-by block time (not the event payload time), chain ID, transaction hash and
-object CID. Web3 checkpoints and pages are not shared between instances.
-Sync uses block-range log queries, checks the checkpoint and range boundaries,
-and validates returned logs against their block headers. It trusts the RPC
-provider for complete results and consistent finalized history; it cannot
-prove that empty results are correct. A confirmed conflict invalidates both views; an
-ordinary RPC outage does not. A failover instance selects a backend once per
-paged method, starting at offset zero. A later outage cannot silently switch
-the source of an offset.
+SQL pages use the event tables. Web3 builds its two views in one session and
+publishes them together so a partial sync cannot expose mismatched results.
+Range queries avoid walking every block header: boundary and returned-log
+checks detect conflicting history, but cannot detect an omitted log. A
+confirmed conflict invalidates both views; an ordinary outage does not.
+Failover pins each paged method to one backend because an offset from one
+ordered dataset has no meaning in another.
+
+For caller guarantees and recovery, see [Paging indexed commitments](../../docs/pagination.rst).
 
 See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
 for endpoint selection and event-query requirements, and
@@ -63,7 +59,7 @@ private variants.
 
 ## Datasets
 
-`vbase/core/vbase_dataset.py` manages collections of vBase objects with
+`vbase/core/vbase_dataset.py` manages datasets of vBase objects with
 provenance. `vbase/core/vbase_dataset_async.py` provides `VBaseDatasetAsync`
 for non-blocking dataset operations.
 

@@ -160,17 +160,15 @@ class IndexingService(ABC):
     def _find_user_collection_cids(
         self, user: str, *, limit: int, offset: int
     ) -> CollectionCidPage:
-        raise NotImplementedError(
-            "Collection CID pagination requires an indexed source"
-        )
+        raise NotImplementedError("Set CID pagination requires an indexed source")
 
     def find_user_objects_page(
         self, user: str, *, limit: int, offset: int = 0
     ) -> ObjectReceiptPage:
-        """Page individual AddObject receipts, including repeated stamps.
+        """Page individual AddObject receipts, including repeated commitments.
 
         Sort by block timestamp, chain ID, transaction hash, then object CID.
-        Pass limit=0 for the total only. Pinning is not a blockchain property.
+        Pass limit=0 for the total only.
         """
         validate_page(limit, offset)
         return self._find_user_objects_page(user, limit=limit, offset=offset)
@@ -270,7 +268,7 @@ class Web3HTTPIndexingService(IndexingService):
         self._event_index = Web3EventIndex()
 
     def sync_index(self, *, block_batch_size: int = 1000) -> None:
-        """Sync finalized stamps and collection IDs into this session, not during reads."""
+        """Sync finalized object commitments and set CIDs into this session, not during reads."""
         self._event_index.sync(
             self.commitment_services, self._get_event_logs, block_batch_size
         )
@@ -278,12 +276,12 @@ class Web3HTTPIndexingService(IndexingService):
     def _find_user_collection_cids(
         self, user: str, *, limit: int, offset: int
     ) -> CollectionCidPage:
-        return self._event_index.collections(user, limit, offset)
+        return self._event_index.set_cids(user, limit, offset)
 
     def _find_user_objects_page(
         self, user: str, *, limit: int, offset: int
     ) -> ObjectReceiptPage:
-        return self._event_index.stamps(user, limit, offset)
+        return self._event_index.object_receipts(user, limit, offset)
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
