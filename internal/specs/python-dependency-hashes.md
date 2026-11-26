@@ -97,15 +97,19 @@ pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.
 ```
 
 To update the lock-generation tooling, edit the pinned `pip-tools==...`
-constraint in `requirements/tools.in`, then regenerate both
-`requirements/tools.txt` and `requirements/dev.txt` because `dev.in` includes
-`tools.in`.
+constraint in `requirements/tools.in` and lock it. Then install the new
+`pip-tools` and regenerate all four locks with it, as the lock workflow does:
+`dev.in` includes `tools.in`, and a different `pip-tools` version can write
+any lock differently.
 
 ```bash
 # edit the pip-tools==... pin in requirements/tools.in
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/tools.txt requirements/tools.in
 python -m pip install --require-hashes -r requirements/tools.txt
+pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/tools.txt requirements/tools.in
 pip-compile --strip-extras --no-annotate --allow-unsafe --generate-hashes -o requirements/dev.txt requirements/dev.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/test.txt requirements/test.in
+pip-compile --strip-extras --no-annotate --generate-hashes -o requirements/docs.txt requirements/docs.in
 ```
 
 Install local development dependencies from the generated lock:

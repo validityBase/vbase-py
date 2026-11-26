@@ -21,7 +21,8 @@ matching utilities for auditable data provenance workflows.
   without hashes; see `internal/specs/github-actions.md`.
 - `.github/workflows/run-setup-matrix.yaml` installs source requirement ranges
   without hashes across Ubuntu, macOS, and Windows for Python 3.11 through 3.13.
-- Localhost image access is documented in `internal/specs/github-actions.md`.
+- CI access to the localhost image is in `internal/specs/github-actions.md`;
+  local access for validityBase members is in `CONTRIBUTING.md`.
 
 ## Sensitive Logging
 

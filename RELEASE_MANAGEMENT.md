@@ -99,15 +99,22 @@ If the merge stops with conflicts, resolve them and commit before you go on.
 Prepare release adds the `## [X.Y.Z]` heading directly below
 `## [Unreleased]`. Git can therefore merge changelog entries that reached
 `dev` after it was promoted to `main` into the released section without a
-conflict. Check that the merge left the released section unchanged:
+conflict. Set `V` to the released version and check that the merge left the
+released section unchanged:
 
 ```bash
-diff <(git show vX.Y.Z:CHANGELOG.md | sed -n '/^## \[X.Y.Z\]/,$p') \
-  <(sed -n '/^## \[X.Y.Z\]/,$p' CHANGELOG.md) && echo "release notes unchanged"
+V=X.Y.Z
+git rev-parse -q --verify "refs/tags/v$V" >/dev/null &&
+  grep -q "^## \[$V\]" CHANGELOG.md &&
+  diff <(git show "v$V:CHANGELOG.md" | sed -n "/^## \[$V\]/,\$p") \
+    <(sed -n "/^## \[$V\]/,\$p" CHANGELOG.md) &&
+  echo "release notes unchanged"
 ```
 
-If `diff` shows added entries, move them under `## [Unreleased]` and commit.
-Then push the branch and open the PR:
+The command prints `release notes unchanged` only when the tag exists,
+`CHANGELOG.md` has the version's heading, and the released section matches
+the tag. If it prints nothing, check `V`. If `diff` shows added entries, move
+them under `## [Unreleased]` and commit. Then push the branch and open the PR:
 
 ```bash
 git push -u origin sync/main-into-dev-vX.Y.Z
