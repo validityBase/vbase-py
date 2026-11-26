@@ -42,7 +42,7 @@ class SphinxLinksTest(unittest.TestCase):
                 ],
                 check=False,
                 capture_output=True,
-                text=True,
+                encoding="utf-8",
             )
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             for target in ("missing-guide.html", "guide.html#absent"):

@@ -23,6 +23,10 @@ pre-commit run --all-files
 
 Pre-commit installs Black and isort in isolated environments. When updating
 either formatter, keep its hook revision aligned with `requirements/dev.txt`.
+The formatting job in `docs-check.yml` fails when they differ. Dependabot
+updates only the lock files, so when its PR changes the Black or isort pin in
+`requirements/dev.txt`, push a commit to that PR that sets the same version
+as the hook's `rev` in `.pre-commit-config.yaml`.
 
 `vbase/__init__.py` is intentionally ordered by public export grouping instead
 of alphabetically, so isort skips it.
