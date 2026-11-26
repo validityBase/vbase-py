@@ -35,9 +35,12 @@
   links against the checkout, so a pull request into `dev` can link to a file
   it adds. It checks their fragments only for Markdown and HTML files, where
   line fragments such as `#L5` fail; link to a file or heading instead. Other
-  forms, such as `tree/main` links, are checked online. Lychee skips loopback
-  hosts and placeholders in angle brackets in the path or query of a link
-  target, such as `https://docs.vbase.com/<page>`. In Markdown, put other
+  forms, such as `tree/main` links, are checked online. File links to other
+  repositories (`https://github.com/<owner>/<repo>/blob/...`) are checked
+  through `raw.githubusercontent.com`, without fragments, because github.com
+  throttles anonymous file pages with 429 and 503 responses. Lychee skips
+  loopback hosts and placeholders in angle brackets in the path or query of a
+  link target, such as `https://docs.vbase.com/<page>`. In Markdown, put other
   placeholder URLs in code spans or code blocks. Lychee reads `docs/*.rst` as
   plain text and checks URLs in its literals and code blocks too, so write
   placeholders there without a URL scheme.
