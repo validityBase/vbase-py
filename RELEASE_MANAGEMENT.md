@@ -98,11 +98,14 @@ gh pr create --base dev --title "Merge main into dev after the vX.Y.Z release" -
 
 Merge the PR with a **merge commit**, not a squash or rebase, so `dev` contains
 `main`'s release commit. Otherwise `dev` can retain the old version and list
-released changes under `[Unreleased]`. Verify after the merge:
+released changes under `[Unreleased]`. After the merge, check that `dev`
+contains the commit that the release tag points to. Check the tag, not
+`origin/main`: if `main` gets new commits while the sync PR is open, an
+`origin/main` check fails even though `dev` has the release.
 
 ```bash
-git fetch origin
-git merge-base --is-ancestor origin/main origin/dev && echo synced
+git fetch origin --tags
+git merge-base --is-ancestor vX.Y.Z origin/dev && echo synced
 ```
 
 ## Checks and their limits
