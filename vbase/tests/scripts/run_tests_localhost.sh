@@ -1,28 +1,15 @@
 #!/bin/bash
+# Run the tests against the localhost test chain in config/.env.localhost.
+# Pass test names to run only those; by default all tests run.
 
 set -a
 source config/.env.localhost
 set +a
 
-# The test chain deploys the commitment contract after the node starts.
-# Wait for the contract so that the tests do not start before it exists.
-python3 - <<'EOF' || exit 1
-import os
-import sys
-import time
+# The localhost image deploys the commitment contract after its node starts.
+python3 vbase/tests/scripts/wait_for_localhost_contract.py || exit 1
 
-from web3 import Web3
-
-w3 = Web3(Web3.HTTPProvider(os.environ["VBASE_COMMITMENT_SERVICE_NODE_RPC_URL"]))
-address = os.environ["VBASE_COMMITMENT_SERVICE_ADDRESS"]
-for _ in range(60):
-    try:
-        if w3.eth.get_code(address):
-            sys.exit(0)
-    except Exception:  # The node may not accept connections yet.
-        pass
-    time.sleep(1)
-sys.exit(f"No commitment contract at {address} after 60 seconds.")
-EOF
-
-python3 -m unittest discover -s vbase/tests
+if [[ $# -eq 0 ]]; then
+    set -- discover -s vbase/tests
+fi
+python3 -m unittest "$@"

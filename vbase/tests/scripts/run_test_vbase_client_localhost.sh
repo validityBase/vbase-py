@@ -1,7 +1,3 @@
 #!/bin/bash
 
-set -a
-source config/.env.localhost
-set +a
-
-python3 -m unittest vbase.tests.test_vbase_client
+bash vbase/tests/scripts/run_tests_localhost.sh vbase.tests.test_vbase_client
