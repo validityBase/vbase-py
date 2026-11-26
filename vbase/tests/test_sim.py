@@ -132,7 +132,7 @@ class TestSimState(unittest.TestCase):
         self.assertIsNone(vbc.get_sim_t())
 
     def test_overlapping_simulations_on_two_threads(self):
-        """Overlapping simulations keep their own times and end out of simulation."""
+        """Overlapping one-step simulations keep their times and end out of simulation."""
         for a_ends_first in (True, False):
             with self.subTest(a_ends_first=a_ends_first):
                 self._check_overlapping_simulations(a_ends_first)
