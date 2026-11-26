@@ -64,9 +64,12 @@ jobs:
         # lychee-action v2.9.0
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
         with:
+          # The remap checks this repository's blob/main links against the
+          # checkout, so a pull request into dev can link to files it adds.
           args: >-
             --root-dir . --include-fragments --no-progress
             --exclude-loopback --exclude '<[^>]+>'
+            --remap 'https://github\.com/validityBase/vbase-py/blob/main/(.*) file://${{ github.workspace }}/$1'
             '*.md' 'docs/*.rst' 'internal/**/*.md'
             '${{ runner.temp }}/sphinx-html/**/*.html'
 

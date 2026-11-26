@@ -31,7 +31,9 @@
 - The `links` job checks Markdown and reStructuredText sources plus generated
   Sphinx HTML. It is the only job that also runs on the weekly schedule.
   Checking the HTML covers relative reStructuredText links and fragments.
-  Lychee skips loopback hosts and placeholder URLs.
+  Lychee checks this repository's `blob/main` URLs against the checkout, so a
+  pull request into `dev` can link to a file it adds, and skips loopback hosts
+  and placeholder URLs.
 - The `docs` job checks that links and images in the rendered `README.md` use
   absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
 - The formatting job checks that the isolated Black and isort hook revisions
