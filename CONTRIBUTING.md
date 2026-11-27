@@ -61,7 +61,9 @@ Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
 to validityBase members. Before you start it, stop any other local node that
-uses port 8545. On Windows, run the commands below in Git Bash, after
+uses port 8545. If that node is another checkout's
+`vbase-py-commitment-service` container, wait until that checkout's tests
+finish instead. On Windows, run the commands below in Git Bash, after
 `source venv/Scripts/activate` and `export PYTHON_BIN=python`, because the
 virtual environment has `python` but not `python3`. Log in to GHCR with a
 token that can read packages:
