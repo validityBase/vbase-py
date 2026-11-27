@@ -1,10 +1,20 @@
 """Check link and image destinations in the rendered PyPI README."""
 
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from markdown_it import MarkdownIt
+
+# PyPI renders the README as GitHub Flavored Markdown, whose tag filter
+# escapes these tags in raw HTML. HTMLParser would read the text after an
+# unescaped one as raw text and miss the links in it.
+_GFM_FILTERED_TAG = re.compile(
+    r"<(?=/?(?:title|textarea|style|xmp|iframe|noembed|noframes|script|plaintext)"
+    r"(?:\s|/?>))",
+    re.IGNORECASE,
+)
 
 
 class _ReadmeLinks(HTMLParser):
@@ -33,8 +43,12 @@ class _ReadmeLinks(HTMLParser):
 
 def invalid_destinations(markdown: str) -> list[str]:
     """Return invalid destinations from Markdown and raw HTML."""
+    renderer = MarkdownIt("commonmark")
+    # markdown-it renders links to file:, javascript:, and similar URLs as
+    # text. Keep them as links so that they are reported.
+    renderer.validateLink = lambda url: True
     parser = _ReadmeLinks()
-    parser.feed(MarkdownIt("commonmark").render(markdown))
+    parser.feed(_GFM_FILTERED_TAG.sub("&lt;", renderer.render(markdown)))
     parser.close()
     return parser.invalid
 

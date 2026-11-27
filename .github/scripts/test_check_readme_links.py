@@ -38,3 +38,19 @@ class ReadmeLinksTest(unittest.TestCase):
             '<!-- <a href="example.md">Ignored</a> -->'
         )
         self.assertEqual(invalid_destinations(markdown), [])
+
+    def test_link_after_filtered_tag(self):
+        """Check links after a tag that PyPI escapes, such as <script>."""
+        markdown = "Load it with a <script> tag.\n\n[Guide](docs/guide.md)\n"
+        self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
+
+    def test_destinations_markdown_it_rejects(self):
+        """Reject file: links and SVG data images instead of skipping them."""
+        markdown = (
+            "[Guide](file:///tmp/guide.md)\n\n"
+            "![Badge](data:image/svg+xml;base64,PHN2Zz4=)\n"
+        )
+        self.assertEqual(
+            invalid_destinations(markdown),
+            ["file:///tmp/guide.md", "data:image/svg+xml;base64,PHN2Zz4="],
+        )
