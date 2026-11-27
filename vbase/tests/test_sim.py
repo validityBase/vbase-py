@@ -4,13 +4,16 @@ accessing committed data precisely as it existed historically.
 """
 
 import logging
+import threading
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
 
 import vbase.core.vbase_client
+from vbase.core.commitment_service import CommitmentService
 from vbase.core.vbase_client_test import VBaseClientTest
 from vbase.core.vbase_object import VBaseIntObject
 from vbase.tests.utils import create_dataset_worker, dataset_from_json_checks
@@ -73,6 +76,122 @@ class TestSim(unittest.TestCase):
         s_sim = self.vbc.run_pit_sim(ts=pd.DatetimeIndex(ts), callback=callback)
         _LOG.info("self.vbase.run_pit_sim(): ret =\n%s", s_sim)
         assert s_sim.equals(pd.Series(np.array(range(1, 6)) ** 2, index=ts))
+
+
+class TestSimState(unittest.TestCase):
+    """Test the simulation state of VBaseClient without a commitment service."""
+
+    def test_callback_error_leaves_simulation_mode(self):
+        """A callback error propagates, and the client leaves simulation mode."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        ts = pd.date_range("2023-01-01", periods=3, freq="D", tz="UTC")
+
+        def callback():
+            if vbc.get_sim_t() == ts[1]:
+                raise ValueError("callback failed")
+            return 1
+
+        with self.assertRaisesRegex(ValueError, "callback failed"):
+            vbc.run_pit_sim(ts=ts, callback=callback)
+
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
+
+    def test_nested_simulation_restores_outer_state(self):
+        """A simulation run from a callback restores the enclosing simulation."""
+
+        def succeeding_inner():
+            return 1
+
+        def failing_inner():
+            raise ValueError("inner callback failed")
+
+        for inner in (succeeding_inner, failing_inner):
+            with self.subTest(inner=inner.__name__):
+                self._check_nested_simulation(inner)
+
+    def _check_nested_simulation(self, inner):
+        """Run a simulation whose callback runs another one with ``inner``."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        outer_ts = pd.date_range("2023-01-01", periods=2, freq="D", tz="UTC")
+        inner_ts = pd.date_range("2022-01-01", periods=2, freq="D", tz="UTC")
+        states = []
+
+        def outer():
+            try:
+                vbc.run_pit_sim(ts=inner_ts, callback=inner)
+            except ValueError:
+                pass
+            states.append((vbc.in_sim(), vbc.get_sim_t()))
+            return 1
+
+        vbc.run_pit_sim(ts=outer_ts, callback=outer)
+
+        self.assertEqual(states, [(True, outer_ts[0]), (True, outer_ts[1])])
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
+
+    def test_overlapping_simulations_on_two_threads(self):
+        """Overlapping one-step simulations keep their times and end out of simulation."""
+        for a_ends_first in (True, False):
+            with self.subTest(a_ends_first=a_ends_first):
+                self._check_overlapping_simulations(a_ends_first)
+
+    def _check_overlapping_simulations(self, a_ends_first):
+        """Start simulation B inside A's callback on another thread; end one first."""
+        vbc = vbase.core.vbase_client.VBaseClient(MagicMock(spec=CommitmentService))
+        ts_a = pd.DatetimeIndex([pd.Timestamp("2023-01-01", tz="UTC")])
+        ts_b = pd.DatetimeIndex([pd.Timestamp("2024-01-01", tz="UTC")])
+        events = {
+            name: threading.Event() for name in ("a_in", "b_in", "a_done", "b_done")
+        }
+        waits = []
+        views = {}
+        results = {}
+
+        def wait(name):
+            waits.append((name, events[name].wait(timeout=5)))
+
+        def callback_a():
+            events["a_in"].set()
+            wait("b_in")
+            if not a_ends_first:
+                wait("b_done")
+                views["a"] = (vbc.in_sim(), vbc.get_sim_t())
+            return 1
+
+        def callback_b():
+            events["b_in"].set()
+            if a_ends_first:
+                wait("a_done")
+                views["b"] = (vbc.in_sim(), vbc.get_sim_t())
+            return 2
+
+        def run(name, ts, callback):
+            try:
+                results[name] = vbc.run_pit_sim(ts=ts, callback=callback).tolist()
+            # Report errors on this thread to the test.
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                results[name] = err
+            events[f"{name}_done"].set()
+
+        thread_a = threading.Thread(target=run, args=("a", ts_a, callback_a))
+        thread_b = threading.Thread(target=run, args=("b", ts_b, callback_b))
+        thread_a.start()
+        self.assertTrue(events["a_in"].wait(timeout=5))
+        thread_b.start()
+        thread_a.join(timeout=10)
+        thread_b.join(timeout=10)
+
+        self.assertFalse(thread_a.is_alive() or thread_b.is_alive())
+        self.assertTrue(all(done for _, done in waits), waits)
+        self.assertEqual(results, {"a": [1], "b": [2]})
+        if a_ends_first:
+            self.assertEqual(views, {"b": (True, ts_b[0])})
+        else:
+            self.assertEqual(views, {"a": (True, ts_a[0])})
+        self.assertFalse(vbc.in_sim())
+        self.assertIsNone(vbc.get_sim_t())
 
 
 if __name__ == "__main__":

@@ -33,9 +33,10 @@ class CommitmentService(ABC):
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
-        :param dotenv_path: Path to a .env file. If given, environment variables
-            are loaded from the file. If None, the default, the existing
-            environment variables are used.
+        :param dotenv_path: Path to a .env file. If given, the variables in the
+            file are loaded and override existing environment variables; a
+            missing file is ignored without an error. If None, the default, the
+            existing environment variables are used.
         :return: The commitment service created.
         """
 
@@ -167,7 +168,12 @@ class CommitmentService(ABC):
 
         :param set_cids: The hashes of the sets containing the objects.
         :param object_cids: The hashes to record.
-        :return: The commitment logs containing commitment receipts.
+        :return: The commitment logs containing commitment receipts, one per
+            object. An empty batch returns an empty list without sending a
+            transaction.
+        :raises ValueError: If set_cids and object_cids differ in length.
+        :raises RuntimeError: If the transaction receipt does not have one
+            AddObject event per object.
         """
 
     @abstractmethod
@@ -179,7 +185,11 @@ class CommitmentService(ABC):
 
         :param set_cid: The CID of the set containing the objects.
         :param object_cids: The hashes to record.
-        :return: The commitment logs containing commitment receipts.
+        :return: The commitment logs containing commitment receipts, one per
+            object. An empty batch returns an empty list without sending a
+            transaction.
+        :raises RuntimeError: If the transaction receipt does not have one
+            AddObject event per object.
         """
 
     @abstractmethod

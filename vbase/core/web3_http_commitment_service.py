@@ -3,11 +3,13 @@ such as blockchain-based smart contracts.
 This implementation uses Web3.HTTPProvider.
 """
 
+import contextlib
+import contextvars
 import json
 import logging
 import os
 import time
-from typing import Any, List, Optional, Union, cast
+from typing import Any, Iterator, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from web3 import HTTPProvider, Web3
@@ -16,6 +18,7 @@ from web3.middleware import (
     ExtraDataToPOAMiddleware,
     SignAndSendRawMiddlewareBuilder,
 )
+from web3.providers.rpc.utils import ExceptionRetryConfiguration
 from web3.types import RPCEndpoint, RPCResponse
 
 from vbase.core.web3_commitment_service import Web3CommitmentService
@@ -53,6 +56,25 @@ def _redact_json_text(value: Any) -> Any:
     return value
 
 
+# True while the caller retries node requests itself, as the indexing service
+# does. _RedactingHTTPProvider then sends each request once, so that its own
+# retries and the caller's do not multiply. Other requests keep web3's retries.
+_CALLER_RETRIES = contextvars.ContextVar("_CALLER_RETRIES", default=False)
+
+
+@contextlib.contextmanager
+def _caller_retries() -> Iterator[None]:
+    """Turn off the provider's retries for the node requests made in this block.
+
+    Use it only around requests that the caller retries itself.
+    """
+    token = _CALLER_RETRIES.set(True)
+    try:
+        yield
+    finally:
+        _CALLER_RETRIES.reset(token)
+
+
 class _RedactingHTTPProvider(HTTPProvider):
     """HTTP provider that redacts URLs in the errors of node requests.
 
@@ -67,7 +89,26 @@ class _RedactingHTTPProvider(HTTPProvider):
     the response text, such as the node's error message, so URLs in the
     response, including in object keys, are redacted too. The ``result``
     member holds node data and is returned unchanged.
+
+    Inside :func:`_caller_retries`, requests are sent once, without web3's
+    retries.
     """
+
+    @property
+    def exception_retry_configuration(self) -> Optional[ExceptionRetryConfiguration]:
+        """Return web3's retry settings, or None inside :func:`_caller_retries`.
+
+        web3's ``_make_request`` reads this property to decide whether to retry.
+        """
+        if _CALLER_RETRIES.get():
+            return None
+        return super().exception_retry_configuration
+
+    @exception_retry_configuration.setter
+    def exception_retry_configuration(
+        self, value: Optional[ExceptionRetryConfiguration]
+    ) -> None:
+        HTTPProvider.exception_retry_configuration.fset(self, value)
 
     def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
         try:
@@ -95,7 +136,7 @@ class _RedactingHTTPProvider(HTTPProvider):
 
 # Settings for the connection retry for Web3.HTTPProvider.
 # Maximum number of connection attempts.
-_W3_CONNECTION_MAX_RETRIES = 5
+_W3_CONNECTION_MAX_ATTEMPTS = 5
 # Linear backoff in seconds.
 _W3_CONNECTION_BACKOFF = 1
 
@@ -150,10 +191,10 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
         # The URL is redacted as one complete value, because its credentials
         # can contain whitespace that would end a URL found in free text.
         safe_node_rpc_url = redact_url(self.node_rpc_url)
-        retry_count = 0
+        attempts = 0
         backoff = 0
         connected = False
-        while retry_count < _W3_CONNECTION_MAX_RETRIES:
+        while attempts < _W3_CONNECTION_MAX_ATTEMPTS:
             try:
                 w3 = Web3(_RedactingHTTPProvider(self.node_rpc_url))
                 # is_connected() returns False for requests errors, including
@@ -174,13 +215,15 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
                     safe_node_rpc_url,
                     e,
                 )
-                retry_count += 1
-                backoff += _W3_CONNECTION_BACKOFF
-                time.sleep(backoff)
+                attempts += 1
+                # Wait before the next attempt, but not after the last one.
+                if attempts < _W3_CONNECTION_MAX_ATTEMPTS:
+                    backoff += _W3_CONNECTION_BACKOFF
+                    time.sleep(backoff)
 
         if not connected:
             raise ConnectionError(
-                f"Failed to connect to {safe_node_rpc_url} after {retry_count} attempts"
+                f"Failed to connect to {safe_node_rpc_url} after {attempts} attempts"
             )
 
         if inject_geth_poa_middleware:
@@ -303,6 +346,8 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
+        if self._is_empty_batch(object_cids, set_cids):
+            return []
         _LOG.debug("Sending transaction to addSetsObjectsBatch")
         tx_hash = self.csc.functions.addSetsObjectsBatch(
             # Strings get converted to bytes32 by Web3.
@@ -310,9 +355,11 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             object_cids,
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
+        if self._is_empty_batch(object_cids):
+            return []
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         tx_hash = self.csc.functions.addSetObjectsBatch(
             # Strings get converted to bytes32 by Web3.
@@ -320,7 +367,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             object_cids,
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_object_cid_sum: str

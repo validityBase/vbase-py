@@ -41,6 +41,8 @@ class VBaseClient:
 
         # Init simulation state.
         self._in_sim: bool = False
+        # The number of running simulations, counting nested ones.
+        self._sim_depth: int = 0
         # All timestamps are standard UTC times
         # and benefit from pandas scalable timestamp implementation.
         self._sim_t: Union[pd.Timestamp, None] = None
@@ -51,9 +53,10 @@ class VBaseClient:
         Syntactic sugar for initializing new commitment objects using settings
         stored in a .env file or in environment variables.
 
-        :param dotenv_path: Path to a .env file. If given, environment variables
-            are loaded from the file. If None, the default, the existing
-            environment variables are used.
+        :param dotenv_path: Path to a .env file. If given, the variables in the
+            file are loaded and override existing environment variables; a
+            missing file is ignored without an error. If None, the default, the
+            existing environment variables are used.
         :return: The constructed vBase client object.
         """
         if dotenv_path is not None:
@@ -297,23 +300,44 @@ class VBaseClient:
         PIT simulation executes callback for each t specified
         letting the callback see world state as it existed at that t.
 
+        A callback can run another simulation; when it ends, the outer
+        simulation continues at its own time. The simulation state belongs to
+        the client, and datasets read as of the simulation time of the client
+        they were opened with. Simulations that overlap on several threads
+        with one client therefore see each other's times. To run simulations
+        in parallel, give each thread its own client and open its datasets
+        with that client.
+
         :param ts: Times/timestamps for which callback should be called
             and PIT world state simulated.
         :param callback: The callback to call.
         :return: The aggregated output of all callback invocations.
         """
         sim_records = []
+        # Count the running simulations. The client leaves simulation mode
+        # when the last one ends, even if a callback raises, so later dataset
+        # reads are not limited to a simulation time. A simulation that
+        # started inside another one gives it back its time when it ends.
+        nested = self._sim_depth > 0
+        prev_sim_t = self._sim_t
+        self._sim_depth += 1
         self._in_sim = True
-        for t in ts:
-            self._sim_t = t
-            LOG.debug("run_pit_sim(): > callback for t = %s", t)
-            ret = callback()
-            LOG.debug("run_pit_sim(): < callback for t = %s", t)
-            # Callbacks compute non-sensitive portfolio statistics or data-science
-            # transformations. Their results are intentionally included in DEBUG
-            # logs; credentials and connection settings are outside this contract.
-            LOG.debug("run_pit_sim(): callback returned: %s", ret)
-            sim_records.append(ret)
-        self._in_sim = False
-        self._sim_t = None
+        try:
+            for t in ts:
+                self._sim_t = t
+                LOG.debug("run_pit_sim(): > callback for t = %s", t)
+                ret = callback()
+                LOG.debug("run_pit_sim(): < callback for t = %s", t)
+                # Callbacks compute non-sensitive portfolio statistics or data-science
+                # transformations. Their results are intentionally included in DEBUG
+                # logs; credentials and connection settings are outside this contract.
+                LOG.debug("run_pit_sim(): callback returned: %s", ret)
+                sim_records.append(ret)
+        finally:
+            self._sim_depth -= 1
+            if self._sim_depth == 0:
+                self._in_sim = False
+                self._sim_t = None
+            elif nested:
+                self._sim_t = prev_sim_t
         return pd.Series(sim_records, index=ts)

@@ -79,6 +79,13 @@ class RequestType(Enum):
 class ForwarderCommitmentService(Web3CommitmentService):
     """Commitment service accessible using a forwarder API endpoint."""
 
+    # A revert discards all of a call's events, and the forwarder's execute
+    # transaction succeeds even when the commitment call reverts.
+    _NO_EVENTS_HINT = (
+        "The forwarded commitment call may have reverted, for example for a "
+        "set that the user has not added."
+    )
+
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,
@@ -517,20 +524,24 @@ class ForwarderCommitmentService(Web3CommitmentService):
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
+        if self._is_empty_batch(object_cids, set_cids):
+            return []
         _LOG.debug("Sending transaction to addSetsObjectsBatch")
         receipt = self._post_execute(
             fn_name="addSetsObjectsBatch",
             args=[set_cids, object_cids],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
+        if self._is_empty_batch(object_cids):
+            return []
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         receipt = self._post_execute(
             fn_name="addSetObjectsBatch",
             args=[set_cid, object_cids],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_object_cid_sum: str

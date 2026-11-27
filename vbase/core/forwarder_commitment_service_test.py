@@ -81,7 +81,7 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
                 [self.convert_timestamp_str_to_chain(ts) for ts in timestamps],
             ],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_with_timestamps_batch(
         self, set_cid: str, object_cids: List[str], timestamps: List[str]
@@ -95,4 +95,4 @@ class ForwarderCommitmentServiceTest(ForwarderCommitmentService, CommitmentServi
                 [self.convert_timestamp_str_to_chain(ts) for ts in timestamps],
             ],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))

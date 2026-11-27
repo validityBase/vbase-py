@@ -6,6 +6,9 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-added-large-files
+        # Without --enforce-all the hook checks only files staged as added,
+        # so `pre-commit run --all-files` on a CI checkout checks no files.
+        args: ["--enforce-all"]
   # Keep formatter revisions aligned with requirements/dev.txt.
   - repo: https://github.com/pycqa/isort
     rev: 8.0.1

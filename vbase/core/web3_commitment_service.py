@@ -21,7 +21,11 @@ from web3.contract.base_contract import EventLogErrorFlags
 from web3.types import TxReceipt
 
 from vbase.core.commitment_service import CommitmentService
-from vbase.utils.crypto_utils import bytes_to_hex_str, hash_typed_values
+from vbase.utils.crypto_utils import (
+    bytes_to_hex_str,
+    bytes_to_hex_str_auto,
+    hash_typed_values,
+)
 from vbase.utils.log import RedactUrlsFilter, get_default_logger
 
 _LOG = get_default_logger(__name__)
@@ -38,6 +42,14 @@ class Web3CommitmentService(CommitmentService, ABC):
     RETRY_TRIES = 3
     RETRY_DELAY = 1
     RETRY_BACKOFF = 2
+
+    # The likely cause of a successful batch receipt without AddObject events.
+    # A reverted call fails at gas estimation or at the receipt status check,
+    # before the events are counted, so the address may not hold the contract.
+    _NO_EVENTS_HINT = (
+        "The commitment service address may not hold the commitment contract "
+        "on this network."
+    )
 
     def __init__(
         self, w3: Web3, commitment_service_contract: Union[Type[Contract], Contract]
@@ -104,6 +116,23 @@ class Web3CommitmentService(CommitmentService, ABC):
         """
         cl["userAddress"] = str(cl["user"])
         cl["chainId"] = self._get_chain_id()
+
+    @staticmethod
+    def _is_empty_batch(
+        object_cids: List[str], set_cids: Optional[List[str]] = None
+    ) -> bool:
+        """Check the arguments of a batch commitment before it is sent.
+
+        :param object_cids: The CIDs of the objects to commit.
+        :param set_cids: For a batch over several sets, the set of each object.
+        :return: True if the batch has no objects. It commits nothing, so the
+            batch methods return an empty list without sending a transaction.
+        :raises ValueError: If set_cids and object_cids differ in length.
+        """
+        if set_cids is not None and len(set_cids) != len(object_cids):
+            # The contract rejects this with InvalidBatch.
+            raise ValueError("set_cids and object_cids must have the same length.")
+        return len(object_cids) == 0
 
     @staticmethod
     def _check_tx_success(receipt):
@@ -187,7 +216,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         return cl
 
     def _add_object_worker(self, receipt: TxReceipt) -> dict:
-        """Process results of a addObject transaction.
+        """Process the results of an addObject transaction.
 
         :param receipt: The transaction receipt.
         :return: The commitment log containing commitment receipt info.
@@ -201,7 +230,10 @@ class Web3CommitmentService(CommitmentService, ABC):
             receipt, errors=EventLogErrorFlags.Discard
         )
         if not add_object_events:
-            raise RuntimeError("AddObject event not found in receipt")
+            raise RuntimeError(
+                "AddObject event not found in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}"
+            )
         # process_receipt() returns EventData (AttributeDict) objects;
         # dict-style ["args"] access always works.
         cl = dict(add_object_events[0]["args"])
@@ -221,7 +253,7 @@ class Web3CommitmentService(CommitmentService, ABC):
     def _add_set_object_worker(self, receipt: TxReceipt) -> dict:
         """Process addSetObject transaction results.
 
-        :param receipt: Transaction receipt returned by AddSetObject.
+        :param receipt: The transaction receipt.
         :return: The commitment log containing commitment receipt info.
         """
         self._check_tx_success(receipt)
@@ -238,7 +270,10 @@ class Web3CommitmentService(CommitmentService, ABC):
             receipt, errors=EventLogErrorFlags.Discard
         )
         if not add_set_object_events or not add_object_events:
-            raise RuntimeError("AddSetObject or AddObject event not found in receipt")
+            raise RuntimeError(
+                "AddSetObject or AddObject event not found in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}"
+            )
         # process_receipt() returns EventData (AttributeDict) objects;
         # dict-style ["args"] access always works.
         add_set_args = add_set_object_events[0]["args"]
@@ -260,16 +295,20 @@ class Web3CommitmentService(CommitmentService, ABC):
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
 
-    def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
+    def _add_sets_objects_batch_worker(
+        self, receipt: TxReceipt, n_objects: int
+    ) -> List[dict]:
         """Process the results of a batch commitment transaction, such as
         addSetsObjectsBatch or addSetObjectsBatch, from its AddObject events.
 
         :param receipt: The transaction receipt.
+        :param n_objects: The number of objects that the transaction was sent
+            to commit.
         :return: The list of commitment log containing commitment receipts.
+        :raises RuntimeError: If the receipt does not have one AddObject event
+            per object.
         """
         self._check_tx_success(receipt)
-
-        # Events should always be emitted on success.
 
         # The call emits one AddObject per committed object. On some chains other events
         # (e.g. LogFeeTransfer) may be emitted; process_receipt() filters by event
@@ -277,6 +316,17 @@ class Web3CommitmentService(CommitmentService, ABC):
         add_object_events = self.csc.events.AddObject().process_receipt(
             receipt, errors=EventLogErrorFlags.Discard
         )
+        # A different count means that not every object was committed. The
+        # count also tells an empty batch from missing events.
+        if len(add_object_events) != n_objects:
+            message = (
+                f"Expected {n_objects} AddObject events in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}, found "
+                f"{len(add_object_events)}."
+            )
+            if not add_object_events:
+                message += " " + self._NO_EVENTS_HINT
+            raise RuntimeError(message)
         # Hoist constants that are the same for every item in the batch.
         tx_hash = receipt["transactionHash"]
         chain_id = self._get_chain_id()

@@ -44,7 +44,9 @@ pre-commit install
 The generated locks are resolved on Linux and omit dependencies that only
 macOS or Windows need, such as colorama on Windows. On macOS or Windows,
 replace the requirements install with
-`python -m pip install -r requirements/dev.in`.
+`python -m pip install "setuptools>=77.0.3" -r requirements/dev.in`.
+The editable install needs that setuptools version, which the Linux lock
+pins but a new Python 3.11 virtual environment may not have.
 
 Check your environment and run formatting/lint checks:
 
@@ -58,18 +60,49 @@ pylint vbase/
 Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
-to validityBase members. Log in to GHCR with a token that can read packages,
-then start the service and run the tests:
+to validityBase members. Before you start it, make sure that no other local
+node uses port 8545. Stop such a node only when nothing, such as tests or a
+local forwarder, is using it and no other checkout or session will stop it
+later; otherwise, wait and check again, or ask whoever started it. On
+Windows, run the commands below in Git Bash, after
+`source venv/Scripts/activate` and `export PYTHON_BIN=python`, because the
+virtual environment has `python` but not `python3`. Log in to GHCR with a
+token that can read packages:
 
 ```bash
 docker login ghcr.io
-docker run -d -p 127.0.0.1:8545:8545 --name commitment-service ghcr.io/validitybase/commitment-service-localhost:latest
-bash vbase/tests/scripts/run_tests_localhost.sh
+```
+
+Then start the service and run the tests:
+
+```bash
+docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest &&
+  bash vbase/tests/scripts/run_tests_localhost.sh
+```
+
+The tests run only if the container starts. The container deploys the
+commitment contract after it starts, and the test script waits up to 60
+seconds for the contract. If `docker run` reports that the container name is
+in use, a container from an earlier run still has that name. Stop that
+container only when nothing is using it and no other checkout or session
+will stop it later, since such a later `docker stop` would stop your new
+container instead. Otherwise, wait and check again, or ask whoever started
+the old container. Once it is stopped, run the commands again. When you are
+done and nothing is using the container that your `docker run` started, stop
+it. Because of `--rm`, stopping it also removes it:
+
+```bash
+docker stop vbase-py-commitment-service
 ```
 
 The port is bound to `127.0.0.1`, which is the address used by
-`config/.env.localhost`. The "Run Localhost Tests" workflow runs these tests
-on every pull request.
+`config/.env.localhost`. If another node already uses port 8545, `docker run`
+fails, or, with some engines such as Colima, the container starts but the
+test script reaches the other node. The script then stops after 60 seconds
+because that node has no code at the contract's address, or, if it has a
+contract there, runs the tests against it. `--pull always` replaces a cached
+`latest` image with the current one. The "Run Localhost Tests" workflow runs
+these tests on every pull request.
 
 Alternatively, with authorized access to the public development forwarder and
 `VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your

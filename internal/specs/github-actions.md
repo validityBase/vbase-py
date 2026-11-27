@@ -22,13 +22,29 @@
 
 ### `.github/workflows/docs-check.yml`
 
-- On pull requests and pushes to `dev`, builds Sphinx Markdown docs with warnings as errors, checks links and anchors, and runs all pre-commit hooks.
+- Runs on every pull request, including pull requests into `dev`, on pushes
+  to `main`, and weekly on the default branch.
+- Builds Sphinx Markdown docs with warnings as errors, checks links and
+  anchors, and runs all pre-commit hooks.
 - Uses Python 3.11 and hash-locked `requirements/docs.txt` and `requirements/dev.txt` through `setup-python-deps@v2`.
 - Installs the package without dependency resolution before the Sphinx build.
 - The `links` job checks Markdown and reStructuredText sources plus generated
-  Sphinx HTML on pull requests, pushes to `dev`, and weekly on the default
-  branch. Checking the HTML covers relative reStructuredText links and
-  fragments. Lychee skips loopback hosts and placeholder URLs.
+  Sphinx HTML. It is the only job that also runs on the weekly schedule.
+  Checking the HTML covers relative reStructuredText links and fragments.
+  Lychee checks `https://github.com/validityBase/vbase-py/blob/main/<path>`
+  links against the checkout, so a pull request into `dev` can link to a file
+  it adds. It checks file links to other repositories
+  (`https://github.com/<owner>/<repo>/blob/...`) through
+  `raw.githubusercontent.com`, because github.com throttles anonymous file
+  pages with 429 and 503 responses. For both, Lychee checks a fragment when
+  the target is a Markdown file, and line fragments such as `#L5` then fail;
+  link to a file or a heading instead. Other forms, such as `tree/main` links,
+  are checked online. Lychee skips loopback hosts and placeholders in angle
+  brackets in the path or query of a link target, such as
+  `https://docs.vbase.com/<page>`. In Markdown, put other
+  placeholder URLs in code spans or code blocks. Lychee reads `docs/*.rst` as
+  plain text and checks URLs in its literals and code blocks too, so write
+  placeholders there without a URL scheme.
 - The `docs` job checks that links and images in the rendered `README.md` use
   absolute HTTP(S) URLs for PyPI, including reference links and raw HTML.
 - The formatting job checks that the isolated Black and isort hook revisions
@@ -143,5 +159,6 @@
   in the shared-actions repository. Keep the upload workflow filename, PyPI
   project, environment, and trusted-publisher identity unchanged unless the
   PyPI trusted publisher is updated to match.
-- The runbook is [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); repository
-  settings and behavior are in [pypi-releases.md](pypi-releases.md).
+- The runbook and repository settings are in
+  [RELEASE_MANAGEMENT.md](../../RELEASE_MANAGEMENT.md); release behavior is in
+  [pypi-releases.md](pypi-releases.md).

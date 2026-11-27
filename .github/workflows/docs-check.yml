@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - dev
+      - main
   schedule:
     - cron: "19 4 * * 1"
 
@@ -64,9 +64,17 @@ jobs:
         # lychee-action v2.9.0
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
         with:
+          # The first remap checks this repository's blob/main links against
+          # the checkout, so a pull request into dev can link to files it adds.
+          # The second checks other repositories' file links through
+          # raw.githubusercontent.com, because github.com throttles anonymous
+          # file pages with 429 and 503 responses. Lychee uses the first remap
+          # that matches, so keep this order.
           args: >-
             --root-dir . --include-fragments --no-progress
-            --exclude-loopback --exclude '<[^>]+>'
+            --exclude-loopback --exclude '%3C[^/]*%3E'
+            --remap 'https://github\.com/validityBase/vbase-py/blob/main/(.*) file://${{ github.workspace }}/$1'
+            --remap 'https://github\.com/([^/]+/[^/]+)/blob/(.*) https://raw.githubusercontent.com/$1/$2'
             '*.md' 'docs/*.rst' 'internal/**/*.md'
             '${{ runner.temp }}/sphinx-html/**/*.html'
 

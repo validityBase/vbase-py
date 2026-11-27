@@ -23,6 +23,25 @@ for prior changes.
   and documentation links, and update contributor setup instructions.
 - Correct docstrings that named nonexistent parameters, contract functions,
   and events, and log the callback result in `run_pit_sim()` debug output.
+- Leave simulation mode when `VBaseClient.run_pit_sim()` ends, including
+  when a callback raises. Before, later `VBaseDataset` reads on the same
+  client still used the failed simulation's time. A simulation run from
+  another simulation's callback now returns to the outer simulation instead
+  of ending it.
+- Stop waiting after the last failed connection attempt of
+  `Web3HTTPCommitmentService`, so its `ConnectionError` is raised sooner.
+- `Web3HTTPIndexingService` retries its block lookups, chain ID reads, and
+  latest-block reads like its event queries, and `find_user_sets()` reads each
+  block once. These requests are no longer retried by web3's HTTP provider as
+  well as by the SDK: an event query that kept failing with HTTP 429 sent 25
+  requests instead of 5.
+- Raise `RuntimeError` when the receipt of a batch commitment, from
+  `add_sets_objects_batch()` or `add_set_objects_batch()`, does not have one
+  `AddObject` event per object, for example because a forwarded commitment
+  call reverted. Before, the call returned fewer commitment receipts, or none,
+  without an error. An empty batch now returns an empty list without sending a
+  transaction, and `add_sets_objects_batch()` raises `ValueError` before
+  sending one when `set_cids` and `object_cids` differ in length.
 
 ### Removed
 

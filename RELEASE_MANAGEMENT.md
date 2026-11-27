@@ -53,20 +53,28 @@ Merge that Release PR only when you are ready to publish.
 
 After `[Unreleased]` has user-facing entries, run the same release tool pinned
 by `prepare-release.yml` in a temporary clone. Use Python 3.11 with `build`
-installed and choose the increment you plan to use in Prepare release:
+installed and choose the increment you plan to use in Prepare release. The
+commands clone `main` from GitHub, the branch that Prepare release uses, so
+changes not yet merged into `main` are not tested. They run in a subshell from
+any directory, stop at the first failed command, and remove the temporary
+clone when they finish:
 
 ```bash
-REF=$(sed -n 's/^ *release-tools-ref: //p' .github/workflows/prepare-release.yml)
-WORK=$(mktemp -d)
-git clone --quiet https://github.com/validityBase/vbase-py "$WORK/vbase-py"
-git clone --quiet https://github.com/validityBase/vbase-github-actions "$WORK/tools"
-git -C "$WORK/tools" checkout --quiet "$REF"
-TOOL="$WORK/tools/.github/actions/python-release/scripts/release.py"
-VERSION=$(python3.11 "$TOOL" prepare --root "$WORK/vbase-py" --version-file vbase/_version.py --bump patch --notes-file "$WORK/notes.md")
-python3.11 -m build --outdir "$WORK/dist" "$WORK/vbase-py"
-python3.11 "$TOOL" validate --root "$WORK/vbase-py" --version-file vbase/_version.py --tag "v$VERSION" --dist-dir "$WORK/dist" --package-name vbase
-cat "$WORK/notes.md"
-rm -rf "$WORK"
+(
+  set -euo pipefail
+  WORK=$(mktemp -d)
+  trap 'rm -rf "$WORK"' EXIT
+  git clone --quiet https://github.com/validityBase/vbase-py "$WORK/vbase-py"
+  REF=$(sed -n 's/^ *release-tools-ref: //p' "$WORK/vbase-py/.github/workflows/prepare-release.yml")
+  [ -n "$REF" ] || { echo "release-tools-ref not found" >&2; exit 1; }
+  git clone --quiet https://github.com/validityBase/vbase-github-actions "$WORK/tools"
+  git -C "$WORK/tools" checkout --quiet "$REF"
+  TOOL="$WORK/tools/.github/actions/python-release/scripts/release.py"
+  VERSION=$(python3.11 "$TOOL" prepare --root "$WORK/vbase-py" --version-file vbase/_version.py --bump patch --notes-file "$WORK/notes.md")
+  python3.11 -m build --outdir "$WORK/dist" "$WORK/vbase-py"
+  python3.11 "$TOOL" validate --root "$WORK/vbase-py" --version-file vbase/_version.py --tag "v$VERSION" --dist-dir "$WORK/dist" --package-name vbase
+  cat "$WORK/notes.md"
+)
 ```
 
 Replace `patch` with `minor` or `major` when appropriate. `prepare` stops if
@@ -81,20 +89,48 @@ Merge `main` back into `dev` after each release. `dev` is protected, so make a
 PR from a branch based on `dev`:
 
 ```bash
-git fetch origin
+git fetch origin --tags
 git switch -c sync/main-into-dev-vX.Y.Z origin/dev
 git merge --no-ff origin/main -m "Merge main into dev after the vX.Y.Z release"
+```
+
+If the merge stops with conflicts, resolve them and commit before you go on.
+
+Prepare release adds the `## [X.Y.Z]` heading directly below
+`## [Unreleased]`. Git can therefore merge changelog entries that reached
+`dev` after it was promoted to `main` into the released section without a
+conflict. Set `V` to the released version and check that the merge left the
+released section unchanged:
+
+```bash
+V=X.Y.Z
+git rev-parse -q --verify "refs/tags/v$V" >/dev/null &&
+  grep -m1 '^## \[[0-9]' CHANGELOG.md | grep -q "^## \[$V\]" &&
+  diff <(git show "v$V:CHANGELOG.md" | sed -n "/^## \[$V\]/,\$p") \
+    <(sed -n "/^## \[$V\]/,\$p" CHANGELOG.md) &&
+  echo "release notes unchanged"
+```
+
+The command prints `release notes unchanged` only when the tag exists, the
+version's heading is the newest in `CHANGELOG.md`, and the released section
+matches the tag. If it prints nothing, check `V`. If `diff` shows added entries, move
+them under `## [Unreleased]` and commit. Then push the branch and open the PR:
+
+```bash
 git push -u origin sync/main-into-dev-vX.Y.Z
 gh pr create --base dev --title "Merge main into dev after the vX.Y.Z release" --body "Brings the vX.Y.Z version and changelog from main into dev."
 ```
 
 Merge the PR with a **merge commit**, not a squash or rebase, so `dev` contains
 `main`'s release commit. Otherwise `dev` can retain the old version and list
-released changes under `[Unreleased]`. Verify after the merge:
+released changes under `[Unreleased]`. After the merge, check that `dev`
+contains the commit that the release tag points to. Check the tag, not
+`origin/main`: if `main` gets new commits while the sync PR is open, an
+`origin/main` check fails even though `dev` has the release.
 
 ```bash
-git fetch origin
-git merge-base --is-ancestor origin/main origin/dev && echo synced
+git fetch origin --tags
+git merge-base --is-ancestor vX.Y.Z origin/dev && echo synced
 ```
 
 ## Checks and their limits

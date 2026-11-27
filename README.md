@@ -53,11 +53,15 @@ and the [Google Colab quickstart](https://docs.vbase.com/python-blockchain-sdk-v
 
 `Web3HTTPIndexingService` finds past commitments by querying a node for
 contract events with `eth_getLogs`. Each query runs from a start block to the
-latest block. Queries that fail with a transport error, such as a refused
-connection, a timeout, or an HTTP error status, or with a JSON-RPC error from
-the node, are retried with exponential backoff, and the last error is raised if
-all attempts fail. Other errors, such as invalid query arguments, are raised
-without a retry.
+latest block. The service also reads the node's chain ID, the latest block
+number when `n_last_blocks` is set, and, in `find_user_sets()`, the timestamp
+of each block that holds a matching event, once per block. Requests that fail
+with a transport error, such as a refused connection, a timeout, or an HTTP
+error status, or with a JSON-RPC error from the node, are retried with
+exponential backoff, and the last error is raised if all attempts fail. The SDK
+turns off web3's own retries for these requests, so the attempts do not
+multiply. Other errors, such as invalid query arguments, are raised without a
+retry.
 
 When you use the vBase forwarder,
 `IndexingService.create_instance_from_commitment_service()` connects to the

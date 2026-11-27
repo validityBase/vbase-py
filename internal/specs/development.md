@@ -23,6 +23,10 @@ pre-commit run --all-files
 
 Pre-commit installs Black and isort in isolated environments. When updating
 either formatter, keep its hook revision aligned with `requirements/dev.txt`.
+The formatting job in `docs-check.yml` fails when they differ. Dependabot
+updates only the lock files, so when its PR changes the Black or isort pin in
+`requirements/dev.txt`, push a commit to that PR that sets the same version
+as the hook's `rev` in `.pre-commit-config.yaml`.
 
 `vbase/__init__.py` is intentionally ordered by public export grouping instead
 of alphabetically, so isort skips it.
@@ -80,8 +84,8 @@ Important environment variables include `VBASE_COMMITMENT_SERVICE_NODE_RPC_URL`,
   redacts userinfo, paths, queries, and fragments. Trailing punctuation after
   a path, query, or fragment is redacted too, because it can belong to a
   credential; it is kept only after an already-redacted path or from the
-  closing quote, parenthesis, angle bracket, or brace matching the character
-  before the URL. After an opening square bracket, the closing bracket is
+  last closing quote, parenthesis, angle bracket, or brace matching the
+  character before the URL. After an opening square bracket, the closing bracket is
   redacted with the path. In free text,
   whitespace can appear in URL credentials, so text from `://` across
   whitespace to the first `@` that precedes any `/`, `?`, or `#` keeps only
@@ -159,7 +163,7 @@ limit updates this list and its short copy for Copilot code review in
   web3, and the vBase forwarder. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` are not expected and may be only
   partly redacted. When a quote, parenthesis, angle bracket, or brace comes
-  before a URL, punctuation from the matching closing character onward is kept as
+  before a URL, punctuation from the last matching closing character onward is kept as
   surrounding text, even if that character ends a credential, because the
   text does not show which it is. After an opening square bracket, the
   closing bracket is redacted with the path. Text is recognized as a URL only
@@ -360,10 +364,10 @@ masked; `_MIN_MASKED_LENGTH` in the runner sets the length. Libraries can
 print some characters in another form, for example percent-encoded, which the
 masks would miss. In GitHub Actions the
 runner therefore accepts only an `http` or `https` URL without a fragment
-whose user name, password, path, and query use letters, digits, and
-`-._~/=&`. For any other URL it stops before the first test without showing
-the URL. Provider URLs with an alphanumeric token in the path or query meet
-this.
+whose user name and password use letters, digits, and `-._~`, and whose path
+and query can also use `/=&`. For any other URL it stops before the first
+test without showing the URL. Provider URLs with an alphanumeric token in the
+path or query meet this.
 Do not commit RPC credentials or enable shell tracing around them.
 
 The public-dev workflows run from `main`, including manual dispatch; they do

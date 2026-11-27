@@ -2,7 +2,7 @@
 
 import unittest
 
-from check_readme_links import invalid_destinations
+from check_readme_links import _GFM_FILTERED_TAG, invalid_destinations
 
 
 class ReadmeLinksTest(unittest.TestCase):
@@ -38,3 +38,62 @@ class ReadmeLinksTest(unittest.TestCase):
             '<!-- <a href="example.md">Ignored</a> -->'
         )
         self.assertEqual(invalid_destinations(markdown), [])
+
+    def test_link_after_filtered_tag(self):
+        """Check links after a tag that PyPI escapes, such as <script>."""
+        markdown = "Load it with a <script> tag.\n\n[Guide](docs/guide.md)\n"
+        self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
+
+    def test_tag_filter_matches_gfm(self):
+        """Escape a tag only where GitHub Flavored Markdown's filter does."""
+        tags = [
+            "<script>",
+            "</TITLE >",
+            "<style/>",
+            "<script\t>",
+            "<script\n>",
+            "<script\r>",
+            "<script\f>",
+            "<scr\u0131pt>",
+        ]
+        self.assertEqual(
+            [_GFM_FILTERED_TAG.sub("&lt;", tag) for tag in tags],
+            [
+                "&lt;script>",
+                "&lt;/TITLE >",
+                "&lt;style/>",
+                "&lt;script\t>",
+                "&lt;script\n>",
+                "&lt;script\r>",
+                "<script\f>",
+                "<scr\u0131pt>",
+            ],
+        )
+
+    def test_tag_filter_names(self):
+        """Escape every tag name in GitHub Flavored Markdown's filter."""
+        names = [
+            "title",
+            "textarea",
+            "style",
+            "xmp",
+            "iframe",
+            "noembed",
+            "noframes",
+            "script",
+            "plaintext",
+        ]
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    _GFM_FILTERED_TAG.sub("&lt;", f"<{name}>"), f"&lt;{name}>"
+                )
+                markdown = f"Use <{name}> or <{name}>.\n\n[Guide](docs/guide.md)\n"
+                self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
+
+    def test_link_after_rejected_reference_definition(self):
+        """Check the paragraph after a javascript: reference definition."""
+        markdown = (
+            "[demo]: javascript:void(0)\n<br>\nRead the [Guide](docs/guide.md).\n"
+        )
+        self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])

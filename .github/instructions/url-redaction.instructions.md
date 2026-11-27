@@ -20,7 +20,7 @@ that leaves such a credential in a message, traceback, or log.
 - Free-text URL matching is best effort. Unencoded credentials that combine
   whitespace with `@`, `/`, `?`, or `#` may be only partly redacted. When a
   quote, parenthesis, angle bracket, or brace comes before a URL, the
-  punctuation from its matching closing character onward is kept. After an
+  punctuation from the last matching closing character onward is kept. After an
   opening square bracket, the closing bracket is redacted with the path.
 - Free text is recognized as a URL only by a contiguous `scheme://`, and a
   URL ends at whitespace. Text from `://` across whitespace to the first `@`
