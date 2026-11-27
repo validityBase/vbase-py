@@ -65,25 +65,30 @@ then start the service and run the tests:
 
 ```bash
 docker login ghcr.io
-docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest \
-  && bash vbase/tests/scripts/run_tests_localhost.sh
+docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest &&
+  bash vbase/tests/scripts/run_tests_localhost.sh
+```
+
+The tests run only if the container starts. The container deploys the
+commitment contract after it starts, and the test script waits up to 60
+seconds for the contract. When you are done, stop the container. Because of
+`--rm`, stopping it also removes it:
+
+```bash
 docker stop vbase-py-commitment-service
 ```
 
-The port is bound to `127.0.0.1`, which is the address used by
-`config/.env.localhost`. Port 8545 must be free: if another local node
-already uses it, `docker run` fails, and `&&` keeps the tests from running
-against that node. `--pull always` replaces a cached `latest` image with
-the current one, and `--rm` removes the container when it stops, so you can
-run the commands again. The container name is specific to this repository, so
-`docker stop` does not stop a container that another setup started. The
-container deploys the commitment contract after it starts; the test script
-waits up to 60 seconds for the contract before it runs the tests. On
-Windows, run the commands in Git Bash after `source venv/Scripts/activate`,
-and start the tests with
-`PYTHON_BIN=python bash vbase/tests/scripts/run_tests_localhost.sh`, because
-the virtual environment has `python` but not `python3`. The "Run Localhost
-Tests" workflow runs these tests on every pull request.
+If `docker run` reports that the container name is in use, an earlier run's
+container is still running: stop it, unless another checkout's tests are
+using it. The port is bound to `127.0.0.1`, which is the address used by
+`config/.env.localhost`. Port 8545 must be free, so stop any other local node
+that uses it first. Otherwise `docker run` fails, or, with some engines such
+as Colima, the container starts and the tests run against the other node.
+`--pull always` replaces a cached `latest` image with the current one. On
+Windows, run the commands in Git Bash after `source venv/Scripts/activate`
+and `export PYTHON_BIN=python`, because the virtual environment has `python`
+but not `python3`. The "Run Localhost Tests" workflow runs these tests on
+every pull request.
 
 Alternatively, with authorized access to the public development forwarder and
 `VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your
