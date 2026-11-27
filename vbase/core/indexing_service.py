@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
-from typing import List, Optional, Union, cast
+from typing import Any, Callable, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from retry.api import retry_call
@@ -17,7 +17,10 @@ from web3.exceptions import Web3RPCError
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+from vbase.core.web3_http_commitment_service import (
+    Web3HTTPCommitmentService,
+    _caller_retries,
+)
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import (
     bytes_to_hex_str,
@@ -268,9 +271,8 @@ class Web3HTTPIndexingService(IndexingService):
             )
         return Web3HTTPIndexingService.create_instance_from_json_descriptor(is_json)
 
-    @staticmethod
     def _process_add_set_events(
-        cs: Web3HTTPCommitmentService, events: List[dict]
+        self, cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
         """A worker function to get AddSet receipts from events."""
         # Return chain_id with each receipt.
@@ -278,23 +280,58 @@ class Web3HTTPIndexingService(IndexingService):
         # connected to different chains and clients may not be able to uniquely
         # identify transactions without the chain_id.
         chain_id = cs.w3.eth.chain_id
-        cs_receipts = [
-            {
-                "chainId": chain_id,
-                "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
-                "user": event["args"]["user"],
-                "setCid": bytes_to_hex_str(event["args"]["setCid"]),
-                # Read the event's timestamp from its block. A block-timestamp
-                # cache would reduce node calls.
-                "timestamp": cs.convert_timestamp_chain_to_str(
-                    # If the timestamp is not defined, raise an exception.
-                    # Hence, we can ignore the type check for whether timestamp is defined.
-                    cs.w3.eth.get_block(event["blockNumber"])["timestamp"]  # type: ignore
-                ),
-            }
-            for event in events
-        ]
+        # AddSet events have no timestamp, so read it from each event's block.
+        # Several events can share a block; read each block once.
+        block_timestamps: dict = {}
+        cs_receipts = []
+        for event in events:
+            block_number = event["blockNumber"]
+            if block_number not in block_timestamps:
+                block = self._retry_node_call(
+                    cs.w3.eth.get_block, block_identifier=block_number
+                )
+                block_timestamps[block_number] = block["timestamp"]
+            cs_receipts.append(
+                {
+                    "chainId": chain_id,
+                    "transactionHash": bytes_to_hex_str_auto(event["transactionHash"]),
+                    "user": event["args"]["user"],
+                    "setCid": bytes_to_hex_str(event["args"]["setCid"]),
+                    "timestamp": cs.convert_timestamp_chain_to_str(
+                        block_timestamps[block_number]
+                    ),
+                }
+            )
         return cs_receipts
+
+    def _retry_node_call(self, node_call: Callable[..., Any], **kwargs: Any) -> Any:
+        """Call a node function, retrying failed requests with backoff.
+
+        Transport errors (requests exceptions are OSErrors) and JSON-RPC error
+        responses from the node (Web3RPCError) are retried. Other errors, such
+        as web3 validation errors for invalid arguments, fail immediately.
+        The HTTP provider of Web3HTTPCommitmentService redacts URLs in both
+        kinds of errors, so the error raised after the last retry does not
+        show URL credentials. The provider sends each request once here
+        (see _caller_retries), so its retries and these do not multiply.
+
+        :param node_call: The function that sends the node request.
+        :param kwargs: Keyword arguments for node_call.
+        :return: The value that node_call returns.
+        """
+
+        def attempt() -> Any:
+            with _caller_retries():
+                return node_call(**kwargs)
+
+        return retry_call(
+            attempt,
+            exceptions=(OSError, Web3RPCError),
+            tries=self.RETRY_TRIES,
+            delay=self.RETRY_DELAY,
+            backoff=self.RETRY_BACKOFF,
+            logger=_LOG,
+        )
 
     def _get_event_logs(
         self, event: ContractEvent, from_block: int, argument_filters: dict
@@ -303,25 +340,13 @@ class Web3HTTPIndexingService(IndexingService):
 
         eth_getLogs is stateless, so it works with load-balanced endpoints
         that do not preserve eth_newFilter state between requests.
-        Transport errors (requests exceptions are OSErrors) and JSON-RPC error
-        responses from the node (Web3RPCError) are retried. Other errors, such
-        as web3 validation errors for invalid arguments, fail immediately.
-        The HTTP provider of Web3HTTPCommitmentService redacts URLs in both
-        kinds of errors, so the error raised after the last retry does not
-        show URL credentials.
+        Failed requests are retried as described in _retry_node_call.
         """
-        return retry_call(
+        return self._retry_node_call(
             event.get_logs,
-            fkwargs={
-                "argument_filters": argument_filters,
-                "from_block": from_block,
-                "to_block": "latest",
-            },
-            exceptions=(OSError, Web3RPCError),
-            tries=self.RETRY_TRIES,
-            delay=self.RETRY_DELAY,
-            backoff=self.RETRY_BACKOFF,
-            logger=_LOG,
+            argument_filters=argument_filters,
+            from_block=from_block,
+            to_block="latest",
         )
 
     def _get_from_block(self, commitment_service: Web3HTTPCommitmentService) -> int:

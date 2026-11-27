@@ -3,11 +3,13 @@ such as blockchain-based smart contracts.
 This implementation uses Web3.HTTPProvider.
 """
 
+import contextlib
+import contextvars
 import json
 import logging
 import os
 import time
-from typing import Any, List, Optional, Union, cast
+from typing import Any, Iterator, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from web3 import HTTPProvider, Web3
@@ -16,6 +18,7 @@ from web3.middleware import (
     ExtraDataToPOAMiddleware,
     SignAndSendRawMiddlewareBuilder,
 )
+from web3.providers.rpc.utils import ExceptionRetryConfiguration
 from web3.types import RPCEndpoint, RPCResponse
 
 from vbase.core.web3_commitment_service import Web3CommitmentService
@@ -53,6 +56,25 @@ def _redact_json_text(value: Any) -> Any:
     return value
 
 
+# True while the caller retries node requests itself, as the indexing service
+# does. _RedactingHTTPProvider then sends each request once, so that its own
+# retries and the caller's do not multiply. Other requests keep web3's retries.
+_CALLER_RETRIES = contextvars.ContextVar("_CALLER_RETRIES", default=False)
+
+
+@contextlib.contextmanager
+def _caller_retries() -> Iterator[None]:
+    """Turn off the provider's retries for the node requests made in this block.
+
+    Use it only around requests that the caller retries itself.
+    """
+    token = _CALLER_RETRIES.set(True)
+    try:
+        yield
+    finally:
+        _CALLER_RETRIES.reset(token)
+
+
 class _RedactingHTTPProvider(HTTPProvider):
     """HTTP provider that redacts URLs in the errors of node requests.
 
@@ -67,7 +89,26 @@ class _RedactingHTTPProvider(HTTPProvider):
     the response text, such as the node's error message, so URLs in the
     response, including in object keys, are redacted too. The ``result``
     member holds node data and is returned unchanged.
+
+    Inside :func:`_caller_retries`, requests are sent once, without web3's
+    retries.
     """
+
+    @property
+    def exception_retry_configuration(self) -> Optional[ExceptionRetryConfiguration]:
+        """Return web3's retry settings, or None inside :func:`_caller_retries`.
+
+        web3's ``_make_request`` reads this property to decide whether to retry.
+        """
+        if _CALLER_RETRIES.get():
+            return None
+        return super().exception_retry_configuration
+
+    @exception_retry_configuration.setter
+    def exception_retry_configuration(
+        self, value: Optional[ExceptionRetryConfiguration]
+    ) -> None:
+        HTTPProvider.exception_retry_configuration.fset(self, value)
 
     def make_request(self, method: RPCEndpoint, params: object) -> RPCResponse:
         try:

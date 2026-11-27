@@ -30,6 +30,10 @@ for prior changes.
   of ending it.
 - Stop waiting after the last failed connection attempt of
   `Web3HTTPCommitmentService`, so its `ConnectionError` is raised sooner.
+- Retry the block lookups of `Web3HTTPIndexingService.find_user_sets()` like
+  its event queries, and read each block once. Indexing requests are no longer
+  retried by web3's HTTP provider as well as by the SDK: an event query that
+  kept failing with HTTP 429 sent 25 requests instead of 5.
 
 ### Removed
 

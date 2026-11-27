@@ -3,7 +3,14 @@
 import unittest
 from unittest.mock import call, patch
 
-from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
+import requests
+from web3 import Web3
+
+from vbase.core.web3_http_commitment_service import (
+    Web3HTTPCommitmentService,
+    _caller_retries,
+    _RedactingHTTPProvider,
+)
 
 
 class TestWeb3HTTPCommitmentServiceConnection(unittest.TestCase):
@@ -27,6 +34,34 @@ class TestWeb3HTTPCommitmentServiceConnection(unittest.TestCase):
         self.assertEqual(web3_mock.return_value.is_connected.call_count, 3)
         self.assertEqual(sleep_mock.call_args_list, [call(1), call(2)])
         self.assertTrue(str(raised.exception).endswith(" after 3 attempts"))
+
+
+class TestRedactingHTTPProviderRetries(unittest.TestCase):
+    """Test when the HTTP provider retries failed node requests."""
+
+    @patch("time.sleep")
+    @patch("requests.Session.post")
+    def test_caller_retries_turns_off_provider_retries(self, post_mock, _sleep_mock):
+        """Requests keep web3's retries except inside _caller_retries()."""
+        post_mock.side_effect = requests.exceptions.HTTPError("503 Service Unavailable")
+        provider = _RedactingHTTPProvider("http://127.0.0.1:9")
+        w3 = Web3(provider)
+        web3_attempts = provider.exception_retry_configuration.retries
+
+        for label, expected_posts in (
+            ("before", web3_attempts),
+            ("inside", 1),
+            ("after", web3_attempts),
+        ):
+            with self.subTest(label=label):
+                post_mock.reset_mock()
+                with self.assertRaises(requests.exceptions.HTTPError):
+                    if label == "inside":
+                        with _caller_retries():
+                            w3.eth.get_block(10)
+                    else:
+                        w3.eth.get_block(10)
+                self.assertEqual(post_mock.call_count, expected_posts)
 
 
 if __name__ == "__main__":
