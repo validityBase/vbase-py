@@ -353,7 +353,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             object_cids,
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
         _LOG.debug("Sending transaction to addSetObjectsBatch")
@@ -363,7 +363,7 @@ class Web3HTTPCommitmentService(Web3CommitmentService):
             object_cids,
         ).transact()
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_object_cid_sum: str

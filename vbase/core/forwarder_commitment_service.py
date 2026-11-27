@@ -522,7 +522,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addSetsObjectsBatch",
             args=[set_cids, object_cids],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
         _LOG.debug("Sending transaction to addSetObjectsBatch")
@@ -530,7 +530,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
             fn_name="addSetObjectsBatch",
             args=[set_cid, object_cids],
         )
-        return self._add_sets_objects_batch_worker(receipt)
+        return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def verify_user_set_objects(
         self, user: str, set_cid: str, user_set_object_cid_sum: str

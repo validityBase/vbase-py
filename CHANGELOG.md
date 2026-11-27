@@ -34,6 +34,10 @@ for prior changes.
   its event queries, and read each block once. Indexing requests are no longer
   retried by web3's HTTP provider as well as by the SDK: an event query that
   kept failing with HTTP 429 sent 25 requests instead of 5.
+- Raise `RuntimeError` when the receipt of a successful batch commitment,
+  from `add_sets_objects_batch()` or `add_set_objects_batch()`, does not have
+  one `AddObject` event per committed object. Before, missing events returned
+  fewer commitment receipts, or none, without an error.
 
 ### Removed
 

@@ -260,16 +260,19 @@ class Web3CommitmentService(CommitmentService, ABC):
         _LOG.debug("Commitment log:\n%s", pprint.pformat(cl))
         return cl
 
-    def _add_sets_objects_batch_worker(self, receipt: TxReceipt) -> List[dict]:
+    def _add_sets_objects_batch_worker(
+        self, receipt: TxReceipt, n_objects: int
+    ) -> List[dict]:
         """Process the results of a batch commitment transaction, such as
         addSetsObjectsBatch or addSetObjectsBatch, from its AddObject events.
 
         :param receipt: The transaction receipt.
+        :param n_objects: The number of objects that the transaction committed.
         :return: The list of commitment log containing commitment receipts.
+        :raises RuntimeError: If the receipt does not have one AddObject event
+            per object.
         """
         self._check_tx_success(receipt)
-
-        # Events should always be emitted on success.
 
         # The call emits one AddObject per committed object. On some chains other events
         # (e.g. LogFeeTransfer) may be emitted; process_receipt() filters by event
@@ -277,6 +280,14 @@ class Web3CommitmentService(CommitmentService, ABC):
         add_object_events = self.csc.events.AddObject().process_receipt(
             receipt, errors=EventLogErrorFlags.Discard
         )
+        # A successful transaction emits every event, so a different count
+        # means that the receipt does not show the commitments. The count
+        # also tells an empty batch from missing events.
+        if len(add_object_events) != n_objects:
+            raise RuntimeError(
+                f"Expected {n_objects} AddObject events in receipt, "
+                f"found {len(add_object_events)}"
+            )
         # Hoist constants that are the same for every item in the batch.
         tx_hash = receipt["transactionHash"]
         chain_id = self._get_chain_id()
