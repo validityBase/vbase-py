@@ -6,9 +6,9 @@ from threading import Lock
 from typing import Any
 
 from vbase.core.indexing_service import (
-    CollectionCidPage,
     IndexingService,
     ObjectReceiptPage,
+    SetReceiptPage,
 )
 from vbase.utils.log import RedactUrlsFilter, get_default_logger, redact_exception
 
@@ -87,10 +87,10 @@ class FailoverIndexingService(IndexingService):  # pylint: disable=abstract-meth
     def find_user_sets(self, user: str) -> list[dict]:
         return self._execute_with_failover("find_user_sets", user)
 
-    def _find_user_collection_cids(
+    def _find_user_set_cids(
         self, user: str, *, limit: int, offset: int
-    ) -> CollectionCidPage:
-        return self._page("find_user_collection_cids", user, limit, offset)
+    ) -> SetReceiptPage:
+        return self._page("find_user_set_cids", user, limit, offset)
 
     def _find_user_objects_page(
         self, user: str, *, limit: int, offset: int

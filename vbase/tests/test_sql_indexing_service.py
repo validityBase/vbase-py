@@ -94,7 +94,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
             except OSError:
                 pass
 
-    # --- find_user_collection_cids ---
+    # --- find_user_set_cids ---
 
     def test_set_cid_pages_are_distinct_ordered_and_bounded_in_sql(self):
         """VDT-918: repeated receipts must not crowd out other sets."""
@@ -127,8 +127,8 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
             "before_cursor_execute",
             lambda conn, cur, sql, params, ctx, many: statements.append(sql.lower()),
         )
-        first = self.svc.find_user_collection_cids(_USER.upper(), limit=2)
-        last = self.svc.find_user_collection_cids(_USER, limit=2, offset=2)
+        first = self.svc.find_user_set_cids(_USER.upper(), limit=2)
+        last = self.svc.find_user_set_cids(_USER, limit=2, offset=2)
         self.assertEqual((first.total, last.total), (3, 3))
         self.assertIn(first.cids[0], ("0xAA", "0xaa"))
         self.assertEqual([cid.lower() for cid in first.cids], ["0xaa", "0xbb"])
@@ -145,9 +145,7 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
         ):
             with self.subTest(limit=limit, offset=offset, user=user):
                 statements.clear()
-                page = self.svc.find_user_collection_cids(
-                    user, limit=limit, offset=offset
-                )
+                page = self.svc.find_user_set_cids(user, limit=limit, offset=offset)
                 self.assertEqual((page.cids, page.total), ([], total))
                 event_reads = [
                     sql for sql in statements if "event_add_set_object" in sql
@@ -162,13 +160,13 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
                 self.subTest(limit=limit, offset=offset),
                 self.assertRaises(ValueError),
             ):
-                self.svc.find_user_collection_cids(_USER, limit=limit, offset=offset)
+                self.svc.find_user_set_cids(_USER, limit=limit, offset=offset)
 
     def test_set_cid_page_respects_stale_index(self):
         """The exact total is subject to the configured index freshness check."""
         self.svc.indexing_stale_threshold_seconds = -1
         with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
-            self.svc.find_user_collection_cids(_USER, limit=0)
+            self.svc.find_user_set_cids(_USER, limit=0)
 
     def test_commitment_pages_are_bounded_and_preserve_identical_receipts(self):
         """Counting, ordering, and limiting must take place before receipt conversion."""

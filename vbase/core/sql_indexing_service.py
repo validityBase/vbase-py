@@ -7,9 +7,9 @@ from sqlalchemy import Select, func
 from sqlmodel import Session, create_engine, select
 
 from vbase.core.indexing_service import (
-    CollectionCidPage,
     IndexingService,
     ObjectReceiptPage,
+    SetReceiptPage,
 )
 
 from .models import (
@@ -91,9 +91,9 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
             ]
         return cs_receipts
 
-    def _find_user_collection_cids(
+    def _find_user_set_cids(
         self, user: str, *, limit: int, offset: int
-    ) -> CollectionCidPage:
+    ) -> SetReceiptPage:
         self._fail_if_indexing_stale()
         key = func.lower(EventAddSetObject.set_cid)
         distinct_cids = (
@@ -101,7 +101,7 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
         )
         with Session(self.db_engine) as session:
             cids, total = _read_page(session, distinct_cids, (key,), limit, offset)
-        return CollectionCidPage(cids, total)
+        return SetReceiptPage(cids, total)
 
     def _find_user_objects_page(
         self, user: str, *, limit: int, offset: int

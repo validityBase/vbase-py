@@ -6,8 +6,8 @@ from unittest.mock import create_autospec
 
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.indexing_service import (
-    CollectionCidPage,
     IndexingService,
+    SetReceiptPage,
     Web3HTTPIndexingService,
 )
 
@@ -92,21 +92,17 @@ class TestFailoverIndexingService(unittest.TestCase):
         """A raw node cannot count/page distinct CIDs; try the next index instead."""
         node = Web3HTTPIndexingService([self.service1])
         with self.assertRaisesRegex(RuntimeError, "not ready"):
-            node.find_user_collection_cids("user", limit=1)
+            node.find_user_set_cids("user", limit=1)
         self.assertFalse(self.service1.mock_calls)
 
-        page = CollectionCidPage(["0xab"], 3)
-        self.service2.find_user_collection_cids.return_value = page
+        page = SetReceiptPage(["0xab"], 3)
+        self.service2.find_user_set_cids.return_value = page
         failover = FailoverIndexingService([node, self.service2])
         with self.assertRaisesRegex(RuntimeError, "offset 0"):
-            failover.find_user_collection_cids("user", limit=1, offset=2)
-        failover.find_user_collection_cids("user", limit=1)
-        self.assertEqual(
-            failover.find_user_collection_cids("user", limit=1, offset=2), page
-        )
-        self.service2.find_user_collection_cids.assert_called_with(
-            "user", limit=1, offset=2
-        )
+            failover.find_user_set_cids("user", limit=1, offset=2)
+        failover.find_user_set_cids("user", limit=1)
+        self.assertEqual(failover.find_user_set_cids("user", limit=1, offset=2), page)
+        self.service2.find_user_set_cids.assert_called_with("user", limit=1, offset=2)
         self.assertFalse(self.service1.mock_calls)
 
     def test_receipt_page_fails_over_without_reading_unpaged_receipts(self):
@@ -125,19 +121,19 @@ class TestFailoverIndexingService(unittest.TestCase):
 
     def test_set_page_fails_when_no_index_is_available(self):
         """A stale index and a raw node cannot return a partial or fabricated total."""
-        self.service1.find_user_collection_cids.side_effect = RuntimeError("stale")
+        self.service1.find_user_set_cids.side_effect = RuntimeError("stale")
         node = Web3HTTPIndexingService([self.service2])
         failover = FailoverIndexingService([self.service1, node])
         with self.assertRaisesRegex(RuntimeError, "All services failed"):
-            failover.find_user_collection_cids("user", limit=0)
-        self.service1.find_user_collection_cids.assert_called_once_with(
+            failover.find_user_set_cids("user", limit=0)
+        self.service1.find_user_set_cids.assert_called_once_with(
             "user", limit=0, offset=0
         )
         self.assertFalse(self.service2.mock_calls)
 
     def test_paged_reads_do_not_switch_on_failure_or_recovery(self):
         """An offset is meaningful only on the backend that started the traversal."""
-        for method in ("find_user_collection_cids", "find_user_objects_page"):
+        for method in ("find_user_set_cids", "find_user_objects_page"):
             with self.subTest(method=method):
                 primary = getattr(self.service1, method)
                 fallback = getattr(self.service2, method)

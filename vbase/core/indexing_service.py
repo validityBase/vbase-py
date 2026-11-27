@@ -17,7 +17,7 @@ from web3.exceptions import Web3RPCError
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-from vbase.core.indexing_page import CollectionCidPage, ObjectReceiptPage, validate_page
+from vbase.core.indexing_page import ObjectReceiptPage, SetReceiptPage, validate_page
 from vbase.core.web3_event_index import Web3EventIndex
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
@@ -144,9 +144,9 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
-    def find_user_collection_cids(
+    def find_user_set_cids(
         self, user: str, *, limit: int, offset: int = 0
-    ) -> CollectionCidPage:
+    ) -> SetReceiptPage:
         """Page distinct set CIDs from the user's indexed AddSetObject events.
 
         CIDs are grouped and sorted case-insensitively. Pass limit=0 for the
@@ -155,11 +155,11 @@ class IndexingService(ABC):
         index for this operation raise NotImplementedError rather than scan logs.
         """
         validate_page(limit, offset)
-        return self._find_user_collection_cids(user, limit=limit, offset=offset)
+        return self._find_user_set_cids(user, limit=limit, offset=offset)
 
-    def _find_user_collection_cids(
+    def _find_user_set_cids(
         self, user: str, *, limit: int, offset: int
-    ) -> CollectionCidPage:
+    ) -> SetReceiptPage:
         raise NotImplementedError("Set CID pagination requires an indexed source")
 
     def find_user_objects_page(
@@ -273,9 +273,9 @@ class Web3HTTPIndexingService(IndexingService):
             self.commitment_services, self._get_event_logs, block_batch_size
         )
 
-    def _find_user_collection_cids(
+    def _find_user_set_cids(
         self, user: str, *, limit: int, offset: int
-    ) -> CollectionCidPage:
+    ) -> SetReceiptPage:
         return self._event_index.set_cids(user, limit, offset)
 
     def _find_user_objects_page(

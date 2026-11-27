@@ -6,12 +6,13 @@ object commitment receipts:
 
 .. code-block:: python
 
-   sets = indexing_service.find_user_collection_cids(user, limit=50, offset=0)
+   sets = indexing_service.find_user_set_cids(user, limit=50, offset=0)
    objects = indexing_service.find_user_objects_page(user, limit=50, offset=0)
 
-``sets.cids`` contains sorted lowercase CIDs from the user's ``AddSetObject``
-events, not set creation receipts. ``objects.receipts`` contains one receipt
-per ``AddObject`` event, including repeated commitments to the same object.
+``sets`` is a ``SetReceiptPage``: its ``cids`` are sorted lowercase set CIDs
+from the user's ``AddSetObject`` events, not set creation receipts.
+``objects`` is an ``ObjectReceiptPage``: its ``receipts`` contain one entry per
+``AddObject`` event, including repeated commitments to the same object.
 Receipts are ordered by block timestamp, chain ID, transaction hash, then
 object CID. Hex identifiers are lowercase.
 

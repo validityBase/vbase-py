@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from sqlmodel import Session, SQLModel
 
-from vbase import SQLIndexingService, Web3HTTPIndexingService
+from vbase import SetReceiptPage, SQLIndexingService, Web3HTTPIndexingService
 from vbase.core.models import EventAddObject, EventAddSetObject, LastBatchProcessingTime
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.core.web3_event_index import Web3EventIndex
@@ -119,7 +119,7 @@ class TestSessionPages(unittest.TestCase):
                 with self.subTest(user=user, limit=size, offset=offset):
                     for method in (
                         "find_user_objects_page",
-                        "find_user_collection_cids",
+                        "find_user_set_cids",
                     ):
                         self.assertEqual(
                             getattr(self.node, method)(user, limit=size, offset=offset),
@@ -142,9 +142,9 @@ class TestSessionPages(unittest.TestCase):
         self.assertEqual(objects.receipts[0]["timestamp"], "1970-01-01 00:01:41+00:00")
         objects.receipts[0].clear()
         self.assertTrue(self.node.find_user_objects_page("alice", limit=1).receipts[0])
-        self.assertEqual(
-            self.node.find_user_collection_cids("alice", limit=3).cids, ["0xbb", "0xff"]
-        )
+        sets = self.node.find_user_set_cids("alice", limit=3)
+        self.assertIsInstance(sets, SetReceiptPage)
+        self.assertEqual(vars(sets), {"cids": ["0xbb", "0xff"], "total": 2})
         self.assertFalse(self.cs.mock_calls or self.other.mock_calls)
 
     def test_new_session_and_incremental_refresh(self):
@@ -152,7 +152,7 @@ class TestSessionPages(unittest.TestCase):
         self.node.sync_index()
         self.cs.reset_mock()
         fresh = Web3HTTPIndexingService([self.cs])
-        for read in (fresh.find_user_collection_cids, fresh.find_user_objects_page):
+        for read in (fresh.find_user_set_cids, fresh.find_user_objects_page):
             with self.assertRaisesRegex(RuntimeError, "not ready"):
                 read("alice", limit=1)
         self.assertFalse(self.cs.mock_calls)
@@ -208,9 +208,7 @@ class TestSessionPages(unittest.TestCase):
             node.find_user_objects_page("alice", limit=0)
         node.sync_index()
         self.assertEqual(node.find_user_objects_page("alice", limit=2).total, 1)
-        self.assertEqual(
-            node.find_user_collection_cids("alice", limit=2).cids, ["0xff"]
-        )
+        self.assertEqual(node.find_user_set_cids("alice", limit=2).cids, ["0xff"])
 
     def test_finality_and_validation(self):
         """A mismatched finalized block or source cannot contaminate an existing index."""
@@ -229,7 +227,7 @@ class TestSessionPages(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "new indexing session"):
             self.node.sync_index()
         for read in (
-            self.node.find_user_collection_cids,
+            self.node.find_user_set_cids,
             self.node.find_user_objects_page,
         ):
             with self.assertRaisesRegex(RuntimeError, "session"):
@@ -279,7 +277,7 @@ class TestSessionPages(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "history|checkpoint"):
             self.node.sync_index(block_batch_size=1)
         with self.assertRaises(RuntimeError):
-            self.node.find_user_collection_cids("alice", limit=1)
+            self.node.find_user_set_cids("alice", limit=1)
 
     def test_log_from_a_different_block_hash_invalidates_the_view(self):
         """Reject a foreign log from either stream, not just a changed range end."""
@@ -315,7 +313,7 @@ class TestSessionPages(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "checkpoint"):
             self.node.sync_index()
         with self.assertRaisesRegex(RuntimeError, "session"):
-            self.node.find_user_collection_cids("alice", limit=0)
+            self.node.find_user_set_cids("alice", limit=0)
 
     def test_sparse_history_keeps_range_queries_and_bounded_header_reads(self):
         """Do not walk every empty block just to check a provider's range result."""
@@ -331,7 +329,7 @@ class TestSessionPages(unittest.TestCase):
                 expected,
             )
         self.assertLess(cs.w3.eth.get_block.call_count, 5 * len(expected))
-        self.assertEqual(node.find_user_collection_cids("alice", limit=1).total, 0)
+        self.assertEqual(node.find_user_set_cids("alice", limit=1).total, 0)
 
     def test_range_end_changes_during_empty_log_query(self):
         """Recheck the end hash after both range queries, before accepting the batch."""

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class CollectionCidPage:
+class SetReceiptPage:
     """Distinct set CIDs and their count before pagination."""
 
     cids: list[str]

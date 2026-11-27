@@ -8,9 +8,9 @@ from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
 from vbase.core.indexing_service import (
-    CollectionCidPage,
     IndexingService,
     ObjectReceiptPage,
+    SetReceiptPage,
     Web3HTTPIndexingService,
 )
 from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
@@ -59,7 +59,7 @@ __all__ = [
     "ProblemDetailsError",
     "ForwarderCommitmentServiceTest",
     "IndexingService",
-    "CollectionCidPage",
+    "SetReceiptPage",
     "ObjectReceiptPage",
     "Web3HTTPIndexingService",
     "SQLIndexingService",

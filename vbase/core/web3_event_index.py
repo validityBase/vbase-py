@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from operator import itemgetter
 from threading import Lock
 
-from vbase.core.indexing_page import CollectionCidPage, ObjectReceiptPage
+from vbase.core.indexing_page import ObjectReceiptPage, SetReceiptPage
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.utils.crypto_utils import bytes_to_hex_str_auto
 
@@ -93,10 +93,10 @@ class Web3EventIndex:
             raise RuntimeError("Session index not ready: run sync_index()")
         return pages
 
-    def set_cids(self, user: str, limit: int, offset: int) -> CollectionCidPage:
+    def set_cids(self, user: str, limit: int, offset: int) -> SetReceiptPage:
         """Slice a sorted list of distinct CIDs without contacting the node."""
         rows = self._pages().cids.get(user.lower(), [])
-        return CollectionCidPage(rows[offset : offset + limit], len(rows))
+        return SetReceiptPage(rows[offset : offset + limit], len(rows))
 
     def object_receipts(self, user: str, limit: int, offset: int) -> ObjectReceiptPage:
         """Copy only the requested receipts; callers must not mutate the index."""
