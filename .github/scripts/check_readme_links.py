@@ -14,7 +14,7 @@ class _ReadmeLinks(HTMLParser):
         super().__init__()
         self.invalid: list[str] = []
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attribute = {"a": "href", "img": "src"}.get(tag)
         if attribute is None:
             return
