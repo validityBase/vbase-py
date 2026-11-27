@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
+from collections.abc import Callable
 from typing import List, Optional, Union, cast
 
 from dotenv import load_dotenv
@@ -17,6 +18,8 @@ from web3.exceptions import Web3RPCError
 from vbase.core.commitment_service import CommitmentService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
+from vbase.core.indexing_page import ObjectReceiptPage, SetReceiptPage, validate_page
+from vbase.core.web3_event_index import Web3EventIndex
 from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 from vbase.core.web3_http_commitment_service_test import Web3HTTPCommitmentServiceTest
 from vbase.utils.crypto_utils import (
@@ -142,6 +145,40 @@ class IndexingService(ABC):
         """
         raise NotImplementedError()
 
+    def find_user_set_cids(
+        self, user: str, *, limit: int, offset: int = 0
+    ) -> SetReceiptPage:
+        """Page distinct set CIDs from the user's indexed AddSetObject events.
+
+        CIDs are grouped and sorted case-insensitively. Pass limit=0 for the
+        total only. Changes during or between calls can affect the count and
+        page; unchanged data yields complete ordered traversal. Backends without an
+        index for this operation raise NotImplementedError rather than scan logs.
+        """
+        validate_page(limit, offset)
+        return self._find_user_set_cids(user, limit=limit, offset=offset)
+
+    def _find_user_set_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> SetReceiptPage:
+        raise NotImplementedError("Set CID pagination requires an indexed source")
+
+    def find_user_objects_page(
+        self, user: str, *, limit: int, offset: int = 0
+    ) -> ObjectReceiptPage:
+        """Page individual AddObject receipts, including repeated commitments.
+
+        Sort by block timestamp, chain ID, transaction hash, then object CID.
+        Pass limit=0 for the total only.
+        """
+        validate_page(limit, offset)
+        return self._find_user_objects_page(user, limit=limit, offset=offset)
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        raise NotImplementedError("Receipt pagination requires an indexed source")
+
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """Returns the list of receipts for user object commitments
         for a given user.
@@ -223,9 +260,29 @@ class Web3HTTPIndexingService(IndexingService):
     RETRY_DELAY = 2
     RETRY_BACKOFF = 2
 
-    def __init__(self, commitment_services: List[Web3HTTPCommitmentService]):
+    def __init__(
+        self,
+        commitment_services: List[Web3HTTPCommitmentService],
+    ):
         self.commitment_services = commitment_services
         self.n_last_blocks = None
+        self._event_index = Web3EventIndex()
+
+    def sync_index(self, *, block_batch_size: int = 1000) -> None:
+        """Sync finalized object commitments and set CIDs into this session, not during reads."""
+        self._event_index.sync(
+            self.commitment_services, self._retry_log_request, block_batch_size
+        )
+
+    def _find_user_set_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> SetReceiptPage:
+        return self._event_index.set_cids(user, limit, offset)
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        return self._event_index.object_receipts(user, limit, offset)
 
     @staticmethod
     def create_instance_from_json_descriptor(is_json: str) -> "Web3HTTPIndexingService":
@@ -295,7 +352,11 @@ class Web3HTTPIndexingService(IndexingService):
         return cs_receipts
 
     def _get_event_logs(
-        self, event: ContractEvent, from_block: int, argument_filters: dict
+        self,
+        event: ContractEvent,
+        from_block: int,
+        argument_filters: dict,
+        to_block: int | str = "latest",
     ) -> List[dict]:
         """Get matching events with eth_getLogs, retrying failed requests.
 
@@ -308,13 +369,18 @@ class Web3HTTPIndexingService(IndexingService):
         kinds of errors, so the error raised after the last retry does not
         show URL credentials.
         """
-        return retry_call(
+        return self._retry_log_request(
             event.get_logs,
-            fkwargs={
-                "argument_filters": argument_filters,
-                "from_block": from_block,
-                "to_block": "latest",
-            },
+            argument_filters=argument_filters,
+            from_block=from_block,
+            to_block=to_block,
+        )
+
+    def _retry_log_request(self, request: Callable, **kwargs) -> list:
+        """Use the same RPC retry policy for raw and ABI-decoded log requests."""
+        return retry_call(
+            request,
+            fkwargs=kwargs,
             exceptions=(OSError, Web3RPCError),
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,

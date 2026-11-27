@@ -10,6 +10,11 @@ for prior changes.
 
 ## [Unreleased]
 
+### Added
+
+- Added [pagination for set CIDs and object commitment receipts](https://github.com/validityBase/vbase-py/blob/main/docs/pagination.rst)
+  to the SQL and Web3 indexing services.
+
 ## [2.1.0] - 2026-11-13
 
 ### Added

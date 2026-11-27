@@ -3,9 +3,14 @@
 from typing import List, Union
 
 import pandas as pd
+from sqlalchemy import Select, func
 from sqlmodel import Session, create_engine, select
 
-from vbase.core.indexing_service import IndexingService
+from vbase.core.indexing_service import (
+    IndexingService,
+    ObjectReceiptPage,
+    SetReceiptPage,
+)
 
 from .models import (
     EventAddObject,
@@ -17,6 +22,19 @@ from .models import (
 # Default staleness threshold: if the last indexed batch is older than this, all operations fail.
 # Allow enough time for the indexer container to restart.
 INDEXING_STALE_THRESHOLD_SECONDS = 60
+
+
+def _read_page(
+    session: Session, query: Select, order: tuple, limit: int, offset: int
+) -> tuple[list, int]:
+    """Count matching rows before applying a bounded, deterministic SQL page."""
+    total = session.execute(
+        select(func.count()).select_from(query.subquery())
+    ).scalar_one()
+    if not limit or offset >= total:
+        return [], total
+    page = query.order_by(*order).offset(offset).limit(min(limit, total))
+    return list(session.execute(page).scalars()), total
 
 
 class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
@@ -73,6 +91,54 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
             ]
         return cs_receipts
 
+    def _find_user_set_cids(
+        self, user: str, *, limit: int, offset: int
+    ) -> SetReceiptPage:
+        self._fail_if_indexing_stale()
+        key = func.lower(EventAddSetObject.set_cid)
+        distinct_cids = (
+            select(key).where(EventAddSetObject.user == user.lower()).group_by(key)
+        )
+        with Session(self.db_engine) as session:
+            cids, total = _read_page(session, distinct_cids, (key,), limit, offset)
+        return SetReceiptPage(cids, total)
+
+    def _find_user_objects_page(
+        self, user: str, *, limit: int, offset: int
+    ) -> ObjectReceiptPage:
+        self._fail_if_indexing_stale()
+        event = EventAddObject
+        query = select(event).where(event.user == user.lower())
+        order = (
+            event.timestamp,
+            event.chain_id,
+            func.lower(event.transaction_hash),
+            func.lower(event.object_cid),
+            event.id,
+        )
+        with Session(self.db_engine) as session:
+            events, total = _read_page(session, query, order, limit, offset)
+            return ObjectReceiptPage(
+                [
+                    self._object_receipt(e)
+                    | {
+                        "transactionHash": e.transaction_hash.lower(),
+                        "objectCid": e.object_cid.lower(),
+                    }
+                    for e in events
+                ],
+                total,
+            )
+
+    def _object_receipt(self, event: EventAddObject) -> dict:
+        return {
+            "chainId": int(event.chain_id),
+            "transactionHash": event.transaction_hash,
+            "user": event.user,
+            "objectCid": event.object_cid,
+            "timestamp": self._format_timestamp(event.timestamp),
+        }
+
     def find_user_objects(self, user: str, return_set_cids=False) -> List[dict]:
         """
         Find all EventAddObject records for a user.
@@ -91,16 +157,7 @@ class SQLIndexingService(IndexingService):  # pylint: disable=abstract-method
                 .order_by(EventAddObject.timestamp)
             )
             events = session.exec(statement).all()
-            cs_receipts = [
-                {
-                    "chainId": int(event.chain_id),
-                    "transactionHash": event.transaction_hash,
-                    "user": event.user,
-                    "objectCid": event.object_cid,
-                    "timestamp": self._format_timestamp(event.timestamp),
-                }
-                for event in events
-            ]
+            cs_receipts = [self._object_receipt(event) for event in events]
         if return_set_cids and len(cs_receipts) > 0:
             cs_receipts = self._assign_set_cid(cs_receipts)
         return cs_receipts

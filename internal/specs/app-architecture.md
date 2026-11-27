@@ -31,6 +31,17 @@ forwarder:
 commitments. Implementations include Web3 HTTP, SQL-backed, aggregate, and
 failover indexing services.
 
+SQL pages use the event tables. Web3 builds its two views in one session and
+publishes them together so a partial sync cannot expose mismatched results.
+Range queries reject removed logs before ABI decoding and check parent hashes
+between adjacent headers already fetched. They do not walk every block or
+detect omitted logs. A confirmed conflict invalidates both views; an ordinary
+outage does not.
+Failover pins each paged method to one backend because an offset from one
+ordered dataset has no meaning in another.
+
+For caller guarantees and recovery, see [Paging indexed commitments](../../docs/pagination.rst).
+
 See [Indexing and Node Requirements](../../README.md#indexing-and-node-requirements)
 for endpoint selection and event-query requirements, and
 [Forwarder Indexing Configuration](development.md#forwarder-indexing-configuration)
@@ -49,7 +60,7 @@ private variants.
 
 ## Datasets
 
-`vbase/core/vbase_dataset.py` manages collections of vBase objects with
+`vbase/core/vbase_dataset.py` manages datasets of vBase objects with
 provenance. `vbase/core/vbase_dataset_async.py` provides `VBaseDatasetAsync`
 for non-blocking dataset operations.
 

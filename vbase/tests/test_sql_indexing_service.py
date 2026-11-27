@@ -12,6 +12,7 @@ import tempfile
 import unittest
 
 import pandas as pd
+from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 from vbase.core.models import (
@@ -92,6 +93,120 @@ class TestSQLIndexingServiceQueries(unittest.TestCase):
                 os.unlink(self._db_path)
             except OSError:
                 pass
+
+    # --- find_user_set_cids ---
+
+    def test_set_cid_pages_are_distinct_ordered_and_bounded_in_sql(self):
+        """VDT-918: repeated receipts must not crowd out other sets."""
+        _seed(
+            self._db_url,
+            [
+                EventAddSetObject(
+                    id=str(i),
+                    user=user,
+                    set_cid=cid,
+                    object_cid=_OBJ_CID,
+                    transaction_hash=_TX_HASH,
+                    chain_id=i % 2,
+                    timestamp=_NOW_MS,
+                )
+                for i, (user, cid) in enumerate(
+                    [
+                        (_USER, "0xcc"),
+                        (_USER, "0xaa"),
+                        (_USER, "0xbb"),
+                        (_USER, "0xAA"),
+                        ("another-user", "0xdd"),
+                    ]
+                )
+            ],
+        )
+        statements = []
+        event.listen(
+            self.svc.db_engine,
+            "before_cursor_execute",
+            lambda conn, cur, sql, params, ctx, many: statements.append(sql.lower()),
+        )
+        first = self.svc.find_user_set_cids(_USER.upper(), limit=2)
+        last = self.svc.find_user_set_cids(_USER, limit=2, offset=2)
+        self.assertEqual((first.total, last.total), (3, 3))
+        self.assertIn(first.cids[0], ("0xAA", "0xaa"))
+        self.assertEqual([cid.lower() for cid in first.cids], ["0xaa", "0xbb"])
+        self.assertEqual(last.cids, ["0xcc"])
+        event_reads = [sql for sql in statements if "event_add_set_object" in sql]
+        self.assertTrue(event_reads)
+        self.assertTrue(all("count(" in sql or "limit" in sql for sql in event_reads))
+        self.assertFalse(any("object_cid" in sql for sql in event_reads))
+
+        for limit, offset, total, user in (
+            (0, 0, 3, _USER),
+            (2, 10**30, 3, _USER),
+            (2, 0, 0, "unknown"),
+        ):
+            with self.subTest(limit=limit, offset=offset, user=user):
+                statements.clear()
+                page = self.svc.find_user_set_cids(user, limit=limit, offset=offset)
+                self.assertEqual((page.cids, page.total), ([], total))
+                event_reads = [
+                    sql for sql in statements if "event_add_set_object" in sql
+                ]
+                self.assertEqual(len(event_reads), 1)
+                self.assertIn("count(", event_reads[0])
+
+    def test_set_cid_page_rejects_invalid_pagination(self):
+        """Negative or noninteger values must never remove the database limit."""
+        for limit, offset in ((-1, 0), (1, -1), (1.5, 0), (1, False), (None, 0)):
+            with (
+                self.subTest(limit=limit, offset=offset),
+                self.assertRaises(ValueError),
+            ):
+                self.svc.find_user_set_cids(_USER, limit=limit, offset=offset)
+
+    def test_set_cid_page_respects_stale_index(self):
+        """The exact total is subject to the configured index freshness check."""
+        self.svc.indexing_stale_threshold_seconds = -1
+        with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
+            self.svc.find_user_set_cids(_USER, limit=0)
+
+    def test_commitment_pages_are_bounded_and_preserve_identical_receipts(self):
+        """Counting, ordering, and limiting must take place before receipt conversion."""
+        _seed(
+            self._db_url,
+            [
+                EventAddObject(
+                    id=str(i),
+                    user=_USER,
+                    object_cid=_OBJ_CID,
+                    chain_id=1,
+                    transaction_hash=_TX_HASH,
+                    timestamp=_NOW_MS,
+                )
+                for i in range(3)
+            ],
+        )
+        queries = []
+        event.listen(
+            self.svc.db_engine,
+            "before_cursor_execute",
+            lambda conn, cur, sql, params, ctx, many: queries.append(sql.lower()),
+        )
+        for size, offset, expected in ((1, 1, 1), (0, 0, 0), (1, 10**30, 0)):
+            queries.clear()
+            page = self.svc.find_user_objects_page(_USER, limit=size, offset=offset)
+            self.assertEqual((len(page.receipts), page.total), (expected, 3))
+            reads = [sql for sql in queries if "event_add_object" in sql]
+            self.assertEqual(len(reads), 1 + expected)
+            self.assertIn("count(", reads[0])
+            if expected:
+                self.assertIn("limit", reads[1])
+                self.assertIn("order by", reads[1])
+        queries.clear()
+        with self.assertRaises(ValueError):
+            self.svc.find_user_objects_page(_USER, limit=True)
+        self.assertFalse(queries)
+        self.svc.indexing_stale_threshold_seconds = -1
+        with self.assertRaisesRegex(RuntimeError, "Indexing is stale"):
+            self.svc.find_user_objects_page(_USER, limit=0)
 
     # --- find_user_sets ---
 

@@ -39,8 +39,11 @@ See the [local installation](https://docs.vbase.com/python-sdk/python-quickstart
 
 ## Indexing and Node Requirements
 
-`Web3HTTPIndexingService` finds past commitments by querying a node for
-contract events with `eth_getLogs`. Each query runs from a start block to the
+See [Paging indexed commitments](https://github.com/validityBase/vbase-py/blob/main/docs/pagination.rst) for SQL and Web3 examples,
+provider requirements, and how to restart an interrupted traversal.
+
+For unpaged reads, `Web3HTTPIndexingService` queries contract events with
+`eth_getLogs`. Each unpaged query runs from a start block to the
 latest block. Queries that fail with a connection error or a JSON-RPC error
 from the node are retried with exponential backoff, and the last error is
 raised if all attempts fail. Other errors, such as invalid query arguments, are
@@ -55,7 +58,7 @@ support indexing. Results depend on the endpoint:
 
 - Many public endpoints limit the block range or result count of an
   `eth_getLogs` request. Full-history queries can fail on these endpoints.
-  Limit the range with `n_last_blocks`, or use a node without these limits.
+  For unpaged reads, limit the range with `n_last_blocks`, or use a node without these limits.
 - If the endpoint has not yet reached a commitment's block, query results do
   not include that commitment.
 
@@ -72,7 +75,7 @@ SDK does not check the endpoint's chain. A node on a different chain returns
 empty results instead of an error, so an empty result does not confirm that
 the endpoint is correct.
 
-Set `indexing_service.n_last_blocks` to query only recent blocks. When it is
+Set `indexing_service.n_last_blocks` to restrict **unpaged** reads. When it is
 `None`, the default, queries start at the genesis block. When it is an
 integer, queries start that many blocks before the current block, or at the
 genesis block if the chain is shorter.

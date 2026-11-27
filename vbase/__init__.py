@@ -7,7 +7,12 @@ from vbase.core.aggregate_indexing_service import AggregateIndexingService
 from vbase.core.failover_indexing_service import FailoverIndexingService
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
 from vbase.core.forwarder_commitment_service_test import ForwarderCommitmentServiceTest
-from vbase.core.indexing_service import IndexingService, Web3HTTPIndexingService
+from vbase.core.indexing_service import (
+    IndexingService,
+    ObjectReceiptPage,
+    SetReceiptPage,
+    Web3HTTPIndexingService,
+)
 from vbase.core.problem_details import ProblemDetails, ProblemDetailsError
 from vbase.core.sql_indexing_service import SQLIndexingService
 from vbase.core.vbase_client import VBaseClient
@@ -54,6 +59,8 @@ __all__ = [
     "ProblemDetailsError",
     "ForwarderCommitmentServiceTest",
     "IndexingService",
+    "SetReceiptPage",
+    "ObjectReceiptPage",
     "Web3HTTPIndexingService",
     "SQLIndexingService",
     "ChainSetMatchingService",
