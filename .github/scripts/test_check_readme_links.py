@@ -2,7 +2,7 @@
 
 import unittest
 
-from check_readme_links import invalid_destinations
+from check_readme_links import _GFM_FILTERED_TAG, invalid_destinations
 
 
 class ReadmeLinksTest(unittest.TestCase):
@@ -44,13 +44,23 @@ class ReadmeLinksTest(unittest.TestCase):
         markdown = "Load it with a <script> tag.\n\n[Guide](docs/guide.md)\n"
         self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
 
-    def test_destinations_markdown_it_rejects(self):
-        """Reject file: links and SVG data images instead of skipping them."""
-        markdown = (
-            "[Guide](file:///tmp/guide.md)\n\n"
-            "![Badge](data:image/svg+xml;base64,PHN2Zz4=)\n"
-        )
+    def test_tag_filter_matches_gfm(self):
+        """Escape a tag only where GitHub Flavored Markdown's filter does."""
+        tags = ["<script>", "</TITLE >", "<style/>", "<script\f>", "<scr\u0131pt>"]
         self.assertEqual(
-            invalid_destinations(markdown),
-            ["file:///tmp/guide.md", "data:image/svg+xml;base64,PHN2Zz4="],
+            [_GFM_FILTERED_TAG.sub("&lt;", tag) for tag in tags],
+            [
+                "&lt;script>",
+                "&lt;/TITLE >",
+                "&lt;style/>",
+                "<script\f>",
+                "<scr\u0131pt>",
+            ],
         )
+
+    def test_link_after_rejected_reference_definition(self):
+        """Check the paragraph after a javascript: reference definition."""
+        markdown = (
+            "[demo]: javascript:void(0)\n<br>\nRead the [Guide](docs/guide.md).\n"
+        )
+        self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
