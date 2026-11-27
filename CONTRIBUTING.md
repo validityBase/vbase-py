@@ -60,12 +60,13 @@ pylint vbase/
 Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
-to validityBase members. Before you start it, stop any other local node that
-uses port 8545. If another checkout started that node, wait until that
-checkout stops it instead. On Windows, run the commands below in Git Bash,
-after `source venv/Scripts/activate` and `export PYTHON_BIN=python`, because
-the virtual environment has `python` but not `python3`. Log in to GHCR with a
-token that can read packages:
+to validityBase members. Before you start it, make sure that no other local
+node uses port 8545. Stop such a node only when no tests are using it and no
+other checkout or session will stop it later; otherwise, wait until it is
+stopped, or ask whoever started it. On Windows, run the commands below in Git
+Bash, after `source venv/Scripts/activate` and `export PYTHON_BIN=python`,
+because the virtual environment has `python` but not `python3`. Log in to
+GHCR with a token that can read packages:
 
 ```bash
 docker login ghcr.io
@@ -81,10 +82,13 @@ docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitme
 The tests run only if the container starts. The container deploys the
 commitment contract after it starts, and the test script waits up to 60
 seconds for the contract. If `docker run` reports that the container name is
-in use, an earlier run's container is still running. If another checkout
-started it, wait until that checkout stops it; otherwise, stop it. Then run
-the commands again. When you are done, stop the container that your
-`docker run` started. Because of `--rm`, stopping it also removes it:
+in use, a container from an earlier run still has that name. Stop it only
+when no tests are using it and no other checkout or session will stop it
+later, because a later `docker stop` from that checkout or session would stop
+your container instead. Otherwise, wait until it is stopped, or ask whoever
+started it. Then run the commands again. When you are done and no tests are
+using your container, stop it. Because of `--rm`, stopping it also removes
+it:
 
 ```bash
 docker stop vbase-py-commitment-service
