@@ -4,17 +4,19 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from sqlmodel import Session, SQLModel
+from web3 import Web3
 
 from vbase import SetReceiptPage, SQLIndexingService, Web3HTTPIndexingService
 from vbase.core.models import EventAddObject, EventAddSetObject, LastBatchProcessingTime
 from vbase.core.web3_commitment_service import Web3CommitmentService
 from vbase.core.web3_event_index import Web3EventIndex
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 
 
 def _source(chain: int, blocks: list) -> MagicMock:
     """Each block contains (user, object CID, transaction hash, optional set CID) commitments."""
     cs = MagicMock()
-    cs.commitment_service_address = "0xcontract"
+    cs.csc.address = "0xcontract"
     cs.w3.eth.chain_id = chain
     cs.convert_timestamp_chain_to_str.side_effect = (
         Web3CommitmentService.convert_timestamp_chain_to_str
@@ -29,8 +31,7 @@ def _source(chain: int, blocks: list) -> MagicMock:
             "parentHash": max(0, n - 1).to_bytes(32, "big"),
         }
 
-    def logs(is_membership, from_block, to_block, argument_filters):
-        assert not argument_filters
+    def logs(is_membership, from_block, to_block):
         return [
             {
                 "blockNumber": n,
@@ -51,9 +52,85 @@ def _source(chain: int, blocks: list) -> MagicMock:
         ]
 
     cs.w3.eth.get_block.side_effect = header
-    cs.csc.events.AddObject.get_logs.side_effect = lambda **kw: logs(False, **kw)
-    cs.csc.events.AddSetObject.get_logs.side_effect = lambda **kw: logs(True, **kw)
+    cs.raw_logs.AddObject.side_effect = lambda **kw: logs(False, **kw)
+    cs.raw_logs.AddSetObject.side_effect = lambda **kw: logs(True, **kw)
+    for name in ("AddObject", "AddSetObject"):
+        decoder = getattr(cs.csc.events, name)
+        decoder.topic = name
+        decoder.process_log.side_effect = lambda raw: raw
+
+    def get_logs(filter_params):
+        (topic,) = filter_params["topics"]
+        assert filter_params["address"] == cs.csc.address
+        return getattr(cs.raw_logs, topic)(
+            from_block=filter_params["fromBlock"], to_block=filter_params["toBlock"]
+        )
+
+    cs.w3.eth.get_logs.side_effect = get_logs
     return cs
+
+
+class TestFinalizedProviderLogs(unittest.TestCase):
+    """Use the SDK's bound contract and the installed Web3 decoder, without a node."""
+
+    def make_service(self, address, **log_fields):
+        """Bind the real ABI and return deterministic JSON-RPC responses."""
+        with patch.object(Web3, "is_connected", return_value=True):
+            cs = Web3HTTPCommitmentService("http://127.0.0.1", address)
+        topic = cs.csc.events.AddObject.topic
+        block_hash = "0x" + "00" * 32
+        log = {
+            "address": cs.csc.address,
+            "topics": [topic, "0x" + "00" * 12 + "11" * 20, "0x" + "ab" * 32],
+            "data": "0x" + "00" * 31 + "01",
+            "blockNumber": "0x0",
+            "blockHash": block_hash,
+            "transactionIndex": "0x0",
+            "transactionHash": "0x" + "22" * 32,
+            "logIndex": "0x0",
+            "removed": False,
+            **log_fields,
+        }
+
+        def rpc(method, params):
+            if method == "eth_chainId":
+                result = "0x1"
+            elif method == "eth_getBlockByNumber":
+                result = {"number": "0x0", "hash": block_hash, "timestamp": "0x1"}
+            elif method == "eth_getLogs":
+                result = [log] if params[0]["topics"] == [topic] else []
+            else:
+                self.fail(f"Unexpected RPC method: {method}")
+            return {"jsonrpc": "2.0", "id": 1, "result": result}
+
+        self.enterContext(patch.object(cs.w3.provider, "make_request", side_effect=rpc))
+        return cs
+
+    def test_removed_rpc_log_invalidates_both_pages(self):
+        """An explicit removal must survive the raw RPC / ABI decoder boundary."""
+        # Even an undecodable removed log must invalidate the session, not raise an ABI error.
+        for fields in ({}, {"data": "0x"}):
+            with self.subTest(fields=fields):
+                cs = self.make_service("0x" + "ab" * 20, removed=True, **fields)
+                node = Web3HTTPIndexingService([cs])
+                with self.assertRaisesRegex(RuntimeError, "Removed log"):
+                    node.sync_index()
+                for read in (node.find_user_set_cids, node.find_user_objects_page):
+                    with self.assertRaisesRegex(RuntimeError, "Invalid Web3 history"):
+                        read("0x" + "11" * 20, limit=1)
+
+    def test_bound_address_ignores_input_spelling(self):
+        """The two supported spellings describe one source and the same receipt."""
+        unprefixed = self.make_service("ab" * 20)
+        prefixed = self.make_service("0x" + "ab" * 20)
+        node = Web3HTTPIndexingService([unprefixed])
+        node.sync_index()
+        for service in (prefixed, unprefixed):
+            node.commitment_services = [service]
+            node.sync_index()
+            page = node.find_user_objects_page("0x" + "11" * 20, limit=1)
+            self.assertEqual(page.total, 1)
+            self.assertEqual(page.receipts[0]["objectCid"], "0x" + "ab" * 32)
 
 
 class TestSessionPages(unittest.TestCase):
@@ -158,17 +235,15 @@ class TestSessionPages(unittest.TestCase):
         self.assertFalse(self.cs.mock_calls)
         self.blocks.append([("alice", "aa", "03", "aa")])
         self.node.sync_index()
-        for event in (self.cs.csc.events.AddObject, self.cs.csc.events.AddSetObject):
-            event.get_logs.assert_called_once_with(
-                from_block=2, to_block=2, argument_filters={}
-            )
+        for stream in (self.cs.raw_logs.AddObject, self.cs.raw_logs.AddSetObject):
+            stream.assert_called_once_with(from_block=2, to_block=2)
         self.assertEqual(self.node.find_user_objects_page("alice", limit=0).total, 5)
         fresh.sync_index()
         self.assertEqual(fresh.find_user_objects_page("alice", limit=0).total, 4)
 
     def test_failed_sync_does_not_publish_or_duplicate_partial_ranges(self):
         """Resume complete ranges without exposing one source or half a batch."""
-        logs = self.cs.csc.events.AddSetObject.get_logs
+        logs = self.cs.raw_logs.AddSetObject
         good = logs.side_effect
         logs.side_effect = ValueError("interrupted")
         with self.assertRaisesRegex(ValueError, "interrupted"):
@@ -178,7 +253,7 @@ class TestSessionPages(unittest.TestCase):
         self.other.reset_mock()
         logs.side_effect = good
         self.node.sync_index()
-        self.other.csc.events.AddObject.get_logs.assert_not_called()
+        self.other.raw_logs.AddObject.assert_not_called()
         self.assertEqual(self.node.find_user_objects_page("alice", limit=0).total, 4)
         self.blocks.append([("alice", "aa", "03", "aa")])
         logs.side_effect = ValueError("second interruption")
@@ -222,7 +297,7 @@ class TestSessionPages(unittest.TestCase):
         self.cs.w3.eth.get_block.side_effect = lambda _: {"number": 2, "hash": b"fork"}
         with self.assertRaisesRegex(RuntimeError, "checkpoint"):
             self.node.sync_index()
-        self.cs.csc.events.AddObject.get_logs.assert_not_called()
+        self.cs.raw_logs.AddObject.assert_not_called()
         self.cs.w3.eth.get_block.side_effect = original_header
         with self.assertRaisesRegex(RuntimeError, "new indexing session"):
             self.node.sync_index()
@@ -288,7 +363,7 @@ class TestSessionPages(unittest.TestCase):
                 node = Web3HTTPIndexingService([cs])
                 node.sync_index()
                 blocks.append([("alice", "bb", "02", "ee")])
-                logs = getattr(cs.csc.events, event_type).get_logs
+                logs = getattr(cs.raw_logs, event_type)
                 logs.side_effect = lambda original=logs.side_effect, **kw: [
                     e | {"blockHash": b"other"} for e in original(**kw)
                 ]
@@ -315,14 +390,30 @@ class TestSessionPages(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "session"):
             self.node.find_user_set_cids("alice", limit=0)
 
+    def test_parent_of_cached_range_end_must_match_cached_log_block(self):
+        """Reject contradictory adjacent headers without walking the batch."""
+        self.blocks.append([])
+        header = self.cs.w3.eth.get_block.side_effect
+        self.cs.w3.eth.get_block.side_effect = lambda tag: (
+            header(tag) | {"parentHash": b"other"} if tag == 2 else header(tag)
+        )
+        with self.assertRaisesRegex(RuntimeError, "history"):
+            self.node.sync_index()
+        for read in (self.node.find_user_set_cids, self.node.find_user_objects_page):
+            with self.assertRaisesRegex(RuntimeError, "Invalid Web3 history"):
+                read("alice", limit=1)
+        self.assertNotIn(
+            0, [args[0] for args, _ in self.cs.w3.eth.get_block.call_args_list]
+        )
+
     def test_sparse_history_keeps_range_queries_and_bounded_header_reads(self):
         """Do not walk every empty block just to check a provider's range result."""
         cs = _source(1, [[] for _ in range(101)])
         node = Web3HTTPIndexingService([cs])
         node.sync_index(block_batch_size=32)
         expected = [(0, 31), (32, 63), (64, 95), (96, 100)]
-        for stream in (cs.csc.events.AddObject, cs.csc.events.AddSetObject):
-            calls = stream.get_logs.call_args_list
+        for stream in (cs.raw_logs.AddObject, cs.raw_logs.AddSetObject):
+            calls = stream.call_args_list
             self.assertEqual(len(calls), len(expected))
             self.assertEqual(
                 [(c.kwargs["from_block"], c.kwargs["to_block"]) for c in calls],
@@ -343,7 +434,7 @@ class TestSessionPages(unittest.TestCase):
             )
             return []
 
-        self.cs.csc.events.AddSetObject.get_logs.side_effect = switch
+        self.cs.raw_logs.AddSetObject.side_effect = switch
         with self.assertRaisesRegex(RuntimeError, "history"):
             self.node.sync_index()
         with self.assertRaisesRegex(RuntimeError, "session"):
@@ -355,7 +446,7 @@ class TestSessionPages(unittest.TestCase):
             with self.subTest(corrupt=corrupt):
                 cs = _source(1, [[("alice", "aa", "01", "ff")]])
                 node = Web3HTTPIndexingService([cs])
-                logs = cs.csc.events.AddObject.get_logs
+                logs = cs.raw_logs.AddObject
                 logs.side_effect = (
                     lambda original=logs.side_effect, fn=corrupt, **kw: fn(
                         original(**kw)[0]

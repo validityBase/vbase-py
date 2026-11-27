@@ -33,9 +33,10 @@ failover indexing services.
 
 SQL pages use the event tables. Web3 builds its two views in one session and
 publishes them together so a partial sync cannot expose mismatched results.
-Range queries avoid walking every block header: boundary and returned-log
-checks detect conflicting history, but cannot detect an omitted log. A
-confirmed conflict invalidates both views; an ordinary outage does not.
+Range queries reject removed logs before ABI decoding and check parent hashes
+between adjacent headers already fetched. They do not walk every block or
+detect omitted logs. A confirmed conflict invalidates both views; an ordinary
+outage does not.
 Failover pins each paged method to one backend because an offset from one
 ordered dataset has no meaning in another.
 

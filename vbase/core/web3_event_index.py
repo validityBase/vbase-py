@@ -48,30 +48,34 @@ def _range_logs(
 ) -> Iterator[tuple[str, dict, int]]:
     """Check returned logs; completeness of range responses is a provider guarantee."""
     seen: set[tuple[int, int]] = set()
-    contract = cs.commitment_service_address.lower()
+    contract = cs.csc.address
     for name in ("AddObject", "AddSetObject"):
-        for event in fetch(
-            getattr(cs.csc.events, name),
-            from_block=start,
-            to_block=end,
-            argument_filters={},
-        ):
-            number = event["blockNumber"]
-            identity = (number, event["logIndex"])
+        decoder = getattr(cs.csc.events, name)
+        params = {
+            "address": contract,
+            "topics": [decoder.topic],
+            "fromBlock": start,
+            "toBlock": end,
+        }
+        for raw in fetch(cs.w3.eth.get_logs, filter_params=params):
+            # ContractEvent.get_logs() drops the provider's removal flag during ABI decoding.
+            if raw.get("removed"):
+                raise _HistoryMismatch("Removed log in finalized block history")
+            number = raw["blockNumber"]
+            identity = (number, raw["logIndex"])
             if (
                 not start <= number <= end
-                or event["address"].lower() != contract
-                or event.get("removed")
+                or raw["address"].lower() != contract.lower()
                 or identity in seen
             ):
                 raise _HistoryMismatch("Log does not match finalized block history")
             if number not in headers:
                 headers[number] = cs.w3.eth.get_block(number)
             header = headers[number]
-            if header["number"] != number or event["blockHash"] != header["hash"]:
+            if header["number"] != number or raw["blockHash"] != header["hash"]:
                 raise _HistoryMismatch("Log does not match finalized block history")
             seen.add(identity)
-            yield name, event, header["timestamp"]
+            yield name, decoder.process_log(raw), header["timestamp"]
 
 
 class Web3EventIndex:
@@ -121,8 +125,7 @@ class Web3EventIndex:
         with self._sync_lock:
             self._check_valid()
             sources = {
-                (cs.w3.eth.chain_id, cs.commitment_service_address.lower()): cs
-                for cs in services
+                (cs.w3.eth.chain_id, cs.csc.address.lower()): cs for cs in services
             }
             if self._session.ranges and self._session.ranges.keys() != sources.keys():
                 self._invalid = True
@@ -213,6 +216,12 @@ class Web3EventIndex:
                         "timestamp": cs.convert_timestamp_chain_to_str(timestamp),
                     }
                 )
+        if any(
+            child["parentHash"] != headers[number - 1]["hash"]
+            for number, child in headers.items()
+            if number - 1 in headers
+        ):
+            raise _HistoryMismatch("Adjacent headers disagree on finalized history")
         if (
             previous.end >= 0
             and get_block(previous.end)["hash"] != previous.block_hash

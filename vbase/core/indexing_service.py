@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from abc import ABC
+from collections.abc import Callable
 from typing import List, Optional, Union, cast
 
 from dotenv import load_dotenv
@@ -270,7 +271,7 @@ class Web3HTTPIndexingService(IndexingService):
     def sync_index(self, *, block_batch_size: int = 1000) -> None:
         """Sync finalized object commitments and set CIDs into this session, not during reads."""
         self._event_index.sync(
-            self.commitment_services, self._get_event_logs, block_batch_size
+            self.commitment_services, self._retry_log_request, block_batch_size
         )
 
     def _find_user_set_cids(
@@ -368,13 +369,18 @@ class Web3HTTPIndexingService(IndexingService):
         kinds of errors, so the error raised after the last retry does not
         show URL credentials.
         """
-        return retry_call(
+        return self._retry_log_request(
             event.get_logs,
-            fkwargs={
-                "argument_filters": argument_filters,
-                "from_block": from_block,
-                "to_block": to_block,
-            },
+            argument_filters=argument_filters,
+            from_block=from_block,
+            to_block=to_block,
+        )
+
+    def _retry_log_request(self, request: Callable, **kwargs) -> list:
+        """Use the same RPC retry policy for raw and ABI-decoded log requests."""
+        return retry_call(
+            request,
+            fkwargs=kwargs,
             exceptions=(OSError, Web3RPCError),
             tries=self.RETRY_TRIES,
             delay=self.RETRY_DELAY,
