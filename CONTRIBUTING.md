@@ -60,11 +60,19 @@ pylint vbase/
 Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
-to validityBase members. Log in to GHCR with a token that can read packages,
-then start the service and run the tests:
+to validityBase members. Before you start it, stop any other local node that
+uses port 8545. On Windows, run the commands below in Git Bash, after
+`source venv/Scripts/activate` and `export PYTHON_BIN=python`, because the
+virtual environment has `python` but not `python3`. Log in to GHCR with a
+token that can read packages:
 
 ```bash
 docker login ghcr.io
+```
+
+Then start the service and run the tests:
+
+```bash
 docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest &&
   bash vbase/tests/scripts/run_tests_localhost.sh
 ```
@@ -82,16 +90,13 @@ docker stop vbase-py-commitment-service
 ```
 
 The port is bound to `127.0.0.1`, which is the address used by
-`config/.env.localhost`. Port 8545 must be free, so stop any other local node
-that uses it first. Otherwise `docker run` fails, or, with some engines such
-as Colima, the container starts but the test script reaches the other node.
-The script then stops after 60 seconds because that node has no code at the
-contract's address, or, if it has a contract there, runs the tests against
-it. `--pull always` replaces a cached `latest` image with the current one. On
-Windows, run the commands in Git Bash after `source venv/Scripts/activate`
-and `export PYTHON_BIN=python`, because the virtual environment has `python`
-but not `python3`. The "Run Localhost Tests" workflow runs these tests on
-every pull request.
+`config/.env.localhost`. If another node already uses port 8545, `docker run`
+fails, or, with some engines such as Colima, the container starts but the
+test script reaches the other node. The script then stops after 60 seconds
+because that node has no code at the contract's address, or, if it has a
+contract there, runs the tests against it. `--pull always` replaces a cached
+`latest` image with the current one. The "Run Localhost Tests" workflow runs
+these tests on every pull request.
 
 Alternatively, with authorized access to the public development forwarder and
 `VBASE_API_KEY` and `VBASE_TEST_INDEXING_NODE_RPC_URL` set privately in your
