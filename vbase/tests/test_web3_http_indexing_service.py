@@ -2,6 +2,7 @@
 
 # pylint: disable=protected-access
 
+import functools
 import io
 import json
 import unittest
@@ -170,9 +171,16 @@ class TestIndexingRequestsThroughTheProvider(unittest.TestCase):
     def test_chain_id_and_start_block(self):
         """eth_chainId for receipts, and eth_blockNumber for the start block."""
         self.answer_chain_id = False
-        self._assert_attempts(
-            "eth_chainId", lambda: self.indexer._get_chain_id(self.cs)
-        )
+        # Each receipt builder reads the chain ID before it reads any event.
+        for build in (
+            self.indexer._process_add_set_events,
+            self.indexer._process_add_object_events,
+            self.indexer._process_add_set_object_events,
+        ):
+            with self.subTest(build=build.__name__):
+                self._assert_attempts(
+                    "eth_chainId", functools.partial(build, self.cs, [])
+                )
         self.indexer.n_last_blocks = 10
         self._assert_attempts(
             "eth_blockNumber", lambda: self.indexer._get_from_block(self.cs)
