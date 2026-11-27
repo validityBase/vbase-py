@@ -61,11 +61,10 @@ Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
 to validityBase members. Before you start it, stop any other local node that
-uses port 8545. If that node is another checkout's
-`vbase-py-commitment-service` container, wait until that checkout's tests
-finish instead. On Windows, run the commands below in Git Bash, after
-`source venv/Scripts/activate` and `export PYTHON_BIN=python`, because the
-virtual environment has `python` but not `python3`. Log in to GHCR with a
+uses port 8545. If another checkout started that node, wait until that
+checkout stops it instead. On Windows, run the commands below in Git Bash,
+after `source venv/Scripts/activate` and `export PYTHON_BIN=python`, because
+the virtual environment has `python` but not `python3`. Log in to GHCR with a
 token that can read packages:
 
 ```bash
@@ -82,10 +81,10 @@ docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitme
 The tests run only if the container starts. The container deploys the
 commitment contract after it starts, and the test script waits up to 60
 seconds for the contract. If `docker run` reports that the container name is
-in use, an earlier run's container is still running; unless another
-checkout's tests are using it, stop it and run the commands again. When you
-are done, stop the container that your `docker run` started. Because of
-`--rm`, stopping it also removes it:
+in use, an earlier run's container is still running. If another checkout
+started it, wait until that checkout stops it; otherwise, stop it. Then run
+the commands again. When you are done, stop the container that your
+`docker run` started. Because of `--rm`, stopping it also removes it:
 
 ```bash
 docker stop vbase-py-commitment-service
