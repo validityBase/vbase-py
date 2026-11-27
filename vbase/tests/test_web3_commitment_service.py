@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock, call, patch
 
 from vbase.core.forwarder_commitment_service import ForwarderCommitmentService
+from vbase.core.web3_http_commitment_service import Web3HTTPCommitmentService
 
 
 class TestWeb3CommitmentService(unittest.TestCase):
@@ -138,7 +139,8 @@ class TestWeb3CommitmentService(unittest.TestCase):
 
                 with self.assertRaisesRegex(
                     RuntimeError,
-                    f"Expected 2 AddObject events in receipt, found {n_events}",
+                    f"Expected 2 AddObject events in receipt 0xtransaction, "
+                    f"found {n_events}. The commitment call may have reverted",
                 ):
                     self.service._add_sets_objects_batch_worker(self.receipt, 2)
 
@@ -155,6 +157,19 @@ class TestWeb3CommitmentService(unittest.TestCase):
             self.service.add_sets_objects_batch(
                 [self.set_cid, self.set_cid], ["0x" + "0a" * 32, "0x" + "0b" * 32]
             )
+
+    def test_empty_batch_sends_no_transaction(self):
+        """An empty batch returns an empty list without a transaction."""
+        direct = object.__new__(Web3HTTPCommitmentService)
+        direct.csc = MagicMock()
+        self.service._post_execute = MagicMock()
+        for service in (self.service, direct):
+            with self.subTest(service=type(service).__name__):
+                self.assertEqual(service.add_set_objects_batch(self.set_cid, []), [])
+                self.assertEqual(service.add_sets_objects_batch([], []), [])
+        self.service._post_execute.assert_not_called()
+        direct.csc.functions.addSetObjectsBatch.assert_not_called()
+        direct.csc.functions.addSetsObjectsBatch.assert_not_called()
 
 
 if __name__ == "__main__":

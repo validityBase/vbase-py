@@ -168,7 +168,11 @@ class CommitmentService(ABC):
 
         :param set_cids: The hashes of the sets containing the objects.
         :param object_cids: The hashes to record.
-        :return: The commitment logs containing commitment receipts.
+        :return: The commitment logs containing commitment receipts, one per
+            object. An empty batch returns an empty list without sending a
+            transaction.
+        :raises RuntimeError: If the transaction receipt does not have one
+            AddObject event per object.
         """
 
     @abstractmethod
@@ -180,7 +184,11 @@ class CommitmentService(ABC):
 
         :param set_cid: The CID of the set containing the objects.
         :param object_cids: The hashes to record.
-        :return: The commitment logs containing commitment receipts.
+        :return: The commitment logs containing commitment receipts, one per
+            object. An empty batch returns an empty list without sending a
+            transaction.
+        :raises RuntimeError: If the transaction receipt does not have one
+            AddObject event per object.
         """
 
     @abstractmethod

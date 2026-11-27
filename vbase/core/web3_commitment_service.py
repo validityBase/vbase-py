@@ -21,7 +21,11 @@ from web3.contract.base_contract import EventLogErrorFlags
 from web3.types import TxReceipt
 
 from vbase.core.commitment_service import CommitmentService
-from vbase.utils.crypto_utils import bytes_to_hex_str, hash_typed_values
+from vbase.utils.crypto_utils import (
+    bytes_to_hex_str,
+    bytes_to_hex_str_auto,
+    hash_typed_values,
+)
 from vbase.utils.log import RedactUrlsFilter, get_default_logger
 
 _LOG = get_default_logger(__name__)
@@ -201,7 +205,10 @@ class Web3CommitmentService(CommitmentService, ABC):
             receipt, errors=EventLogErrorFlags.Discard
         )
         if not add_object_events:
-            raise RuntimeError("AddObject event not found in receipt")
+            raise RuntimeError(
+                "AddObject event not found in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}"
+            )
         # process_receipt() returns EventData (AttributeDict) objects;
         # dict-style ["args"] access always works.
         cl = dict(add_object_events[0]["args"])
@@ -238,7 +245,10 @@ class Web3CommitmentService(CommitmentService, ABC):
             receipt, errors=EventLogErrorFlags.Discard
         )
         if not add_set_object_events or not add_object_events:
-            raise RuntimeError("AddSetObject or AddObject event not found in receipt")
+            raise RuntimeError(
+                "AddSetObject or AddObject event not found in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}"
+            )
         # process_receipt() returns EventData (AttributeDict) objects;
         # dict-style ["args"] access always works.
         add_set_args = add_set_object_events[0]["args"]
@@ -267,7 +277,8 @@ class Web3CommitmentService(CommitmentService, ABC):
         addSetsObjectsBatch or addSetObjectsBatch, from its AddObject events.
 
         :param receipt: The transaction receipt.
-        :param n_objects: The number of objects that the transaction committed.
+        :param n_objects: The number of objects that the transaction was sent
+            to commit.
         :return: The list of commitment log containing commitment receipts.
         :raises RuntimeError: If the receipt does not have one AddObject event
             per object.
@@ -280,13 +291,17 @@ class Web3CommitmentService(CommitmentService, ABC):
         add_object_events = self.csc.events.AddObject().process_receipt(
             receipt, errors=EventLogErrorFlags.Discard
         )
-        # A successful transaction emits every event, so a different count
-        # means that the receipt does not show the commitments. The count
-        # also tells an empty batch from missing events.
+        # A different count means that not every object was committed. The
+        # transaction of a forwarded call succeeds even when the commitment
+        # call reverts, for example for a set that the user has not added, so
+        # the events are the evidence. The count also tells an empty batch
+        # from missing events.
         if len(add_object_events) != n_objects:
             raise RuntimeError(
-                f"Expected {n_objects} AddObject events in receipt, "
-                f"found {len(add_object_events)}"
+                f"Expected {n_objects} AddObject events in receipt "
+                f"{bytes_to_hex_str_auto(receipt['transactionHash'])}, found "
+                f"{len(add_object_events)}. The commitment call may have "
+                "reverted, for example for a set that the user has not added."
             )
         # Hoist constants that are the same for every item in the batch.
         tx_hash = receipt["transactionHash"]
