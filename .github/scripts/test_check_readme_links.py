@@ -58,6 +58,25 @@ class ReadmeLinksTest(unittest.TestCase):
             ],
         )
 
+    def test_tag_filter_names(self):
+        """Escape every tag name in GitHub Flavored Markdown's filter."""
+        names = [
+            "title",
+            "textarea",
+            "style",
+            "xmp",
+            "iframe",
+            "noembed",
+            "noframes",
+            "script",
+            "plaintext",
+        ]
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    _GFM_FILTERED_TAG.sub("&lt;", f"<{name}>"), f"&lt;{name}>"
+                )
+
     def test_link_after_rejected_reference_definition(self):
         """Check the paragraph after a javascript: reference definition."""
         markdown = (
