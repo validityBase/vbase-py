@@ -46,13 +46,25 @@ class ReadmeLinksTest(unittest.TestCase):
 
     def test_tag_filter_matches_gfm(self):
         """Escape a tag only where GitHub Flavored Markdown's filter does."""
-        tags = ["<script>", "</TITLE >", "<style/>", "<script\f>", "<scr\u0131pt>"]
+        tags = [
+            "<script>",
+            "</TITLE >",
+            "<style/>",
+            "<script\t>",
+            "<script\n>",
+            "<script\r>",
+            "<script\f>",
+            "<scr\u0131pt>",
+        ]
         self.assertEqual(
             [_GFM_FILTERED_TAG.sub("&lt;", tag) for tag in tags],
             [
                 "&lt;script>",
                 "&lt;/TITLE >",
                 "&lt;style/>",
+                "&lt;script\t>",
+                "&lt;script\n>",
+                "&lt;script\r>",
                 "<script\f>",
                 "<scr\u0131pt>",
             ],
@@ -76,6 +88,8 @@ class ReadmeLinksTest(unittest.TestCase):
                 self.assertEqual(
                     _GFM_FILTERED_TAG.sub("&lt;", f"<{name}>"), f"&lt;{name}>"
                 )
+                markdown = f"Use <{name}> or <{name}>.\n\n[Guide](docs/guide.md)\n"
+                self.assertEqual(invalid_destinations(markdown), ["docs/guide.md"])
 
     def test_link_after_rejected_reference_definition(self):
         """Check the paragraph after a javascript: reference definition."""
