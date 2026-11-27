@@ -61,12 +61,13 @@ Tests use `unittest` and require a commitment service on a local test chain,
 packaged as the Docker image
 `ghcr.io/validitybase/commitment-service-localhost`. The image is available
 to validityBase members. Before you start it, make sure that no other local
-node uses port 8545. Stop such a node only when no tests are using it and no
-other checkout or session will stop it later; otherwise, wait until it is
-stopped, or ask whoever started it. On Windows, run the commands below in Git
-Bash, after `source venv/Scripts/activate` and `export PYTHON_BIN=python`,
-because the virtual environment has `python` but not `python3`. Log in to
-GHCR with a token that can read packages:
+node uses port 8545. Stop such a node only when nothing, such as tests or a
+local forwarder, is using it and no other checkout or session will stop it
+later; otherwise, wait and check again, or ask whoever started it. On
+Windows, run the commands below in Git Bash, after
+`source venv/Scripts/activate` and `export PYTHON_BIN=python`, because the
+virtual environment has `python` but not `python3`. Log in to GHCR with a
+token that can read packages:
 
 ```bash
 docker login ghcr.io
@@ -82,13 +83,13 @@ docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitme
 The tests run only if the container starts. The container deploys the
 commitment contract after it starts, and the test script waits up to 60
 seconds for the contract. If `docker run` reports that the container name is
-in use, a container from an earlier run still has that name. Stop it only
-when no tests are using it and no other checkout or session will stop it
-later, because a later `docker stop` from that checkout or session would stop
-your container instead. Otherwise, wait until it is stopped, or ask whoever
-started it. Then run the commands again. When you are done and no tests are
-using your container, stop it. Because of `--rm`, stopping it also removes
-it:
+in use, a container from an earlier run still has that name. Stop that
+container only when nothing is using it and no other checkout or session
+will stop it later, since such a later `docker stop` would stop your new
+container instead. Otherwise, wait and check again, or ask whoever started
+the old container. Once it is stopped, run the commands again. When you are
+done and nothing is using the container that your `docker run` started, stop
+it. Because of `--rm`, stopping it also removes it:
 
 ```bash
 docker stop vbase-py-commitment-service
