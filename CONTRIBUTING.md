@@ -65,13 +65,15 @@ then start the service and run the tests:
 
 ```bash
 docker login ghcr.io
-docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest
-bash vbase/tests/scripts/run_tests_localhost.sh
+docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitment-service ghcr.io/validitybase/commitment-service-localhost:latest \
+  && bash vbase/tests/scripts/run_tests_localhost.sh
 docker stop vbase-py-commitment-service
 ```
 
 The port is bound to `127.0.0.1`, which is the address used by
-`config/.env.localhost`. `--pull always` replaces a cached `latest` image with
+`config/.env.localhost`. Port 8545 must be free: if another local node
+already uses it, `docker run` fails, and `&&` keeps the tests from running
+against that node. `--pull always` replaces a cached `latest` image with
 the current one, and `--rm` removes the container when it stops, so you can
 run the commands again. The container name is specific to this repository, so
 `docker stop` does not stop a container that another setup started. The
