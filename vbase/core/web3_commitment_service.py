@@ -43,6 +43,14 @@ class Web3CommitmentService(CommitmentService, ABC):
     RETRY_DELAY = 1
     RETRY_BACKOFF = 2
 
+    # The likely cause of a successful batch receipt without AddObject events.
+    # A reverted call fails before the receipt here, so the address may not
+    # hold the contract.
+    _NO_EVENTS_HINT = (
+        "The commitment service address may not hold the commitment contract "
+        "on this network."
+    )
+
     def __init__(
         self, w3: Web3, commitment_service_contract: Union[Type[Contract], Contract]
     ):
@@ -124,7 +132,7 @@ class Web3CommitmentService(CommitmentService, ABC):
         if set_cids is not None and len(set_cids) != len(object_cids):
             # The contract rejects this with InvalidBatch.
             raise ValueError("set_cids and object_cids must have the same length.")
-        return not object_cids
+        return len(object_cids) == 0
 
     @staticmethod
     def _check_tx_success(receipt):
@@ -316,13 +324,8 @@ class Web3CommitmentService(CommitmentService, ABC):
                 f"{bytes_to_hex_str_auto(receipt['transactionHash'])}, found "
                 f"{len(add_object_events)}."
             )
-            # A revert discards all of a call's events. The transaction of a
-            # forwarded call succeeds even when the commitment call reverts.
             if not add_object_events:
-                message += (
-                    " A forwarded commitment call may have reverted, for"
-                    " example for a set that the user has not added."
-                )
+                message += " " + self._NO_EVENTS_HINT
             raise RuntimeError(message)
         # Hoist constants that are the same for every item in the batch.
         tx_hash = receipt["transactionHash"]

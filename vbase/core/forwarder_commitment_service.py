@@ -79,6 +79,13 @@ class RequestType(Enum):
 class ForwarderCommitmentService(Web3CommitmentService):
     """Commitment service accessible using a forwarder API endpoint."""
 
+    # A revert discards all of a call's events, and the forwarder's execute
+    # transaction succeeds even when the commitment call reverts.
+    _NO_EVENTS_HINT = (
+        "The forwarded commitment call may have reverted, for example for a "
+        "set that the user has not added."
+    )
+
     # pylint: disable-msg=too-many-arguments
     def __init__(
         self,

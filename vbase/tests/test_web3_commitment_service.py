@@ -133,7 +133,7 @@ class TestWeb3CommitmentService(unittest.TestCase):
 
     def test_batch_rejects_event_count_mismatch(self):
         """Missing or extra AddObject events raise instead of partial receipts."""
-        hint = "A forwarded commitment call may have reverted"
+        hint = ForwarderCommitmentService._NO_EVENTS_HINT
         for n_events in (0, 1, 3):
             with self.subTest(n_events=n_events):
                 self._set_add_object_events(n_events)
@@ -147,6 +147,26 @@ class TestWeb3CommitmentService(unittest.TestCase):
                 # A revert discards all of a call's events, so only a receipt
                 # without any of them can come from a reverted call.
                 self.assertEqual(hint in str(raised.exception), n_events == 0)
+
+    def test_batch_without_events_hints_at_the_likely_cause(self):
+        """Each service names the likely cause of a receipt without events."""
+        direct = object.__new__(Web3HTTPCommitmentService)
+        direct.csc = self.service.csc
+        self._set_add_object_events(0)
+        for service, cause in (
+            (self.service, "forwarded commitment call may have reverted"),
+            (direct, "address may not hold the commitment contract"),
+        ):
+            with self.subTest(service=type(service).__name__):
+                with self.assertRaisesRegex(RuntimeError, cause):
+                    service._add_sets_objects_batch_worker(self.receipt, 2)
+
+    def test_batch_rejects_missing_object_list(self):
+        """None is not an empty batch."""
+        self.service._post_execute = MagicMock()
+        with self.assertRaises(TypeError):
+            self.service.add_set_objects_batch(self.set_cid, None)
+        self.service._post_execute.assert_not_called()
 
     def test_batch_commitment_checks_submitted_object_count(self):
         """The batch methods pass the number of objects they committed."""
