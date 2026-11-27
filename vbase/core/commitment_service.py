@@ -171,6 +171,7 @@ class CommitmentService(ABC):
         :return: The commitment logs containing commitment receipts, one per
             object. An empty batch returns an empty list without sending a
             transaction.
+        :raises ValueError: If set_cids and object_cids differ in length.
         :raises RuntimeError: If the transaction receipt does not have one
             AddObject event per object.
         """

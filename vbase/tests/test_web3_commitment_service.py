@@ -133,6 +133,7 @@ class TestWeb3CommitmentService(unittest.TestCase):
 
     def test_batch_rejects_event_count_mismatch(self):
         """Missing or extra AddObject events raise instead of partial receipts."""
+        hint = "A forwarded commitment call may have reverted"
         for n_events in (0, 1, 3):
             with self.subTest(n_events=n_events):
                 self._set_add_object_events(n_events)
@@ -140,9 +141,12 @@ class TestWeb3CommitmentService(unittest.TestCase):
                 with self.assertRaisesRegex(
                     RuntimeError,
                     f"Expected 2 AddObject events in receipt 0xtransaction, "
-                    f"found {n_events}. The commitment call may have reverted",
-                ):
+                    f"found {n_events}\\.",
+                ) as raised:
                     self.service._add_sets_objects_batch_worker(self.receipt, 2)
+                # A revert discards all of a call's events, so only a receipt
+                # without any of them can come from a reverted call.
+                self.assertEqual(hint in str(raised.exception), n_events == 0)
 
     def test_batch_commitment_checks_submitted_object_count(self):
         """The batch methods pass the number of objects they committed."""
@@ -169,6 +173,22 @@ class TestWeb3CommitmentService(unittest.TestCase):
                 self.assertEqual(service.add_sets_objects_batch([], []), [])
         self.service._post_execute.assert_not_called()
         direct.csc.functions.addSetObjectsBatch.assert_not_called()
+        direct.csc.functions.addSetsObjectsBatch.assert_not_called()
+
+    def test_batch_rejects_set_and_object_count_mismatch(self):
+        """Set and object lists of different lengths raise before a transaction."""
+        direct = object.__new__(Web3HTTPCommitmentService)
+        direct.csc = MagicMock()
+        self.service._post_execute = MagicMock()
+        for service in (self.service, direct):
+            for set_cids, object_cids in (
+                ([self.set_cid], []),
+                ([], ["0x" + "0a" * 32]),
+            ):
+                with self.subTest(service=type(service).__name__, sets=len(set_cids)):
+                    with self.assertRaisesRegex(ValueError, "same length"):
+                        service.add_sets_objects_batch(set_cids, object_cids)
+        self.service._post_execute.assert_not_called()
         direct.csc.functions.addSetsObjectsBatch.assert_not_called()
 
 

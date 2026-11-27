@@ -110,6 +110,23 @@ class Web3CommitmentService(CommitmentService, ABC):
         cl["chainId"] = self._get_chain_id()
 
     @staticmethod
+    def _is_empty_batch(
+        object_cids: List[str], set_cids: Optional[List[str]] = None
+    ) -> bool:
+        """Check the arguments of a batch commitment before it is sent.
+
+        :param object_cids: The CIDs of the objects to commit.
+        :param set_cids: For a batch over several sets, the set of each object.
+        :return: True if the batch has no objects. It commits nothing, so the
+            batch methods return an empty list without sending a transaction.
+        :raises ValueError: If set_cids and object_cids differ in length.
+        """
+        if set_cids is not None and len(set_cids) != len(object_cids):
+            # The contract rejects this with InvalidBatch.
+            raise ValueError("set_cids and object_cids must have the same length.")
+        return not object_cids
+
+    @staticmethod
     def _check_tx_success(receipt):
         if receipt is None:
             msg = "Transaction failed with receipt = None"
@@ -292,17 +309,21 @@ class Web3CommitmentService(CommitmentService, ABC):
             receipt, errors=EventLogErrorFlags.Discard
         )
         # A different count means that not every object was committed. The
-        # transaction of a forwarded call succeeds even when the commitment
-        # call reverts, for example for a set that the user has not added, so
-        # the events are the evidence. The count also tells an empty batch
-        # from missing events.
+        # count also tells an empty batch from missing events.
         if len(add_object_events) != n_objects:
-            raise RuntimeError(
+            message = (
                 f"Expected {n_objects} AddObject events in receipt "
                 f"{bytes_to_hex_str_auto(receipt['transactionHash'])}, found "
-                f"{len(add_object_events)}. The commitment call may have "
-                "reverted, for example for a set that the user has not added."
+                f"{len(add_object_events)}."
             )
+            # A revert discards all of a call's events. The transaction of a
+            # forwarded call succeeds even when the commitment call reverts.
+            if not add_object_events:
+                message += (
+                    " A forwarded commitment call may have reverted, for"
+                    " example for a set that the user has not added."
+                )
+            raise RuntimeError(message)
         # Hoist constants that are the same for every item in the batch.
         tx_hash = receipt["transactionHash"]
         chain_id = self._get_chain_id()

@@ -40,7 +40,8 @@ for prior changes.
   `AddObject` event per object, for example because a forwarded commitment
   call reverted. Before, the call returned fewer commitment receipts, or none,
   without an error. An empty batch now returns an empty list without sending a
-  transaction.
+  transaction, and `add_sets_objects_batch()` raises `ValueError` before
+  sending one when `set_cids` and `object_cids` differ in length.
 
 ### Removed
 

@@ -517,8 +517,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
     def add_sets_objects_batch(
         self, set_cids: List[str], object_cids: List[str]
     ) -> List[dict]:
-        if not object_cids:
-            # An empty batch commits nothing, so it sends no transaction.
+        if self._is_empty_batch(object_cids, set_cids):
             return []
         _LOG.debug("Sending transaction to addSetsObjectsBatch")
         receipt = self._post_execute(
@@ -528,8 +527,7 @@ class ForwarderCommitmentService(Web3CommitmentService):
         return self._add_sets_objects_batch_worker(receipt, len(object_cids))
 
     def add_set_objects_batch(self, set_cid: str, object_cids: List[str]) -> List[dict]:
-        if not object_cids:
-            # An empty batch commits nothing, so it sends no transaction.
+        if self._is_empty_batch(object_cids):
             return []
         _LOG.debug("Sending transaction to addSetObjectsBatch")
         receipt = self._post_execute(
