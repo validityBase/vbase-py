@@ -44,8 +44,8 @@ class Web3CommitmentService(CommitmentService, ABC):
     RETRY_BACKOFF = 2
 
     # The likely cause of a successful batch receipt without AddObject events.
-    # A reverted call fails before the receipt here, so the address may not
-    # hold the contract.
+    # A reverted call fails at gas estimation or at the receipt status check,
+    # before the events are counted, so the address may not hold the contract.
     _NO_EVENTS_HINT = (
         "The commitment service address may not hold the commitment contract "
         "on this network."
