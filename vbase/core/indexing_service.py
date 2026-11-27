@@ -223,7 +223,7 @@ class Web3HTTPIndexingService(IndexingService):
     Wraps RPC node event indexing to support commitment indexing operations.
     """
 
-    # Retry configuration for event fetching
+    # Retry settings for the indexing service's node requests; see _retry_node_call().
     RETRY_TRIES = 5
     RETRY_DELAY = 2
     RETRY_BACKOFF = 2
@@ -279,7 +279,7 @@ class Web3HTTPIndexingService(IndexingService):
         # We may have multiple commitment services
         # connected to different chains and clients may not be able to uniquely
         # identify transactions without the chain_id.
-        chain_id = cs.w3.eth.chain_id
+        chain_id = self._get_chain_id(cs)
         # AddSet events have no timestamp, so read it from each event's block.
         # Several events can share a block; read each block once.
         block_timestamps: dict = {}
@@ -308,8 +308,10 @@ class Web3HTTPIndexingService(IndexingService):
         """Call a node function, retrying failed requests with backoff.
 
         Transport errors (requests exceptions are OSErrors) and JSON-RPC error
-        responses from the node (Web3RPCError) are retried. Other errors, such
-        as web3 validation errors for invalid arguments, fail immediately.
+        responses from the node (Web3RPCError) are retried. A block that the
+        node does not have yet raises BlockNotFound, a Web3RPCError, so it is
+        retried too. Other errors, such as web3 validation errors for invalid
+        arguments, fail immediately.
         The HTTP provider of Web3HTTPCommitmentService redacts URLs in both
         kinds of errors, so the error raised after the last retry does not
         show URL credentials. The provider sends each request once here
@@ -333,6 +335,10 @@ class Web3HTTPIndexingService(IndexingService):
             logger=_LOG,
         )
 
+    def _get_chain_id(self, cs: Web3HTTPCommitmentService) -> int:
+        """Read the chain ID of a commitment service's node, with retries."""
+        return self._retry_node_call(lambda: cs.w3.eth.chain_id)
+
     def _get_event_logs(
         self, event: ContractEvent, from_block: int, argument_filters: dict
     ) -> List[dict]:
@@ -353,7 +359,9 @@ class Web3HTTPIndexingService(IndexingService):
         """Get the 'from_block' filter for event queries."""
         if self.n_last_blocks is None:
             return 0
-        block_number = commitment_service.w3.eth.block_number
+        block_number = self._retry_node_call(
+            lambda: commitment_service.w3.eth.block_number
+        )
         # Clamp at the genesis block for chains shorter than n_last_blocks.
         return max(0, block_number - self.n_last_blocks)
 
@@ -379,12 +387,11 @@ class Web3HTTPIndexingService(IndexingService):
 
         return receipts
 
-    @staticmethod
     def _process_add_object_events(
-        cs: Web3HTTPCommitmentService, events: List[dict]
+        self, cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
         """A worker function to get AddObject receipts from events."""
-        chain_id = cs.w3.eth.chain_id
+        chain_id = self._get_chain_id(cs)
         cs_receipts = [
             {
                 "chainId": chain_id,
@@ -399,12 +406,11 @@ class Web3HTTPIndexingService(IndexingService):
         ]
         return cs_receipts
 
-    @staticmethod
     def _process_add_set_object_events(
-        cs: Web3HTTPCommitmentService, events: List[dict]
+        self, cs: Web3HTTPCommitmentService, events: List[dict]
     ) -> List[dict]:
         """A worker function to get AddSetObject receipts from events."""
-        chain_id = cs.w3.eth.chain_id
+        chain_id = self._get_chain_id(cs)
         cs_receipts = [
             {
                 "chainId": chain_id,

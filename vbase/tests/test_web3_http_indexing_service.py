@@ -2,13 +2,17 @@
 
 # pylint: disable=protected-access
 
+import io
+import json
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 import requests
 from web3 import Web3
 from web3.exceptions import Web3RPCError
 
+import vbase.core
 from vbase.core.indexing_service import Web3HTTPIndexingService
 from vbase.core.web3_http_commitment_service import (
     Web3HTTPCommitmentService,
@@ -17,6 +21,7 @@ from vbase.core.web3_http_commitment_service import (
 
 _USER = "0x" + "11" * 20
 _TIMESTAMP = 1_700_000_000
+_ABI_PATH = Path(vbase.core.__file__).parent / "abi" / "CommitmentService.json"
 
 
 def _add_set_event(block_number: int, n: int) -> dict:
@@ -93,19 +98,85 @@ class TestFindUserSetsBlockLookups(unittest.TestCase):
         )
         self.assertEqual(receipts[0]["timestamp"], "2023-11-14 22:13:20+00:00")
 
-    @patch("time.sleep")
-    @patch("requests.Session.post")
-    def test_provider_does_not_retry_indexing_requests(self, post_mock, _sleep_mock):
-        """Only the indexing service retries its requests, so attempts do not multiply."""
-        post_mock.side_effect = requests.exceptions.HTTPError("429 Too Many Requests")
-        w3 = Web3(_RedactingHTTPProvider("http://127.0.0.1:9"))
 
+class TestIndexingRequestsThroughTheProvider(unittest.TestCase):
+    """Each SDK attempt of an indexing request sends one HTTP request.
+
+    The node keeps answering HTTP 429. If the provider also retried, each SDK
+    attempt would send several requests, and the counts would multiply.
+    RETRY_TRIES is set to 3, unlike web3's 5 attempts, so that the count
+    also shows which layer retried.
+    """
+
+    def setUp(self):
+        self.methods: list = []
+        self.answer_chain_id = True
+        tries_patcher = patch.object(Web3HTTPIndexingService, "RETRY_TRIES", 3)
+        tries_patcher.start()
+        self.addCleanup(tries_patcher.stop)
+        patcher = patch("requests.Session.post", side_effect=self._post)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sleep_patcher = patch("time.sleep")
+        sleep_patcher.start()
+        self.addCleanup(sleep_patcher.stop)
+        self.cs = MagicMock()
+        self.cs.w3 = Web3(_RedactingHTTPProvider("http://127.0.0.1:9"))
+        self.cs.convert_timestamp_chain_to_str.side_effect = (
+            Web3HTTPCommitmentService.convert_timestamp_chain_to_str
+        )
+        self.indexer = Web3HTTPIndexingService([self.cs])
+
+    def _post(self, *_args, **kwargs) -> requests.Response:
+        """Answer eth_chainId outside its own test; fail every other request."""
+        method = json.loads(kwargs["data"])["method"]
+        self.methods.append(method)
+        if method == "eth_chainId" and self.answer_chain_id:
+            response = requests.Response()
+            response.status_code = 200
+            response._content = b'{"jsonrpc": "2.0", "id": 0, "result": "0x1"}'
+            response.raw = io.BytesIO(b"")
+            return response
+        raise requests.exceptions.HTTPError("429 Too Many Requests")
+
+    def _assert_attempts(self, method: str, request) -> None:
+        self.methods.clear()
         with self.assertRaises(requests.exceptions.HTTPError):
-            Web3HTTPIndexingService([])._retry_node_call(
-                w3.eth.get_block, block_identifier=10
-            )
+            request()
+        self.assertEqual(
+            self.methods.count(method), Web3HTTPIndexingService.RETRY_TRIES
+        )
 
-        self.assertEqual(post_mock.call_count, Web3HTTPIndexingService.RETRY_TRIES)
+    def test_event_query(self):
+        """eth_getLogs for an AddSet event query."""
+        abi = json.loads(_ABI_PATH.read_text(encoding="utf-8"))["abi"]
+        contract = self.cs.w3.eth.contract(address="0x" + "33" * 20, abi=abi)
+        self._assert_attempts(
+            "eth_getLogs",
+            lambda: self.indexer._get_event_logs(
+                contract.events.AddSet, 0, {"user": _USER}
+            ),
+        )
+
+    def test_block_lookup(self):
+        """eth_getBlockByNumber for the timestamp of an AddSet event."""
+        self._assert_attempts(
+            "eth_getBlockByNumber",
+            lambda: self.indexer._process_add_set_events(
+                self.cs, [_add_set_event(10, 1)]
+            ),
+        )
+
+    def test_chain_id_and_start_block(self):
+        """eth_chainId for receipts, and eth_blockNumber for the start block."""
+        self.answer_chain_id = False
+        self._assert_attempts(
+            "eth_chainId", lambda: self.indexer._get_chain_id(self.cs)
+        )
+        self.indexer.n_last_blocks = 10
+        self._assert_attempts(
+            "eth_blockNumber", lambda: self.indexer._get_from_block(self.cs)
+        )
 
 
 if __name__ == "__main__":
