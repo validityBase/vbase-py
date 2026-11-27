@@ -71,20 +71,23 @@ docker run -d --rm --pull always -p 127.0.0.1:8545:8545 --name vbase-py-commitme
 
 The tests run only if the container starts. The container deploys the
 commitment contract after it starts, and the test script waits up to 60
-seconds for the contract. When you are done, stop the container. Because of
+seconds for the contract. If `docker run` reports that the container name is
+in use, an earlier run's container is still running; unless another
+checkout's tests are using it, stop it and run the commands again. When you
+are done, stop the container that your `docker run` started. Because of
 `--rm`, stopping it also removes it:
 
 ```bash
 docker stop vbase-py-commitment-service
 ```
 
-If `docker run` reports that the container name is in use, an earlier run's
-container is still running: stop it, unless another checkout's tests are
-using it. The port is bound to `127.0.0.1`, which is the address used by
+The port is bound to `127.0.0.1`, which is the address used by
 `config/.env.localhost`. Port 8545 must be free, so stop any other local node
 that uses it first. Otherwise `docker run` fails, or, with some engines such
-as Colima, the container starts and the tests run against the other node.
-`--pull always` replaces a cached `latest` image with the current one. On
+as Colima, the container starts but the test script reaches the other node.
+The script then stops after 60 seconds because that node has no code at the
+contract's address, or, if it has a contract there, runs the tests against
+it. `--pull always` replaces a cached `latest` image with the current one. On
 Windows, run the commands in Git Bash after `source venv/Scripts/activate`
 and `export PYTHON_BIN=python`, because the virtual environment has `python`
 but not `python3`. The "Run Localhost Tests" workflow runs these tests on
